@@ -1,4 +1,4 @@
-import 'dart:typed_data'; // Untuk handling file web
+import 'dart:typed_data'; // PENTING: Untuk support Web (Chrome)
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -113,65 +113,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // 2. PARSE SCHEDULE
-  void _parseSchedule(String scheduleString) {
-    if (scheduleString.isEmpty) return;
-    try {
-      final parts = scheduleString.split(': ');
-      if (parts.length == 2) {
-        final daysPart = parts[0];
-        List<String> loadedDays = [];
-
-        // Cek format (range vs comma)
-        if (daysPart == "Setiap Hari") {
-          loadedDays = List.from(DAYS);
-        } else {
-          // Parse manual sederhana (tidak sempurna utk membalikkan "Senin-Jumat",
-          // tapi cukup untuk menangkap hari yang tersimpan jika formatnya list)
-          // Strategi: Reset ke kosong jika format kompleks, user set ulang.
-          // Atau coba split by comma
-          // Disini kita reset saja biar aman saat edit ulang,
-          // atau implementasi parser kompleks (opsional).
-          // Untuk simpelnya: Kita coba split ', '
-          loadedDays = daysPart
-              .split(RegExp(r', | - '))
-              .where((d) => DAYS.contains(d))
-              .toList();
-
-          // Fix logic: Jika string "Senin - Jumat", split di atas dapat Senin & Jumat.
-          // Kita perlu logic fill range.
-          if (daysPart.contains(" - ")) {
-            final range = daysPart.split(" - ");
-            if (range.length == 2) {
-              int start = DAYS.indexOf(range[0]);
-              int end = DAYS.indexOf(range[1]);
-              if (start != -1 && end != -1) {
-                loadedDays = DAYS.sublist(start, end + 1);
-              }
-            }
-          }
-        }
-
-        final timesPart = parts[1].split(' - ');
-        if (timesPart.length == 2) {
-          setState(() {
-            selectedDays = loadedDays;
-            openTime = _stringToTime(timesPart[0]);
-            closeTime = _stringToTime(timesPart[1]);
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint("Jadwal format manual, reset.");
-    }
-  }
-
-  TimeOfDay _stringToTime(String s) {
-    final parts = s.split(':');
-    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-  }
-
-  // 3. UPLOAD FOTO
+  // 2. LOGIKA UPLOAD FOTO
   Future<void> _handleImageUpload() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -186,6 +128,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'profile_photos/${user!.uid}',
       );
       Uint8List imageData = await image.readAsBytes();
+
       await storageRef.putData(
         imageData,
         SettableMetadata(contentType: 'image/jpeg'),
@@ -210,101 +153,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // 4. TOGGLE EDIT
-  void _toggleEdit() {
-    if (!isEditing) {
-      _descController.text = businessProfile['description'];
-      _addressController.text = businessProfile['address'];
-      _phoneController.text = businessProfile['phone'];
-      _emailController.text = businessProfile['email'];
-      _yearController.text = businessProfile['established'];
-      _parseSchedule(businessProfile['openingHours']);
-    }
-    setState(() => isEditing = !isEditing);
-  }
-
-  // 5. JADWAL LOGIC & SMART FORMATTING
-  void _handleDayToggle(String day) {
-    setState(() {
-      if (selectedDays.contains(day)) {
-        selectedDays.remove(day);
-      } else {
-        selectedDays.add(day);
-      }
-      selectedDays.sort((a, b) => DAYS.indexOf(a).compareTo(DAYS.indexOf(b)));
-    });
-  }
-
-  Future<void> _selectTime(bool isOpenTime) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: isOpenTime ? openTime : closeTime,
-    );
-    if (picked != null) {
-      setState(() {
-        if (isOpenTime)
-          openTime = picked;
-        else
-          closeTime = picked;
-      });
-    }
-  }
-
-  // --- LOGIKA UTAMA SMART FORMATTING ---
-  String _generateScheduleString() {
-    if (selectedDays.isEmpty) return "";
-
-    final openStr =
-        "${openTime.hour.toString().padLeft(2, '0')}:${openTime.minute.toString().padLeft(2, '0')}";
-    final closeStr =
-        "${closeTime.hour.toString().padLeft(2, '0')}:${closeTime.minute.toString().padLeft(2, '0')}";
-
-    String dayStr;
-
-    // 1. Pastikan urut
-    List<String> sortedDays = List.from(selectedDays);
-    sortedDays.sort((a, b) => DAYS.indexOf(a).compareTo(DAYS.indexOf(b)));
-
-    if (sortedDays.length == 7) {
-      dayStr = "Setiap Hari";
-    } else {
-      // 2. Logic Clustering (Pengelompokan hari berurutan)
-      List<List<String>> groups = [];
-      if (sortedDays.isNotEmpty) {
-        List<String> currentGroup = [sortedDays[0]];
-
-        for (int i = 1; i < sortedDays.length; i++) {
-          int prevIndex = DAYS.indexOf(sortedDays[i - 1]);
-          int currIndex = DAYS.indexOf(sortedDays[i]);
-
-          if (currIndex == prevIndex + 1) {
-            currentGroup.add(sortedDays[i]);
-          } else {
-            groups.add(currentGroup);
-            currentGroup = [sortedDays[i]];
+  // 3. PARSE SCHEDULE
+  void _parseSchedule(String scheduleString) {
+    if (scheduleString.isEmpty) return;
+    try {
+      final parts = scheduleString.split(': ');
+      if (parts.length == 2) {
+        final daysPart = parts[0];
+        List<String> loadedDays = [];
+        if (daysPart == "Setiap Hari") {
+          loadedDays = List.from(DAYS);
+        } else {
+          loadedDays = daysPart
+              .split(RegExp(r', | - '))
+              .where((d) => DAYS.contains(d))
+              .toList();
+          if (daysPart.contains(" - ")) {
+            final range = daysPart.split(" - ");
+            if (range.length == 2) {
+              int start = DAYS.indexOf(range[0]);
+              int end = DAYS.indexOf(range[1]);
+              if (start != -1 && end != -1) {
+                loadedDays = DAYS.sublist(start, end + 1);
+              }
+            }
           }
         }
-        groups.add(currentGroup);
-      }
-
-      // 3. Format string per grup
-      List<String> groupStrings = groups.map((group) {
-        if (group.length >= 3) {
-          // Jika >= 3 hari berurutan, pakai strip (Senin - Rabu)
-          return "${group.first} - ${group.last}";
-        } else {
-          // Jika < 3, sebutkan manual (Senin, Selasa)
-          return group.join(', ');
+        final timesPart = parts[1].split(' - ');
+        if (timesPart.length == 2) {
+          setState(() {
+            selectedDays = loadedDays;
+            openTime = _stringToTime(timesPart[0]);
+            closeTime = _stringToTime(timesPart[1]);
+          });
         }
-      }).toList();
-
-      dayStr = groupStrings.join(', ');
+      }
+    } catch (e) {
+      debugPrint("Reset jadwal parsing error");
     }
-
-    return "$dayStr: $openStr - $closeStr";
   }
 
-  // 6. SAVE DATA
+  TimeOfDay _stringToTime(String s) {
+    final parts = s.split(':');
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+  }
+
+  // 4. SAVE DATA
   Future<void> _handleSave() async {
     setState(() => isSaving = true);
     try {
@@ -341,6 +235,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _toggleEdit() {
+    if (!isEditing) {
+      _descController.text = businessProfile['description'];
+      _addressController.text = businessProfile['address'];
+      _phoneController.text = businessProfile['phone'];
+      _emailController.text = businessProfile['email'];
+      _yearController.text = businessProfile['established'];
+      _parseSchedule(businessProfile['openingHours']);
+    }
+    setState(() => isEditing = !isEditing);
+  }
+
+  void _handleDayToggle(String day) {
+    setState(() {
+      if (selectedDays.contains(day))
+        selectedDays.remove(day);
+      else
+        selectedDays.add(day);
+      selectedDays.sort((a, b) => DAYS.indexOf(a).compareTo(DAYS.indexOf(b)));
+    });
+  }
+
+  Future<void> _selectTime(bool isOpenTime) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: isOpenTime ? openTime : closeTime,
+    );
+    if (picked != null)
+      setState(() => isOpenTime ? openTime = picked : closeTime = picked);
+  }
+
+  String _generateScheduleString() {
+    if (selectedDays.isEmpty) return "";
+    final openStr =
+        "${openTime.hour.toString().padLeft(2, '0')}:${openTime.minute.toString().padLeft(2, '0')}";
+    final closeStr =
+        "${closeTime.hour.toString().padLeft(2, '0')}:${closeTime.minute.toString().padLeft(2, '0')}";
+
+    List<String> sortedDays = List.from(selectedDays);
+    sortedDays.sort((a, b) => DAYS.indexOf(a).compareTo(DAYS.indexOf(b)));
+
+    String dayStr;
+    if (sortedDays.length == 7) {
+      dayStr = "Setiap Hari";
+    } else {
+      List<List<String>> groups = [];
+      if (sortedDays.isNotEmpty) {
+        List<String> currentGroup = [sortedDays[0]];
+        for (int i = 1; i < sortedDays.length; i++) {
+          int prevIndex = DAYS.indexOf(sortedDays[i - 1]);
+          int currIndex = DAYS.indexOf(sortedDays[i]);
+          if (currIndex == prevIndex + 1) {
+            currentGroup.add(sortedDays[i]);
+          } else {
+            groups.add(currentGroup);
+            currentGroup = [sortedDays[i]];
+          }
+        }
+        groups.add(currentGroup);
+      }
+      List<String> groupStrings = groups.map((group) {
+        if (group.length >= 3) return "${group.first} - ${group.last}";
+        return group.join(', ');
+      }).toList();
+      dayStr = groupStrings.join(', ');
+    }
+    return "$dayStr: $openStr - $closeStr";
+  }
+
   void _showToast(String msg, ToastificationType type) {
     toastification.show(
       context: context,
@@ -373,7 +336,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // === UI BUILD ===
   @override
   Widget build(BuildContext context) {
     if (isLoading)
@@ -384,93 +346,101 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // HEADER
-            Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  height: 160,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF2563EB), Color(0xFF9333EA)],
+            // === HEADER BARU (PASTI BISA DIKLIK) ===
+            // Menggunakan SizedBox tinggi untuk menampung stack
+            SizedBox(
+              height: 220,
+              child: Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  Container(
+                    height: 160,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF2563EB), Color(0xFF9333EA)],
+                      ),
                     ),
                   ),
-                ),
-                Positioned(
-                  bottom: -50,
-                  child: Stack(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: CircleAvatar(
-                          radius: 48,
-                          backgroundColor: Colors.grey[200],
-                          backgroundImage:
-                              (businessProfile['image'] != "" &&
-                                  businessProfile['image'] != null)
-                              ? NetworkImage(businessProfile['image'])
-                              : null,
-                          child:
-                              (businessProfile['image'] == "" ||
-                                  businessProfile['image'] == null)
-                              ? Text(
-                                  businessProfile['name'][0].toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: isUploading ? null : _handleImageUpload,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.blue[600],
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 4,
-                                ),
-                              ],
-                            ),
-                            child: isUploading
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
+                  Positioned(
+                    top: 110, // Posisi foto (160 - radius 50 = 110)
+                    child: Stack(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: CircleAvatar(
+                            radius: 48,
+                            backgroundColor: Colors.grey[200],
+                            backgroundImage:
+                                (businessProfile['image'] != "" &&
+                                    businessProfile['image'] != null)
+                                ? NetworkImage(businessProfile['image'])
+                                : null,
+                            child:
+                                (businessProfile['image'] == "" ||
+                                    businessProfile['image'] == null)
+                                ? Text(
+                                    businessProfile['name'].isNotEmpty
+                                        ? businessProfile['name'][0]
+                                              .toUpperCase()
+                                        : "?",
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue,
                                     ),
                                   )
-                                : const Icon(
-                                    LucideIcons.camera,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
+                                : null,
                           ),
                         ),
-                      ),
-                    ],
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: GestureDetector(
+                            onTap: isUploading
+                                ? null
+                                : _handleImageUpload, // Tombol Kamera
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[600],
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: isUploading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      LucideIcons.camera,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 60),
+            // Tidak perlu SizedBox(height: 60) lagi karena sudah dihandle di atas
 
-            // INFO DASAR
+            // INFO
             Text(
               businessProfile['name'],
               style: const TextStyle(
@@ -531,7 +501,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // CARD INFORMASI BISNIS
+            // CARD INFORMASI
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
@@ -618,7 +588,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 16),
 
                   if (isEditing) ...[
-                    // FORM EDIT
                     _buildEditInput(
                       "Deskripsi",
                       _descController,
@@ -651,7 +620,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
 
                     const SizedBox(height: 20),
-                    // SCHEDULE BUILDER
+                    // Jadwal UI Asli Anda
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -756,7 +725,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ] else ...[
-                    // INFO VIEW
                     _buildDescriptionView(),
                     const SizedBox(height: 20),
                     _buildInfoRow(
@@ -844,8 +812,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // SETTINGS
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(

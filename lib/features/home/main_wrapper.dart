@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../account/profile_screen.dart'; // Import Profil yang sudah kita buat
-import 'dashboard_screen.dart'; // Kita buat setelah ini
-import '../finance/transactions_screen.dart'; // Kita buat setelah ini
-import '../inventory/products_screen.dart'; // Kita buat setelah ini
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+// Import halaman-halaman
+import '../account/profile_screen.dart';
+import 'dashboard_screen.dart';
+import '../finance/transactions_screen.dart';
+import '../inventory/products_screen.dart';
 
 class MainWrapper extends StatefulWidget {
   const MainWrapper({super.key});
@@ -14,13 +18,15 @@ class MainWrapper extends StatefulWidget {
 
 class _MainWrapperState extends State<MainWrapper> {
   int _selectedIndex = 0;
+  final user =
+      FirebaseAuth.instance.currentUser; // Ambil user yang sedang login
 
   // Daftar Halaman
   final List<Widget> _screens = [
-    const DashboardScreen(), // Index 0: Beranda
-    const TransactionsScreen(), // Index 1: Keuangan
-    const ProductsScreen(), // Index 2: Stok
-    const ProfileScreen(), // Index 3: Akun (YANG SUDAH JADI)
+    const DashboardScreen(),
+    const TransactionsScreen(),
+    const ProductsScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -34,14 +40,84 @@ class _MainWrapperState extends State<MainWrapper> {
             _selectedIndex = index;
           });
         },
-        destinations: const [
-          NavigationDestination(icon: Icon(LucideIcons.home), label: 'Beranda'),
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
+            icon: Icon(LucideIcons.home),
+            label: 'Beranda',
+          ),
+          const NavigationDestination(
             icon: Icon(LucideIcons.wallet),
             label: 'Keuangan',
           ),
-          NavigationDestination(icon: Icon(LucideIcons.package), label: 'Stok'),
-          NavigationDestination(icon: Icon(LucideIcons.user), label: 'Akun'),
+          const NavigationDestination(
+            icon: Icon(LucideIcons.package),
+            label: 'Stok',
+          ),
+
+          // --- BAGIAN INI YANG DIUBAH (ICON PROFIL DINAMIS) ---
+          NavigationDestination(
+            label: 'Akun',
+            // Gunakan StreamBuilder agar update realtime saat foto berubah
+            icon: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user?.uid)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                // 1. Jika Data User ada & field 'image' tidak kosong
+                if (snapshot.hasData && snapshot.data!.exists) {
+                  final data = snapshot.data!.data() as Map<String, dynamic>?;
+                  final imageUrl = data?['image'];
+
+                  if (imageUrl != null && imageUrl.toString().isNotEmpty) {
+                    return CircleAvatar(
+                      radius: 12, // Ukuran kecil pas untuk navbar
+                      backgroundColor: Colors.grey[300],
+                      backgroundImage: NetworkImage(imageUrl),
+                    );
+                  }
+                }
+
+                // 2. Jika belum ada foto, tampilkan Icon User biasa
+                return const Icon(LucideIcons.user);
+              },
+            ),
+            // Agar saat diklik (selected) fotonya tetap ada tapi ada border/highlight otomatis dari navbar
+            selectedIcon: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user?.uid)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data!.exists) {
+                  final data = snapshot.data!.data() as Map<String, dynamic>?;
+                  final imageUrl = data?['image'];
+
+                  if (imageUrl != null && imageUrl.toString().isNotEmpty) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.black,
+                          width: 2,
+                        ), // Tambah border biar kelihatan aktif
+                      ),
+                      child: CircleAvatar(
+                        radius: 12,
+                        backgroundImage: NetworkImage(imageUrl),
+                      ),
+                    );
+                  }
+                }
+                return const Icon(
+                  LucideIcons.user,
+                  fill: 1.0,
+                ); // Icon user terisi jika selected
+              },
+            ),
+          ),
+
+          // ----------------------------------------------------
         ],
       ),
     );
