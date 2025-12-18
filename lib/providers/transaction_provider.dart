@@ -1,39 +1,33 @@
-// FILE: providers/transaction_provider.dart
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/transaction_model.dart';
 
 class TransactionProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  List<TransactionModel> _transactions = [];
+  List<Map<String, dynamic>> _transactions = [];
   bool _isLoading = true;
+  double _totalIncome = 0.0;
+  double _totalExpense = 0.0;
+  StreamSubscription? _transactionSubscription;
 
-  List<TransactionModel> get transactions => _transactions;
+  // Getters yang diminta oleh Screen
+  List<Map<String, dynamic>> get transactions => _transactions;
   bool get isLoading => _isLoading;
-
-  double get totalIncome {
-    return _transactions
-        .where((t) => t.type == TransactionType.income)
-        .fold(0, (sum, t) => sum + t.amount);
-  }
-
-  double get totalExpense {
-    return _transactions
-        .where((t) => t.type == TransactionType.expense)
-        .fold(0, (sum, t) => sum + t.amount);
-  }
+  double get totalIncome => _totalIncome;
+  double get totalExpense => _totalExpense;
+  double get totalBalance => _totalIncome - _totalExpense;
 
   TransactionProvider() {
-    _initializeTransactions();
+    _initTransactions();
   }
 
-  void _initializeTransactions() {
+  void _initTransactions() {
     _auth.authStateChanges().listen((user) {
       if (user != null) {
-        _loadTransactions();
+        _listenToTransactions(user.uid);
       } else {
         _transactions = [];
         _isLoading = false;
@@ -42,44 +36,83 @@ class TransactionProvider extends ChangeNotifier {
     });
   }
 
-  void _loadTransactions() {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return;
+  void _listenToTransactions(String userId) {
+    _isLoading = true;
+    notifyListeners();
 
-    _firestore
+    _transactionSubscription?.cancel();
+    _transactionSubscription = _firestore
         .collection('transactions')
         .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
+        .orderBy('timestamp', descending: true)
         .snapshots()
-        .listen((snapshot) {
-      _transactions = snapshot.docs
-          .map((doc) => TransactionModel.fromMap(doc.data(), doc.id))
-          .toList();
-      _isLoading = false;
-      notifyListeners();
-    });
+        .listen(
+          (snapshot) {
+            _transactions = snapshot.docs.map((doc) {
+              final data = doc.data();
+              data['id'] = doc.id;
+              // Konversi timestamp ke DateTime agar mudah dipakai UI
+              if (data['timestamp'] is Timestamp) {
+                data['date'] = (data['timestamp'] as Timestamp).toDate();
+              } else {
+                data['date'] = DateTime.now();
+              }
+              return data;
+            }).toList();
+
+            _calculateTotals();
+            _isLoading = false;
+            notifyListeners();
+          },
+          onError: (e) {
+            debugPrint("Error listening to transactions: $e");
+            _isLoading = false;
+            notifyListeners();
+          },
+        );
   }
 
-  Future<void> addTransaction(TransactionModel transaction) async {
+  void _calculateTotals() {
+    _totalIncome = 0.0;
+    _totalExpense = 0.0;
+
+    for (var tx in _transactions) {
+      final amount = (tx['amount'] ?? 0.0).toDouble();
+      if (tx['type'] == 'income') {
+        _totalIncome += amount;
+      } else if (tx['type'] == 'expense') {
+        _totalExpense += amount;
+      }
+    }
+  }
+
+  // Method generic untuk menambah transaksi (diminta oleh UI)
+  Future<void> addTransaction({
+    required double amount,
+    required String description,
+    required String type, // 'income' atau 'expense'
+  }) async {
     final userId = _auth.currentUser?.uid;
     if (userId == null) return;
 
     try {
-      final data = transaction.toMap();
-      data['userId'] = userId;
-      await _firestore.collection('transactions').add(data);
+      await _firestore.collection('transactions').add({
+        'userId': userId,
+        'amount': amount,
+        'type': type,
+        'description': description,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      // Tidak perlu notifyListeners() manual karena stream listener akan menangkap perubahan
     } catch (e) {
-      debugPrint('Error adding transaction: $e');
+      debugPrint("Error adding transaction: $e");
       rethrow;
     }
   }
 
-  Future<void> deleteTransaction(String id) async {
-    try {
-      await _firestore.collection('transactions').doc(id).delete();
-    } catch (e) {
-      debugPrint('Error deleting transaction: $e');
-      rethrow;
-    }
+  @override
+  void dispose() {
+    _transactionSubscription?.cancel();
+    super.dispose();
   }
 }

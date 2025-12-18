@@ -39,12 +39,6 @@ class MyApp extends StatelessWidget {
           ),
           textTheme: GoogleFonts.interTextTheme(),
           scaffoldBackgroundColor: const Color(0xFFF9FAFB),
-          appBarTheme: const AppBarTheme(
-            elevation: 0,
-            centerTitle: false,
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
-          ),
         ),
         home: const AuthWrapper(),
       ),
@@ -57,33 +51,31 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, _) {
-        if (authProvider.isLoading) {
-          return const Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Memuat data usaha...'),
-                ],
-              ),
-            ),
-          );
-        }
+    final authProvider = context.watch<AuthProvider>();
 
-        if (authProvider.user == null) {
-          return const LoginScreen();
-        }
+    if (authProvider.isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Memuat data usaha...'),
+            ],
+          ),
+        ),
+      );
+    }
 
-        if (!authProvider.isSetupComplete) {
-          return const BusinessSetupScreen();
-        }
+    if (authProvider.user == null) {
+      return const LoginScreen();
+    }
 
-        return const HomeScreen();
-      },
-    );
+    if (!authProvider.isSetupComplete) {
+      return const BusinessSetupScreen();
+    }
+
+    return const HomeScreen();
   }
 }

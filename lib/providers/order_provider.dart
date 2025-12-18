@@ -1,4 +1,4 @@
-// FILE: providers/order_provider.dart
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,21 +10,19 @@ class OrderProvider extends ChangeNotifier {
 
   List<OrderModel> _orders = [];
   bool _isLoading = true;
+  StreamSubscription? _ordersSubscription;
 
   List<OrderModel> get orders => _orders;
   bool get isLoading => _isLoading;
 
-  List<OrderModel> get buyingOrders {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return [];
-    return _orders.where((o) => o.buyerId == userId).toList();
-  }
+  // Getter khusus untuk memisahkan pesanan sebagai pembeli dan penjual
+  List<OrderModel> get buyingOrders => _orders
+      .where((order) => order.buyerId == _auth.currentUser?.uid)
+      .toList();
 
-  List<OrderModel> get sellingOrders {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return [];
-    return _orders.where((o) => o.sellerId == userId).toList();
-  }
+  List<OrderModel> get sellingOrders => _orders
+      .where((order) => order.sellerId == _auth.currentUser?.uid)
+      .toList();
 
   OrderProvider() {
     _initializeOrders();
@@ -32,8 +30,9 @@ class OrderProvider extends ChangeNotifier {
 
   void _initializeOrders() {
     _auth.authStateChanges().listen((user) {
+      _ordersSubscription?.cancel();
       if (user != null) {
-        _loadOrders();
+        _loadOrders(user.uid);
       } else {
         _orders = [];
         _isLoading = false;
@@ -42,45 +41,28 @@ class OrderProvider extends ChangeNotifier {
     });
   }
 
-  void _loadOrders() {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return;
-
-    // Load orders where user is either buyer or seller
-    _firestore
+  void _loadOrders(String userId) {
+    // Mengambil semua order di mana user terlibat (baik sbg buyer maupun seller)
+    _ordersSubscription = _firestore
         .collection('orders')
-        .where('buyerId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
+        .where(
+          Filter.or(
+            Filter('buyerId', isEqualTo: userId),
+            Filter('sellerId', isEqualTo: userId),
+          ),
+        )
         .snapshots()
-        .listen((buyingSnapshot) {
-      _firestore
-          .collection('orders')
-          .where('sellerId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .snapshots()
-          .listen((sellingSnapshot) {
-        final buyingOrders = buyingSnapshot.docs
-            .map((doc) => OrderModel.fromMap(doc.data(), doc.id))
-            .toList();
-        final sellingOrders = sellingSnapshot.docs
-            .map((doc) => OrderModel.fromMap(doc.data(), doc.id))
-            .toList();
+        .listen((snapshot) {
+          _orders = snapshot.docs
+              .map((doc) => OrderModel.fromMap(doc.data(), doc.id))
+              .toList();
 
-        _orders = [...buyingOrders, ...sellingOrders];
-        _orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        _isLoading = false;
-        notifyListeners();
-      });
-    });
-  }
+          // Sorting manual di client side karena keterbatasan query majemuk Firestore
+          _orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-  Future<void> createOrder(OrderModel order) async {
-    try {
-      await _firestore.collection('orders').add(order.toMap());
-    } catch (e) {
-      debugPrint('Error creating order: $e');
-      rethrow;
-    }
+          _isLoading = false;
+          notifyListeners();
+        });
   }
 
   Future<void> updateOrderStatus(String orderId, String status) async {
@@ -92,5 +74,11 @@ class OrderProvider extends ChangeNotifier {
       debugPrint('Error updating order status: $e');
       rethrow;
     }
+  }
+
+  @override
+  void dispose() {
+    _ordersSubscription?.cancel();
+    super.dispose();
   }
 }

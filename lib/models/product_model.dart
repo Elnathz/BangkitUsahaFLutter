@@ -1,4 +1,5 @@
-// FILE: models/product_model.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ProductModel {
   final String id;
   final String name;
@@ -24,7 +25,6 @@ class ProductModel {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'name': name,
       'price': price,
       'stock': stock,
@@ -33,7 +33,7 @@ class ProductModel {
       'image': image,
       'sellerId': sellerId,
       'sellerName': sellerName,
-      'createdAt': DateTime.now().millisecondsSinceEpoch,
+      'createdAt': FieldValue.serverTimestamp(),
     };
   }
 
@@ -41,14 +41,13 @@ class ProductModel {
     return ProductModel(
       id: id,
       name: map['name'] ?? '',
-      price: (map['price'] ?? 0).toDouble(),
-      stock: map['stock'] ?? 0,
-      category: map['category'] ?? '',
+      price: (map['price'] ?? 0.0).toDouble(),
+      stock: (map['stock'] ?? 0).toInt(),
+      category: map['category'] ?? 'Umum',
       description: map['description'] ?? '',
       image: map['image'] ?? '',
       sellerId: map['sellerId'] ?? '',
-      sellerName: map['sellerName'] ?? '',
+      sellerName: map['sellerName'] ?? 'Penjual',
     );
   }
 }
-
