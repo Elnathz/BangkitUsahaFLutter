@@ -3,7 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Import halaman-halaman
+// Import halaman-halaman yang sudah ada
 import '../account/profile_screen.dart';
 import 'dashboard_screen.dart';
 import '../finance/transactions_screen.dart';
@@ -18,15 +18,24 @@ class MainWrapper extends StatefulWidget {
 
 class _MainWrapperState extends State<MainWrapper> {
   int _selectedIndex = 0;
-  final user =
-      FirebaseAuth.instance.currentUser; // Ambil user yang sedang login
+  final user = FirebaseAuth.instance.currentUser;
 
   // Daftar Halaman
   final List<Widget> _screens = [
-    const DashboardScreen(),
-    const TransactionsScreen(),
-    const ProductsScreen(),
-    const ProfileScreen(),
+    const DashboardScreen(), // 0: Beranda
+    const TransactionsScreen(), // 1: Keuangan
+    const ProductsScreen(), // 2: Toko (Produk)
+    // 3: HALAMAN KOMUNITAS (Sementara pakai Placeholder dulu)
+    const Scaffold(
+      body: Center(
+        child: Text(
+          "Halaman Komunitas Segera Hadir!",
+          style: TextStyle(fontSize: 18, color: Colors.grey),
+        ),
+      ),
+    ),
+
+    const ProfileScreen(), // 4: Akun
   ];
 
   @override
@@ -41,48 +50,54 @@ class _MainWrapperState extends State<MainWrapper> {
           });
         },
         destinations: [
+          // 1. Beranda
           const NavigationDestination(
             icon: Icon(LucideIcons.home),
             label: 'Beranda',
           ),
+
+          // 2. Keuangan
           const NavigationDestination(
             icon: Icon(LucideIcons.wallet),
             label: 'Keuangan',
           ),
+
+          // 3. Toko
           const NavigationDestination(
-            icon: Icon(LucideIcons.package),
-            label: 'Stok',
+            icon: Icon(LucideIcons.store),
+            label: 'Toko',
           ),
 
-          // --- BAGIAN INI YANG DIUBAH (ICON PROFIL DINAMIS) ---
+          // 4. KOMUNITAS (BARU DITAMBAHKAN)
+          const NavigationDestination(
+            icon: Icon(LucideIcons.users), // Ikon orang banyak/grup
+            label: 'Komunitas',
+          ),
+
+          // 5. Akun (Dengan Foto Profil Dinamis)
           NavigationDestination(
             label: 'Akun',
-            // Gunakan StreamBuilder agar update realtime saat foto berubah
             icon: StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('users')
                   .doc(user?.uid)
                   .snapshots(),
               builder: (context, snapshot) {
-                // 1. Jika Data User ada & field 'image' tidak kosong
                 if (snapshot.hasData && snapshot.data!.exists) {
                   final data = snapshot.data!.data() as Map<String, dynamic>?;
                   final imageUrl = data?['image'];
 
                   if (imageUrl != null && imageUrl.toString().isNotEmpty) {
                     return CircleAvatar(
-                      radius: 12, // Ukuran kecil pas untuk navbar
+                      radius: 12,
                       backgroundColor: Colors.grey[300],
                       backgroundImage: NetworkImage(imageUrl),
                     );
                   }
                 }
-
-                // 2. Jika belum ada foto, tampilkan Icon User biasa
                 return const Icon(LucideIcons.user);
               },
             ),
-            // Agar saat diklik (selected) fotonya tetap ada tapi ada border/highlight otomatis dari navbar
             selectedIcon: StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('users')
@@ -97,10 +112,7 @@ class _MainWrapperState extends State<MainWrapper> {
                     return Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.black,
-                          width: 2,
-                        ), // Tambah border biar kelihatan aktif
+                        border: Border.all(color: Colors.black, width: 2),
                       ),
                       child: CircleAvatar(
                         radius: 12,
@@ -109,15 +121,10 @@ class _MainWrapperState extends State<MainWrapper> {
                     );
                   }
                 }
-                return const Icon(
-                  LucideIcons.user,
-                  fill: 1.0,
-                ); // Icon user terisi jika selected
+                return const Icon(LucideIcons.user, fill: 1.0);
               },
             ),
           ),
-
-          // ----------------------------------------------------
         ],
       ),
     );
