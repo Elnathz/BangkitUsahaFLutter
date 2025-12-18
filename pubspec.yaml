@@ -1,0 +1,59 @@
+name: bangkit_usaha
+description: Aplikasi UMKM untuk mengelola bisnis dengan mudah dan efisien
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+    sdk: ^3.10.0
+    flutter: ">=3.0.0"
+
+dependencies:
+    flutter:
+        sdk: flutter
+
+    # UI & Icons
+    cupertino_icons: ^1.0.8
+    google_fonts: ^6.2.1
+
+    # State Management
+    provider: ^6.1.2
+
+    # Firebase
+    firebase_core: ^3.6.0
+    firebase_auth: ^5.3.1
+    cloud_firestore: ^5.4.4
+    google_sign_in: ^6.2.1
+
+    # Storage
+    shared_preferences: ^2.3.3
+
+    # Navigation
+    go_router: ^14.6.2
+
+    # UI Components
+    flutter_svg: ^2.0.14
+    cached_network_image: ^3.4.1
+    shimmer: ^3.0.0
+    flutter_slidable: ^3.1.1
+
+    # Charts
+    fl_chart: ^0.69.2
+
+    # Utils
+    intl: ^0.19.0
+    uuid: ^4.5.1
+
+    # Toast/Snackbar
+    fluttertoast: ^8.2.8
+
+dev_dependencies:
+    flutter_test:
+        sdk: flutter
+    flutter_lints: ^3.0.0
+
+flutter:
+    uses-material-design: true
+
+    assets:
+        - assets/images/
+        - assets/icons/
