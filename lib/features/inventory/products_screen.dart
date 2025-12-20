@@ -7,6 +7,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:toastification/toastification.dart';
 import 'package:intl/intl.dart';
+// IMPORT INI PENTING AGAR BISA PINDAH KE HALAMAN ULASAN
+import '../home/product_reviews_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -20,17 +22,13 @@ class _ProductsScreenState extends State<ProductsScreen>
   late TabController _tabController;
   final user = FirebaseAuth.instance.currentUser;
 
-  // State untuk Filter Kategori
   String _selectedCategory = "Semua";
-
-  // Format Mata Uang
   final currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'Rp ',
     decimalDigits: 0,
   );
 
-  // Data Dummy Pesanan
   final List<Map<String, dynamic>> orders = [
     {
       "id": "ORD-001",
@@ -227,7 +225,6 @@ class _ProductsScreenState extends State<ProductsScreen>
                           if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty)
                             return;
 
-                          // Pastikan kategori tidak kosong agar filter berfungsi
                           String category = categoryCtrl.text.trim();
                           if (category.isEmpty) category = "Umum";
 
@@ -418,7 +415,7 @@ class _ProductsScreenState extends State<ProductsScreen>
     );
   }
 
-  // --- TAB 1: LIST PRODUK + FILTER KATEGORI ---
+  // --- TAB 1: LIST PRODUK ---
   Widget _buildProductList(
     bool isDark,
     Color cardColor,
@@ -439,7 +436,6 @@ class _ProductsScreenState extends State<ProductsScreen>
 
         final allDocs = snapshot.data!.docs;
 
-        // 1. Ambil Daftar Kategori Unik
         Set<String> categories = {"Semua"};
         for (var doc in allDocs) {
           final data = doc.data() as Map<String, dynamic>;
@@ -449,7 +445,6 @@ class _ProductsScreenState extends State<ProductsScreen>
         }
         final categoryList = categories.toList();
 
-        // 2. Filter Produk Sesuai Pilihan
         final filteredDocs = _selectedCategory == "Semua"
             ? allDocs
             : allDocs
@@ -458,7 +453,6 @@ class _ProductsScreenState extends State<ProductsScreen>
 
         return Column(
           children: [
-            // --- BAGIAN FILTER KATEGORI (CHIPS) ---
             Container(
               height: 60,
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -490,7 +484,6 @@ class _ProductsScreenState extends State<ProductsScreen>
               ),
             ),
 
-            // --- BAGIAN LIST PRODUK ---
             Expanded(
               child: filteredDocs.isEmpty
                   ? Center(
@@ -511,7 +504,6 @@ class _ProductsScreenState extends State<ProductsScreen>
                       ),
                     )
                   : _selectedCategory == "Semua"
-                  // Jika "Semua", pakai ReorderableListView (Bisa Drag & Drop)
                   ? ReorderableListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 150),
                       itemCount: filteredDocs.length,
@@ -527,7 +519,6 @@ class _ProductsScreenState extends State<ProductsScreen>
                         );
                       },
                     )
-                  // Jika Filter Aktif, pakai ListView biasa (Tidak Bisa Drag & Drop)
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 150),
                       itemCount: filteredDocs.length,
@@ -548,7 +539,6 @@ class _ProductsScreenState extends State<ProductsScreen>
     );
   }
 
-  // WIDGET ITEM PRODUK (Dipisah agar rapi)
   Widget _buildProductItem(
     DocumentSnapshot doc,
     Color cardColor,
@@ -628,6 +618,24 @@ class _ProductsScreenState extends State<ProductsScreen>
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // TOMBOL LIHAT ULASAN (Sekarang sudah aman variabel-nya)
+            IconButton(
+              icon: const Icon(
+                LucideIcons.messageSquare,
+                size: 18,
+                color: Colors.blue,
+              ),
+              tooltip: "Lihat Ulasan",
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ProductReviewsScreen(productId: id, productData: data),
+                  ),
+                );
+              },
+            ),
             IconButton(
               icon: const Icon(LucideIcons.edit2, size: 18, color: Colors.grey),
               onPressed: () => _showProductDialog(product: doc),
@@ -636,7 +644,6 @@ class _ProductsScreenState extends State<ProductsScreen>
               icon: const Icon(LucideIcons.trash2, size: 18, color: Colors.red),
               onPressed: () => _deleteProduct(id),
             ),
-            // Icon Grip hanya muncul jika mode "Semua"
             if (isReorderable)
               const Icon(LucideIcons.gripVertical, color: Colors.grey),
           ],

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart'; // Untuk format Rupiah
+import 'package:intl/intl.dart';
 
-// Import halaman notifikasi & chat (agar navigasi tetap jalan)
 import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
+import 'search_page.dart';
+import 'product_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -16,10 +17,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // Ambil user yang sedang login
   final user = FirebaseAuth.instance.currentUser;
-
-  // Format Mata Uang
   final currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'Rp ',
@@ -31,7 +29,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final primaryColor = theme.primaryColor;
-
     final Color cardColor = isDark ? Colors.grey[900]! : Colors.white;
     final Color textColor = isDark ? Colors.white : Colors.black87;
 
@@ -40,13 +37,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ============================================================
-            // 1. HEADER + SEARCH BAR (STACK) - TETAP SAMA
-            // ============================================================
+            // HEADER + SEARCH BAR
             Stack(
               clipBehavior: Clip.none,
               children: [
-                // BACKGROUND HEADER COKELAT
                 Container(
                   height: 180,
                   padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
@@ -157,35 +151,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   left: 20,
                   right: 20,
                   bottom: -25,
-                  child: Container(
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: cardColor,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SearchPage(),
                         ),
-                      ],
-                    ),
-                    child: TextField(
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        hintText: "Cari produk UMKM di sini...",
-                        hintStyle: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 13,
-                        ),
-                        prefixIcon: Icon(
-                          LucideIcons.search,
-                          color: Colors.grey[400],
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 15,
-                        ),
+                      );
+                    },
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          Icon(LucideIcons.search, color: Colors.grey[400]),
+                          const SizedBox(width: 12),
+                          Text(
+                            "Cari produk UMKM di sini...",
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -195,15 +195,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             const SizedBox(height: 40),
 
-            // ============================================================
-            // 2. MARKETPLACE FEED (PRODUK DARI TOKO LAIN)
-            // ============================================================
+            // MARKETPLACE FEED
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // JUDUL SEKSI
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -237,27 +234,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // STREAM BUILDER (REALTIME DATA)
                   StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('products')
-                        // Kita urutkan berdasarkan waktu update agar yang terbaru muncul duluan
                         .orderBy('updatedAt', descending: true)
                         .snapshots(),
                     builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return Center(
-                          child: Text("Error memuat produk: ${snapshot.error}"),
-                        );
-                      }
-                      if (!snapshot.hasData) {
+                      if (!snapshot.hasData)
                         return const Center(child: CircularProgressIndicator());
-                      }
-
                       final allProducts = snapshot.data!.docs;
-
-                      // FILTER PENTING:
-                      // Hanya ambil produk yang UID pembuatnya BUKAN UID saya
                       final otherShopProducts = allProducts.where((doc) {
                         final data = doc.data() as Map<String, dynamic>;
                         return data['uid'] != user?.uid;
@@ -267,20 +252,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         return Center(
                           child: Padding(
                             padding: const EdgeInsets.all(32.0),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  LucideIcons.store,
-                                  size: 48,
-                                  color: Colors.grey[300],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  "Belum ada produk dari toko lain.",
-                                  style: TextStyle(color: Colors.grey[500]),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
+                            child: Text(
+                              "Belum ada produk dari toko lain.",
+                              style: TextStyle(color: Colors.grey[500]),
                             ),
                           ),
                         );
@@ -301,19 +275,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         itemBuilder: (context, index) {
                           final doc = otherShopProducts[index];
                           final data = doc.data() as Map<String, dynamic>;
+                          final id = doc.id;
 
-                          return _buildProductCard(
-                            data,
-                            cardColor,
-                            textColor,
-                            isDark,
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProductDetailScreen(
+                                    productData: data,
+                                    productId: id,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: _buildProductCard(
+                              data,
+                              cardColor,
+                              textColor,
+                              isDark,
+                            ),
                           );
                         },
                       );
                     },
                   ),
-
-                  const SizedBox(height: 100), // Space bawah
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
@@ -323,7 +310,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // WIDGET ICON HEADER
   Widget _buildHeaderIcon(
     BuildContext context,
     IconData icon,
@@ -349,21 +335,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // WIDGET KARTU PRODUK (DATA REALTIME)
   Widget _buildProductCard(
     Map<String, dynamic> item,
     Color cardColor,
     Color textColor,
     bool isDark,
   ) {
-    // Ambil data, jika null pakai default
     String image = (item['image'] != null && item['image'] != "")
         ? item['image']
-        : "https://via.placeholder.com/150"; // Fallback image
+        : "https://via.placeholder.com/150";
     String name = item['name'] ?? "Tanpa Nama";
     String category = item['category'] ?? "Umum";
-    int price = item['price'] ?? 0;
-    int stock = item['stock'] ?? 0;
+    int price = (item['price'] ?? 0).toInt();
+
+    // PERBAIKAN: Ambil data rating & reviews asli dari Database
+    // Jika belum ada field 'rating', default ke 0.0
+    double rating = (item['rating'] ?? 0).toDouble();
+    int totalReviews = item['totalReviews'] ?? 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -380,7 +368,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // GAMBAR PRODUK
           Expanded(
             child: Stack(
               children: [
@@ -397,7 +384,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 ),
-                // Label Kategori (Pengganti Lokasi sementara)
                 Positioned(
                   top: 8,
                   right: 8,
@@ -423,15 +409,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
-
-          // DETAIL PRODUK
           Padding(
             padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Karena kita belum menyimpan nama Toko di produk,
-                // kita kosongkan dulu atau pakai tulisan "UMKM Lokal"
                 Text(
                   "UMKM Mitra",
                   style: TextStyle(fontSize: 10, color: Colors.grey[500]),
@@ -459,21 +441,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
+                // TAMPILAN RATING DINAMIS
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       LucideIcons.star,
                       size: 10,
-                      color: Colors.orange,
+                      color: rating > 0 ? Colors.orange : Colors.grey[300],
                     ),
                     const SizedBox(width: 2),
                     Text(
-                      "5.0",
-                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                      "$rating",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      "| Stok $stock",
+                      "($totalReviews)",
                       style: TextStyle(fontSize: 10, color: Colors.grey[500]),
                     ),
                   ],

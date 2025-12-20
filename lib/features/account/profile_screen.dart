@@ -6,7 +6,9 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
+import 'package:intl/intl.dart';
 
+// Pastikan import ini benar (sesuai struktur folder Anda)
 import 'settings_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
@@ -30,12 +32,12 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final user = FirebaseAuth.instance.currentUser;
-
   bool isLoading = true;
   bool isEditing = false;
   bool isSaving = false;
   bool isUploading = false;
 
+  // Data Profil
   Map<String, dynamic> businessProfile = {
     'name': 'Memuat...',
     'owner': '',
@@ -46,18 +48,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'openingHours': '',
     'established': '',
     'image': '',
-    'rating': 0,
+    'rating': 0.0,
     'totalReviews': 0,
     'totalSales': 0,
     'responseRate': 0,
   };
 
+  // Controller
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _yearController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
 
+  // Jadwal
   List<String> selectedDays = [];
   TimeOfDay openTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay closeTime = const TimeOfDay(hour: 17, minute: 0);
@@ -68,47 +73,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchUserData();
   }
 
+  // Ambil Data Realtime
   Future<void> _fetchUserData() async {
     if (user == null) return;
-    try {
-      final docSnap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .get();
-
-      if (docSnap.exists) {
-        final data = docSnap.data()!;
-        setState(() {
-          businessProfile = {
-            'name': data['storeName'] ?? user!.displayName ?? "Toko Saya",
-            'owner': data['ownerName'] ?? user!.displayName ?? "Pemilik",
-            'description': data['description'] ?? "",
-            'address': data['address'] ?? "",
-            'phone': data['phoneNumber'] ?? "",
-            'email': data['email'] ?? user!.email ?? "",
-            'openingHours': data['openingHours'] ?? "",
-            'established': data['established'] ?? "",
-            'image': data['image'] ?? user!.photoURL ?? "",
-            'rating': data['rating'] ?? 0,
-            'totalReviews': data['totalReviews'] ?? 0,
-            'totalSales': data['totalSales'] ?? 0,
-            'responseRate': data['responseRate'] ?? 0,
-          };
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(user!.uid)
+        .snapshots()
+        .listen((docSnap) {
+          if (!mounted) return;
+          if (docSnap.exists) {
+            final data = docSnap.data()!;
+            setState(() {
+              businessProfile = {
+                'name': data['storeName'] ?? user!.displayName ?? "Toko Saya",
+                'owner': data['ownerName'] ?? user!.displayName ?? "Pemilik",
+                'description': data['description'] ?? "",
+                'address': data['address'] ?? "",
+                'phone': data['phoneNumber'] ?? "",
+                'email': data['email'] ?? user!.email ?? "",
+                'openingHours': data['openingHours'] ?? "",
+                'established': data['established'] ?? "",
+                'image': data['image'] ?? user!.photoURL ?? "",
+                'rating': (data['rating'] ?? 0).toDouble(),
+                'totalReviews': data['totalReviews'] ?? 0,
+                'totalSales': data['totalSales'] ?? 0,
+                'responseRate': data['responseRate'] ?? 0,
+              };
+              isLoading = false;
+            });
+          } else {
+            setState(() => isLoading = false);
+          }
         });
-      } else {
-        setState(() {
-          businessProfile['name'] = user!.displayName ?? "Toko Baru";
-          businessProfile['owner'] = user!.displayName ?? "Pemilik";
-          businessProfile['email'] = user!.email ?? "";
-        });
-      }
-    } catch (e) {
-      debugPrint("Error fetching data: $e");
-    } finally {
-      setState(() => isLoading = false);
-    }
   }
 
+  // Logic Upload Foto
   Future<void> _handleImageUpload() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -133,19 +133,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .doc(user!.uid)
           .update({'image': downloadURL});
       await user!.updatePhotoURL(downloadURL);
-
-      setState(() {
-        businessProfile['image'] = downloadURL;
-        isUploading = false;
-      });
-
       _showToast("Foto berhasil diperbarui!", ToastificationType.success);
     } catch (e) {
-      setState(() => isUploading = false);
       _showToast("Gagal upload: $e", ToastificationType.error);
+    } finally {
+      setState(() => isUploading = false);
     }
   }
 
+  // Logic Parsing Jadwal
   void _parseSchedule(String scheduleString) {
     if (scheduleString.isEmpty) return;
     try {
@@ -165,9 +161,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (range.length == 2) {
               int start = DAYS.indexOf(range[0]);
               int end = DAYS.indexOf(range[1]);
-              if (start != -1 && end != -1) {
+              if (start != -1 && end != -1)
                 loadedDays = DAYS.sublist(start, end + 1);
-              }
             }
           }
         }
@@ -181,78 +176,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     } catch (e) {
-      debugPrint("Reset jadwal parsing error");
+      debugPrint("Schedule parse error");
     }
   }
 
   TimeOfDay _stringToTime(String s) {
     final parts = s.split(':');
     return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-  }
-
-  Future<void> _handleSave() async {
-    setState(() => isSaving = true);
-    try {
-      final scheduleString = _generateScheduleString();
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .update({
-            'description': _descController.text,
-            'address': _addressController.text,
-            'phoneNumber': _phoneController.text,
-            'email': _emailController.text,
-            'established': _yearController.text,
-            'openingHours': scheduleString,
-          });
-
-      setState(() {
-        businessProfile['description'] = _descController.text;
-        businessProfile['address'] = _addressController.text;
-        businessProfile['phone'] = _phoneController.text;
-        businessProfile['email'] = _emailController.text;
-        businessProfile['established'] = _yearController.text;
-        businessProfile['openingHours'] = scheduleString;
-        isEditing = false;
-        isSaving = false;
-      });
-
-      _showToast("Informasi bisnis disimpan!", ToastificationType.success);
-    } catch (e) {
-      setState(() => isSaving = false);
-      _showToast("Gagal menyimpan.", ToastificationType.error);
-    }
-  }
-
-  void _toggleEdit() {
-    if (!isEditing) {
-      _descController.text = businessProfile['description'];
-      _addressController.text = businessProfile['address'];
-      _phoneController.text = businessProfile['phone'];
-      _emailController.text = businessProfile['email'];
-      _yearController.text = businessProfile['established'];
-      _parseSchedule(businessProfile['openingHours']);
-    }
-    setState(() => isEditing = !isEditing);
-  }
-
-  void _handleDayToggle(String day) {
-    setState(() {
-      if (selectedDays.contains(day))
-        selectedDays.remove(day);
-      else
-        selectedDays.add(day);
-      selectedDays.sort((a, b) => DAYS.indexOf(a).compareTo(DAYS.indexOf(b)));
-    });
-  }
-
-  Future<void> _selectTime(bool isOpenTime) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: isOpenTime ? openTime : closeTime,
-    );
-    if (picked != null)
-      setState(() => isOpenTime ? openTime = picked : closeTime = picked);
   }
 
   String _generateScheduleString() {
@@ -292,6 +222,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return "$dayStr: $openStr - $closeStr";
   }
 
+  // Logic Simpan Profil
+  void _toggleEdit() {
+    if (!isEditing) {
+      _nameController.text = businessProfile['name'];
+      _descController.text = businessProfile['description'];
+      _addressController.text = businessProfile['address'];
+      _phoneController.text = businessProfile['phone'];
+      _emailController.text = businessProfile['email'];
+      _yearController.text = businessProfile['established'];
+      _parseSchedule(businessProfile['openingHours']);
+    }
+    setState(() => isEditing = !isEditing);
+  }
+
+  Future<void> _handleSave() async {
+    setState(() => isSaving = true);
+    try {
+      final scheduleString = _generateScheduleString();
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .update({
+            'storeName': _nameController.text,
+            'description': _descController.text,
+            'address': _addressController.text,
+            'phoneNumber': _phoneController.text,
+            'email': _emailController.text,
+            'established': _yearController.text,
+            'openingHours': scheduleString,
+          });
+
+      setState(() {
+        isEditing = false;
+        isSaving = false;
+      });
+      _showToast("Profil berhasil disimpan!", ToastificationType.success);
+    } catch (e) {
+      setState(() => isSaving = false);
+      _showToast("Gagal menyimpan.", ToastificationType.error);
+    }
+  }
+
+  void _handleDayToggle(String day) {
+    setState(() {
+      if (selectedDays.contains(day))
+        selectedDays.remove(day);
+      else
+        selectedDays.add(day);
+      selectedDays.sort((a, b) => DAYS.indexOf(a).compareTo(DAYS.indexOf(b)));
+    });
+  }
+
+  Future<void> _selectTime(bool isOpenTime) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: isOpenTime ? openTime : closeTime,
+    );
+    if (picked != null)
+      setState(() => isOpenTime ? openTime = picked : closeTime = picked);
+  }
+
   void _showToast(String msg, ToastificationType type) {
     toastification.show(
       context: context,
@@ -305,24 +296,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     if (isLoading)
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
-    // Perbaikan warna dengan tanda seru '!'
-    final Color cardColor = isDark ? Colors.grey[900]! : Colors.white;
-    final Color textColor = isDark ? Colors.white : Colors.black87;
-    final Color labelColor = isDark ? Colors.white70 : Colors.grey[600]!;
-    final Color primaryColor = theme.primaryColor;
+    final cardColor = isDark
+        ? const Color(0xFF6D4C41).withOpacity(0.2)
+        : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final labelColor = isDark ? Colors.white70 : Colors.grey[600]!;
+    final primaryColor = theme.primaryColor;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ============================================================
-            // HEADER BARU: PROFIL DI DALAM (PROFESSIONAL LOOK)
-            // ============================================================
+            // 1. HEADER (Profil, Nama, Chat, Notif, SETTINGS)
             Container(
               padding: const EdgeInsets.only(
                 top: 50,
@@ -334,10 +322,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    primaryColor,
-                    const Color(0xFF503C37), // Van Dike
-                  ],
+                  colors: [primaryColor, const Color(0xFF503C37)],
                 ),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(24),
@@ -353,17 +338,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Row(
                 children: [
-                  // 1. FOTO PROFIL (KIRI)
                   Stack(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(2), // Border putih tipis
+                        padding: const EdgeInsets.all(2),
                         decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
                         ),
                         child: CircleAvatar(
-                          radius: 32, // Ukuran Foto sedang
+                          radius: 32,
                           backgroundColor: Colors.grey[300],
                           backgroundImage:
                               (businessProfile['image'] != "" &&
@@ -386,12 +370,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               : null,
                         ),
                       ),
-                      // Ikon Kamera Kecil untuk Edit
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: GestureDetector(
-                          onTap: isUploading ? null : _handleImageUpload,
+                          onTap: _handleImageUpload,
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
@@ -404,24 +387,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     width: 10,
                                     height: 10,
                                     child: CircularProgressIndicator(
-                                      strokeWidth: 2,
                                       color: primaryColor,
+                                      strokeWidth: 2,
                                     ),
                                   )
-                                : Icon(
+                                : const Icon(
                                     LucideIcons.camera,
                                     size: 12,
-                                    color: primaryColor,
+                                    color: Colors.brown,
                                   ),
                           ),
                         ),
                       ),
                     ],
                   ),
-
                   const SizedBox(width: 16),
-
-                  // 2. NAMA TOKO & PEMILIK (TENGAH)
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -457,8 +437,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-
-                  // 3. ICON NOTIF & CHAT (KANAN ATAS)
                   Row(
                     children: [
                       _buildHeaderIcon(
@@ -472,16 +450,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         LucideIcons.messageCircle,
                         const ChatScreen(),
                       ),
+                      const SizedBox(width: 8),
+                      // IKON SETTING DI KANAN ATAS
+                      _buildHeaderIcon(
+                        context,
+                        LucideIcons.settings,
+                        const SettingsScreen(),
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
 
-            // ============================================================
             const SizedBox(height: 24),
 
-            // STATS GRID
+            // 2. STATS GRID
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -526,7 +510,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // CARD INFORMASI
+            // 3. INFORMASI BISNIS (Editable)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
@@ -613,6 +597,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 16),
 
                   if (isEditing) ...[
+                    // FORM EDIT
+                    _buildEditInput(
+                      "Nama Toko",
+                      _nameController,
+                      textColor: textColor,
+                      isDark: isDark,
+                    ),
+                    const SizedBox(height: 12),
                     _buildEditInput(
                       "Deskripsi",
                       _descController,
@@ -652,7 +644,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       textColor: textColor,
                       isDark: isDark,
                     ),
-
                     const SizedBox(height: 20),
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -770,6 +761,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ] else ...[
+                    // INFO VIEW
                     _buildDescriptionView(isDark),
                     const SizedBox(height: 20),
                     _buildInfoRow(
@@ -811,9 +803,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
+
             const SizedBox(height: 16),
 
-            // REVIEWS
+            // 4. LIST ULASAN (Realtime)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
@@ -828,86 +821,118 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        "Ulasan Pelanggan",
+                        "Ulasan Toko",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: textColor,
                         ),
                       ),
                       Text(
-                        "Lihat Semua",
+                        "Terbaru",
                         style: TextStyle(color: primaryColor, fontSize: 12),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.black26 : Colors.brown[50],
-                            shape: BoxShape.circle,
+
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('reviews')
+                        .where('shopId', isEqualTo: user?.uid)
+                        .orderBy('createdAt', descending: true)
+                        .limit(5)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return Center(
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.black26
+                                      : Colors.brown[50],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  LucideIcons.star,
+                                  color: Colors.grey[400],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Belum ada ulasan toko.",
+                                style: TextStyle(
+                                  color: labelColor,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
-                          child: Icon(
-                            LucideIcons.star,
-                            color: Colors.grey[400],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "Belum ada ulasan.",
-                          style: TextStyle(color: labelColor, fontSize: 12),
-                        ),
-                      ],
-                    ),
+                        );
+                      }
+                      return Column(
+                        children: snapshot.data!.docs.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white10 : Colors.grey[50],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      LucideIcons.user,
+                                      size: 12,
+                                      color: labelColor,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      data['userName'] ?? "Pembeli",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Icon(
+                                      LucideIcons.star,
+                                      size: 12,
+                                      color: Colors.orange,
+                                    ),
+                                    Text(
+                                      " ${data['rating']}",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  data['comment'] ?? "",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: labelColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // MENU PENGATURAN
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    LucideIcons.settings,
-                    size: 20,
-                    color: Colors.grey,
-                  ),
-                ),
-                title: Text(
-                  "Pengaturan",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                  ),
-                ),
-                trailing: const Icon(
-                  LucideIcons.chevronRight,
-                  size: 18,
-                  color: Colors.grey,
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SettingsScreen(),
-                    ),
-                  );
-                },
               ),
             ),
             const SizedBox(height: 120),
@@ -917,9 +942,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- WIDGET HELPERS ---
-
-  // Widget Icon Header Transparan
   Widget _buildHeaderIcon(
     BuildContext context,
     IconData icon,
@@ -934,7 +956,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15), // Background transparan
+          color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: Colors.white, size: 20),
@@ -1066,7 +1088,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         labelStyle: TextStyle(
           color: isDark ? Colors.grey[400] : Colors.grey[700],
         ),
-        hintStyle: TextStyle(color: Colors.grey[500]),
         prefixIcon: icon != null
             ? Icon(icon, size: 16, color: Colors.grey)
             : null,
