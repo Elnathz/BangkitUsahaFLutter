@@ -1,4 +1,4 @@
-import 'dart:typed_data'; // Untuk web support
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,10 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 
-// Import Theme Manager
-import '../../theme_manager.dart';
+import 'settings_screen.dart';
 
-// Konstanta Hari
 const List<String> DAYS = [
   'Senin',
   'Selasa',
@@ -31,17 +29,14 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final user = FirebaseAuth.instance.currentUser;
 
-  // State UI
   bool isLoading = true;
   bool isEditing = false;
   bool isSaving = false;
   bool isUploading = false;
 
-  // Data Utama
   Map<String, dynamic> businessProfile = {
     'name': 'Memuat...',
     'owner': '',
-    'category': '-',
     'description': '',
     'address': '',
     'phone': '',
@@ -55,14 +50,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'responseRate': 0,
   };
 
-  // Controllers
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _yearController = TextEditingController();
 
-  // State Khusus Jadwal
   List<String> selectedDays = [];
   TimeOfDay openTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay closeTime = const TimeOfDay(hour: 17, minute: 0);
@@ -73,7 +66,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchUserData();
   }
 
-  // 1. FETCH DATA
   Future<void> _fetchUserData() async {
     if (user == null) return;
     try {
@@ -116,11 +108,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // 2. UPLOAD FOTO
   Future<void> _handleImageUpload() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
     if (image == null) return;
 
     setState(() => isUploading = true);
@@ -155,7 +145,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // 3. PARSE SCHEDULE
   void _parseSchedule(String scheduleString) {
     if (scheduleString.isEmpty) return;
     try {
@@ -200,7 +189,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
   }
 
-  // 4. SAVE DATA
   Future<void> _handleSave() async {
     setState(() => isSaving = true);
     try {
@@ -312,172 +300,207 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _handleLogout() async {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Konfirmasi"),
-        content: const Text("Apakah Anda yakin ingin keluar?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Batal"),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await FirebaseAuth.instance.signOut();
-            },
-            child: const Text("Keluar", style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (isLoading)
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    // Cek Dark Mode & Warna (DIPERBAIKI DENGAN TANDA SERU '!')
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    // Perbaikan: Tambahkan '!' agar tidak dianggap null
-    final Color cardColor = isDark ? Colors.grey[900]! : Colors.white;
+    final Color cardColor = isDark
+        ? const Color(0xFF6D4C41).withOpacity(0.2)
+        : Colors.white;
     final Color textColor = isDark ? Colors.white : Colors.black87;
-    final Color labelColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
+    final Color labelColor = isDark ? Colors.white70 : Colors.grey[600]!;
+    final Color primaryColor = theme.primaryColor;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // HEADER (Tidak Berubah)
-            SizedBox(
-              height: 220,
-              child: Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  Container(
-                    height: 160,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF2563EB), Color(0xFF9333EA)],
-                      ),
-                    ),
+            // ============================================================
+            // HEADER BARU: PROFIL DI DALAM (PROFESSIONAL LOOK)
+            // ============================================================
+            Container(
+              padding: const EdgeInsets.only(
+                top: 50,
+                bottom: 24,
+                left: 20,
+                right: 20,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    primaryColor,
+                    const Color(0xFF503C37), // Cokelat Lebih Gelap (Van Dike)
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
-                  Positioned(
-                    top: 110,
-                    child: Stack(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: cardColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: CircleAvatar(
-                            radius: 48,
-                            backgroundColor: Colors.grey[200],
-                            backgroundImage:
-                                (businessProfile['image'] != "" &&
-                                    businessProfile['image'] != null)
-                                ? NetworkImage(businessProfile['image'])
-                                : null,
-                            child:
-                                (businessProfile['image'] == "" ||
-                                    businessProfile['image'] == null)
-                                ? Text(
-                                    businessProfile['name'].isNotEmpty
-                                        ? businessProfile['name'][0]
-                                              .toUpperCase()
-                                        : "?",
-                                    style: const TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue,
+                ],
+              ),
+              child: Row(
+                children: [
+                  // 1. FOTO PROFIL (KIRI)
+                  Stack(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(2), // Border putih tipis
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: CircleAvatar(
+                          radius: 32, // Ukuran Foto sedang
+                          backgroundColor: Colors.grey[300],
+                          backgroundImage:
+                              (businessProfile['image'] != "" &&
+                                  businessProfile['image'] != null)
+                              ? NetworkImage(businessProfile['image'])
+                              : null,
+                          child:
+                              (businessProfile['image'] == "" ||
+                                  businessProfile['image'] == null)
+                              ? Text(
+                                  businessProfile['name'].isNotEmpty
+                                      ? businessProfile['name'][0].toUpperCase()
+                                      : "?",
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryColor,
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
+                      // Ikon Kamera Kecil untuk Edit
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: isUploading ? null : _handleImageUpload,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: primaryColor, width: 1),
+                            ),
+                            child: isUploading
+                                ? SizedBox(
+                                    width: 10,
+                                    height: 10,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: primaryColor,
                                     ),
                                   )
-                                : null,
+                                : Icon(
+                                    LucideIcons.camera,
+                                    size: 12,
+                                    color: primaryColor,
+                                  ),
                           ),
                         ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: GestureDetector(
-                            onTap: isUploading ? null : _handleImageUpload,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.blue[600],
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 4,
-                                  ),
-                                ],
-                              ),
-                              child: isUploading
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(
-                                      LucideIcons.camera,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(width: 16),
+
+                  // 2. NAMA TOKO & PEMILIK (TENGAH)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          businessProfile['name'],
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white, // Teks Putih di atas Cokelat
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              LucideIcons.user,
+                              size: 12,
+                              color: Colors.white70,
                             ),
+                            const SizedBox(width: 4),
+                            Text(
+                              businessProfile['owner'],
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            "Akun Bisnis",
+                            style: TextStyle(color: Colors.white, fontSize: 10),
                           ),
                         ),
                       ],
                     ),
                   ),
+
+                  // 3. ICON NOTIF & CHAT (KANAN ATAS)
+                  Row(
+                    children: [
+                      _buildHeaderIcon(
+                        LucideIcons.bell,
+                        () => _showToast(
+                          "Notifikasi kosong",
+                          ToastificationType.info,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildHeaderIcon(
+                        LucideIcons.messageCircle,
+                        () => _showToast(
+                          "Belum ada pesan",
+                          ToastificationType.info,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
 
-            // INFO
-            Text(
-              businessProfile['name'],
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(LucideIcons.user, size: 14, color: labelColor),
-                const SizedBox(width: 4),
-                Text(
-                  businessProfile['owner'],
-                  style: TextStyle(
-                    color: labelColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Chip(
-              label: Text(
-                businessProfile['category'],
-                style: TextStyle(color: textColor),
-              ),
-              backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
-            ),
+            // ============================================================
             const SizedBox(height: 24),
 
-            // STATS GRID (Dengan Warna Card Dinamis)
+            // STATS GRID
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -488,6 +511,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     LucideIcons.award,
                     cardColor,
                     textColor,
+                    primaryColor,
                   ),
                   const SizedBox(width: 8),
                   _buildStatCard(
@@ -496,6 +520,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     LucideIcons.star,
                     cardColor,
                     textColor,
+                    primaryColor,
                   ),
                   const SizedBox(width: 8),
                   _buildStatCard(
@@ -504,6 +529,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     LucideIcons.messageSquare,
                     cardColor,
                     textColor,
+                    primaryColor,
                   ),
                   const SizedBox(width: 8),
                   _buildStatCard(
@@ -512,13 +538,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     LucideIcons.messageCircle,
                     cardColor,
                     textColor,
+                    primaryColor,
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
 
-            // CARD INFORMASI BISNIS
+            // CARD INFORMASI
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
@@ -597,7 +624,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               icon: const Icon(LucideIcons.edit2, size: 14),
                               label: const Text("Edit"),
                               style: TextButton.styleFrom(
-                                foregroundColor: Colors.blue[600],
+                                foregroundColor: primaryColor,
                               ),
                             ),
                     ],
@@ -605,7 +632,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 16),
 
                   if (isEditing) ...[
-                    // FORM EDIT
                     _buildEditInput(
                       "Deskripsi",
                       _descController,
@@ -647,14 +673,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
 
                     const SizedBox(height: 20),
-                    // Jadwal UI
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[800] : Colors.grey[50],
+                        color: isDark ? Colors.white10 : Colors.brown[50],
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+                          color: isDark
+                              ? Colors.transparent
+                              : Colors.brown[100]!,
                         ),
                       ),
                       child: Column(
@@ -693,15 +720,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? Colors.blue[50]
+                                        ? primaryColor.withOpacity(0.1)
                                         : (isDark
-                                              ? Colors.grey[700]
+                                              ? Colors.black26
                                               : Colors.white),
                                     border: Border.all(
                                       color: isSelected
-                                          ? Colors.blue
+                                          ? primaryColor
                                           : (isDark
-                                                ? Colors.grey[600]!
+                                                ? Colors.transparent
                                                 : Colors.grey[300]!),
                                     ),
                                     borderRadius: BorderRadius.circular(20),
@@ -711,7 +738,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: isSelected
-                                          ? Colors.blue[700]
+                                          ? primaryColor
                                           : labelColor,
                                       fontWeight: isSelected
                                           ? FontWeight.bold
@@ -731,6 +758,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   openTime,
                                   true,
                                   isDark,
+                                  primaryColor,
                                 ),
                               ),
                               const Padding(
@@ -743,6 +771,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   closeTime,
                                   false,
                                   isDark,
+                                  primaryColor,
                                 ),
                               ),
                             ],
@@ -752,7 +781,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             "Preview: ${_generateScheduleString().isEmpty ? 'Belum diatur' : _generateScheduleString()}",
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.grey[500],
+                              color: labelColor,
                               fontStyle: FontStyle.italic,
                             ),
                           ),
@@ -760,7 +789,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ] else ...[
-                    // INFO VIEW
                     _buildDescriptionView(isDark),
                     const SizedBox(height: 20),
                     _buildInfoRow(
@@ -804,7 +832,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 16),
 
-            // REVIEWS (Warna Dinamis)
+            // REVIEWS
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
@@ -827,7 +855,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       Text(
                         "Lihat Semua",
-                        style: TextStyle(color: Colors.blue[600], fontSize: 12),
+                        style: TextStyle(color: primaryColor, fontSize: 12),
                       ),
                     ],
                   ),
@@ -838,7 +866,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isDark ? Colors.grey[800] : Colors.grey[100],
+                            color: isDark ? Colors.black26 : Colors.brown[50],
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -849,10 +877,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 8),
                         Text(
                           "Belum ada ulasan.",
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(color: labelColor, fontSize: 12),
                         ),
                       ],
                     ),
@@ -862,70 +887,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 16),
 
-            // SETTINGS & DARK MODE TOGGLE
+            // MENU PENGATURAN
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
-                children: [
-                  // --- TOGGLE DARK MODE ---
-                  ValueListenableBuilder<ThemeMode>(
-                    valueListenable: ThemeManager.themeMode,
-                    builder: (context, mode, _) {
-                      return SwitchListTile(
-                        secondary: Icon(
-                          mode == ThemeMode.dark
-                              ? LucideIcons.moon
-                              : LucideIcons.sun,
-                          color: mode == ThemeMode.dark
-                              ? Colors.yellow
-                              : Colors.orange,
-                        ),
-                        title: Text(
-                          "Mode Gelap",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: textColor,
-                          ),
-                        ),
-                        value: mode == ThemeMode.dark,
-                        onChanged: (val) {
-                          ThemeManager.toggle(val);
-                        },
-                      );
-                    },
+              child: ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  Divider(
-                    height: 1,
-                    color: isDark ? Colors.grey[800] : Colors.grey[200],
-                  ),
-
-                  // Menu Lainnya
-                  _buildMenuItem(
+                  child: const Icon(
                     LucideIcons.settings,
-                    "Pengaturan",
-                    () =>
-                        _showToast("Menu Pengaturan", ToastificationType.info),
-                    textColor,
+                    size: 20,
+                    color: Colors.grey,
                   ),
-                  Divider(
-                    height: 1,
-                    color: isDark ? Colors.grey[800] : Colors.grey[200],
+                ),
+                title: Text(
+                  "Pengaturan",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: textColor,
                   ),
-                  _buildMenuItem(
-                    LucideIcons.logOut,
-                    "Keluar Aplikasi",
-                    _handleLogout,
-                    textColor,
-                    isDanger: true,
-                  ),
-                ],
+                ),
+                trailing: const Icon(
+                  LucideIcons.chevronRight,
+                  size: 18,
+                  color: Colors.grey,
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    ),
+                  );
+                },
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 120),
           ],
         ),
       ),
@@ -933,12 +937,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // --- WIDGET HELPERS ---
+
+  // Widget Icon Header Transparan
+  Widget _buildHeaderIcon(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15), // Background transparan
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
   Widget _buildStatCard(
     String label,
     String value,
     IconData icon,
     Color bg,
     Color text,
+    Color iconColor,
   ) {
     return Expanded(
       child: Container(
@@ -952,7 +974,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Column(
           children: [
-            Icon(icon, size: 18, color: Colors.blue[600]),
+            Icon(icon, size: 18, color: iconColor),
             const SizedBox(height: 4),
             Text(
               label,
@@ -981,10 +1003,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[800] : Colors.grey[50],
+        color: isDark ? Colors.white10 : Colors.brown[50],
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
+          color: isDark ? Colors.transparent : Colors.brown[100]!,
         ),
       ),
       child: Text(
@@ -995,7 +1017,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           fontSize: 13,
           color: isEmpty
               ? Colors.grey[400]
-              : (isDark ? Colors.grey[300] : Colors.grey[700]),
+              : (isDark ? Colors.grey[300] : Colors.black87),
           fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
         ),
       ),
@@ -1081,6 +1103,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     TimeOfDay time,
     bool isOpenTime,
     bool isDark,
+    Color activeColor,
   ) {
     return InkWell(
       onTap: () => _selectTime(isOpenTime),
@@ -1091,7 +1114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
           ),
           borderRadius: BorderRadius.circular(8),
-          color: isDark ? Colors.grey[800] : Colors.white,
+          color: isDark ? Colors.white10 : Colors.white,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1105,52 +1128,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
-                color: isDark ? Colors.white : Colors.black,
+                color: isDark ? Colors.white : activeColor,
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuItem(
-    IconData icon,
-    String label,
-    VoidCallback onTap,
-    Color textColor, {
-    bool isDanger = false,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isDanger
-                    ? Colors.red.withOpacity(0.1)
-                    : Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: isDanger ? Colors.red : Colors.grey[700],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                color: isDanger ? Colors.red : textColor,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const Spacer(),
-            Icon(LucideIcons.chevronRight, size: 18, color: Colors.grey[300]),
           ],
         ),
       ),

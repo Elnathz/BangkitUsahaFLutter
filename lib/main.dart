@@ -3,20 +3,18 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:toastification/toastification.dart';
 import 'firebase_options.dart';
-import 'theme_manager.dart'; // <--- Import file baru tadi
+import 'theme_manager.dart';
 
-// Import halaman
 import 'features/auth/login_screen.dart';
 import 'features/home/main_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    await ThemeManager.init(); // <--- Load tema tersimpan sebelum aplikasi jalan
+    await ThemeManager.init();
     runApp(const MyApp());
   } catch (e) {
     runApp(ErrorApp(error: e.toString()));
@@ -26,9 +24,13 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  // DEFINISI WARNA ANDA
+  static const Color primaryBrown = Color(0xFF8D6E63); // Warna Utama
+  static const Color lightBrown = Color(0xFFA1887F); // Warna Terang
+  static const Color darkBrown = Color(0xFF6D4C41); // Warna Gelap
+
   @override
   Widget build(BuildContext context) {
-    // Bungkus dengan ValueListenableBuilder agar aplikasi rebuild saat tema berubah
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeManager.themeMode,
       builder: (context, currentMode, _) {
@@ -37,30 +39,60 @@ class MyApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             title: 'Bangkit Usaha',
 
-            // --- PENGATURAN TEMA ---
-            themeMode: currentMode, // Ikuti settingan manager
+            themeMode: currentMode,
+
+            // --- TEMA TERANG (LIGHT MODE) ---
             theme: ThemeData(
-              // Tema Terang
               brightness: Brightness.light,
+              // Menggunakan warna cokelat sebagai bibit warna (seed)
               colorScheme: ColorScheme.fromSeed(
-                seedColor: Colors.blue,
+                seedColor: primaryBrown,
+                primary: primaryBrown,
+                secondary: lightBrown,
                 brightness: Brightness.light,
               ),
               useMaterial3: true,
-              scaffoldBackgroundColor: Colors.grey[50],
-            ),
-            darkTheme: ThemeData(
-              // Tema Gelap
-              brightness: Brightness.dark,
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: Colors.blue,
-                brightness: Brightness.dark,
+              scaffoldBackgroundColor: const Color(
+                0xFFF5F5F5,
+              ), // Putih gading (agar hangat)
+              appBarTheme: const AppBarTheme(
+                backgroundColor: primaryBrown,
+                foregroundColor: Colors.white,
               ),
-              useMaterial3: true,
-              scaffoldBackgroundColor: const Color(0xFF121212), // Hitam elegan
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryBrown,
+                  foregroundColor: Colors.white,
+                ),
+              ),
             ),
 
-            // -----------------------
+            // --- TEMA GELAP (DARK MODE) ---
+            darkTheme: ThemeData(
+              brightness: Brightness.dark,
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: primaryBrown,
+                primary: primaryBrown,
+                secondary: lightBrown,
+                brightness: Brightness.dark,
+                surface: const Color(0xFF1E1E1E),
+              ),
+              useMaterial3: true,
+              // Background gelap menggunakan varian Cokelat Sangat Tua agar senada
+              scaffoldBackgroundColor: const Color(0xFF3E2723),
+              appBarTheme: const AppBarTheme(
+                backgroundColor:
+                    darkBrown, // Header pakai cokelat tua pilihan Anda
+                foregroundColor: Colors.white,
+              ),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryBrown,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+
             home: StreamBuilder<User?>(
               stream: FirebaseAuth.instance.authStateChanges(),
               builder: (context, snapshot) {
@@ -80,7 +112,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// (Class ErrorApp tetap sama seperti sebelumnya, biarkan saja di bawah sini)
 class ErrorApp extends StatelessWidget {
   final String error;
   const ErrorApp({super.key, required this.error});
