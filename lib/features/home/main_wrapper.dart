@@ -3,10 +3,11 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Import halaman-halaman
+// Import Pages
 import '../account/profile_screen.dart';
 import 'dashboard_screen.dart';
 import '../finance/transactions_screen.dart';
+import '../community/screens/community_page.dart';
 import '../inventory/products_screen.dart';
 
 class MainWrapper extends StatefulWidget {
@@ -17,44 +18,60 @@ class MainWrapper extends StatefulWidget {
 }
 
 class _MainWrapperState extends State<MainWrapper> {
-  static int _selectedIndex = 0;
+  int _selectedIndex = 0;
   final user = FirebaseAuth.instance.currentUser;
 
-  // Warna Palet Profesional dari Gambar Anda
-  final Color colVanDike = const Color(0xFF503C37); // Background Gelap
-  final Color colTimberwolf = const Color(0xFFD9D1C9); // Highlight Terang
-  final Color colSoftStone = const Color(0xFFB7B0A4); // Icon Mati
+  // Professional Color Palette
+  final Color colVanDike = const Color(0xFF503C37);      // Dark Background
+  final Color colTimberwolf = const Color(0xFFD9D1C9);   // Light Highlight
+  final Color colSoftStone = const Color(0xFFB7B0A4);    // Inactive Icon
 
-  // Daftar Halaman
-  final List<Widget> _screens = [
-    const DashboardScreen(), // 0: Beranda
-    const TransactionsPage(), // 1: Keuangan
-    const ProductsScreen(), // 2: Toko
-    const ProfileScreen(), // 4: Akun
-  ];
+  // Handle Community Page Navigation
+  void _handleCommunityClose() {
+    setState(() {
+      _selectedIndex = 0; // Back to Dashboard
+    });
+  }
+
+  // Get Current Screen based on selected index
+  Widget _getCurrentScreen() {
+    switch (_selectedIndex) {
+      case 0:
+        return const DashboardScreen();
+      case 1:
+        return const TransactionsPage();
+      case 2:
+        return const ProductsScreen();
+      case 3:
+        return CommunityPage(onClose: _handleCommunityClose);
+      case 4:
+        return const ProfileScreen();
+      default:
+        return const DashboardScreen();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Gunakan Stack agar Navigasi bisa "Melayang" di atas konten
+      // Stack untuk Floating Navigation
       body: Stack(
         children: [
-          // 1. KONTEN HALAMAN (Di Lapis Bawah)
-          // Kita kasih padding bawah agar konten paling bawah tidak tertutup navigasi
+          // 1. CONTENT LAYER
           Positioned.fill(
-            child: IndexedStack(index: _selectedIndex, children: _screens),
+            child: _getCurrentScreen(),
           ),
 
-          // 2. CUSTOM FLOATING NAVIGATION BAR (Di Lapis Atas)
+          // 2. FLOATING NAVIGATION BAR
           Positioned(
             left: 20,
             right: 20,
-            bottom: 24, // Jarak dari bawah layar (Melayang)
+            bottom: 24,
             child: Container(
-              height: 70, // Tinggi Bar
+              height: 70,
               decoration: BoxDecoration(
-                color: colVanDike, // Warna Background Cokelat Tua (#503C37)
-                borderRadius: BorderRadius.circular(40), // Sudut sangat bulat
+                color: colVanDike,
+                borderRadius: BorderRadius.circular(40),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.3),
@@ -71,7 +88,7 @@ class _MainWrapperState extends State<MainWrapper> {
                   _buildNavItem(1, LucideIcons.wallet, "Keuangan"),
                   _buildNavItem(2, LucideIcons.store, "Toko"),
                   _buildNavItem(3, LucideIcons.users, "Komunitas"),
-                  _buildProfileItem(4), // Item khusus untuk Foto Profil
+                  _buildProfileItem(4),
                 ],
               ),
             ),
@@ -81,7 +98,7 @@ class _MainWrapperState extends State<MainWrapper> {
     );
   }
 
-  // Widget untuk Item Navigasi Biasa
+  // Navigation Item Widget
   Widget _buildNavItem(int index, IconData icon, String label) {
     bool isSelected = _selectedIndex == index;
 
@@ -94,18 +111,14 @@ class _MainWrapperState extends State<MainWrapper> {
             ? const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
             : const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected
-              ? colTimberwolf
-              : Colors.transparent, // Warna pill aktif (#D9D1C9)
+          color: isSelected ? colTimberwolf : Colors.transparent,
           borderRadius: BorderRadius.circular(30),
         ),
         child: Row(
           children: [
             Icon(
               icon,
-              color: isSelected
-                  ? colVanDike
-                  : colSoftStone, // Icon gelap jika aktif, abu jika mati
+              color: isSelected ? colVanDike : colSoftStone,
               size: 24,
             ),
             if (isSelected) ...[
@@ -113,7 +126,7 @@ class _MainWrapperState extends State<MainWrapper> {
               Text(
                 label,
                 style: TextStyle(
-                  color: colVanDike, // Teks warna gelap (#503C37) agar kontras
+                  color: colVanDike,
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
                 ),
@@ -125,7 +138,7 @@ class _MainWrapperState extends State<MainWrapper> {
     );
   }
 
-  // Widget Khusus Item Profil (Dengan StreamBuilder Foto)
+  // Profile Item with Dynamic Photo
   Widget _buildProfileItem(int index) {
     bool isSelected = _selectedIndex == index;
 
@@ -135,10 +148,7 @@ class _MainWrapperState extends State<MainWrapper> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
         padding: isSelected
-            ? const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ) // Padding beda dikit biar muat foto
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
             : const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isSelected ? colTimberwolf : Colors.transparent,
@@ -146,7 +156,7 @@ class _MainWrapperState extends State<MainWrapper> {
         ),
         child: Row(
           children: [
-            // FOTO PROFIL DINAMIS
+            // Dynamic Profile Photo
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('users')
@@ -159,7 +169,7 @@ class _MainWrapperState extends State<MainWrapper> {
                   imageUrl = data?['image'];
                 }
 
-                // Tampilan Foto / Icon User
+                // Display Photo or User Icon
                 if (imageUrl != null && imageUrl.isNotEmpty) {
                   return Container(
                     decoration: BoxDecoration(
@@ -172,6 +182,7 @@ class _MainWrapperState extends State<MainWrapper> {
                     child: CircleAvatar(
                       radius: 12,
                       backgroundImage: NetworkImage(imageUrl),
+                      backgroundColor: colSoftStone,
                     ),
                   );
                 } else {
@@ -184,7 +195,7 @@ class _MainWrapperState extends State<MainWrapper> {
               },
             ),
 
-            // LABEL "AKUN" (Hanya muncul jika dipilih)
+            // "Akun" Label (Only when selected)
             if (isSelected) ...[
               const SizedBox(width: 8),
               Text(
