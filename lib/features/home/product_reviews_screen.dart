@@ -87,14 +87,15 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
     );
   }
 
+  // ... import dan class ...
+
   Future<void> _submitReview(double rating, String comment) async {
     try {
       final shopId = widget.productData['uid'];
 
-      // 1. Simpan Ulasan ke Collection 'reviews'
       await FirebaseFirestore.instance.collection('reviews').add({
-        'productId': widget.productId,
-        'shopId': shopId, // Disimpan untuk referensi nanti
+        'productId': widget.productId, // Ada ID Produk
+        'shopId': shopId,
         'userId': user!.uid,
         'userName': user!.displayName ?? "Pembeli",
         'userImage': user!.photoURL ?? "",
@@ -103,10 +104,10 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // 2. Hitung Ulang Rating PRODUK saja
+      // HANYA Update Rating PRODUK
       await _recalculateProductRating(widget.productId);
 
-      // (Logika update Rating Toko dihapus sesuai permintaan)
+      // (Logika update rating Toko SUDAH DIHAPUS agar rating toko murni)
 
       if (mounted) {
         toastification.show(
@@ -120,6 +121,8 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
       debugPrint("Error submit review: $e");
     }
   }
+
+  // ... sisanya sama ...
 
   Future<void> _recalculateProductRating(String productId) async {
     // Ambil semua review khusus produk ini

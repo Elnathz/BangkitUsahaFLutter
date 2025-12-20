@@ -49,8 +49,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'rating': 0.0,
     'totalReviews': 0,
     'totalSales': 0,
-    'responseRate': 0,
+    'responseRate':
+        0, // Ini akan kita isi dengan Total Interaksi (Semua Ulasan)
   };
+
+  // Variable baru untuk menampung total semua ulasan (Produk + Toko)
+  int totalAllInteractions = 0;
 
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
@@ -72,6 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchUserData() async {
     if (user == null) return;
 
+    // 1. Ambil Data Profil (Termasuk Rating Toko Murni)
     FirebaseFirestore.instance
         .collection('users')
         .doc(user!.uid)
@@ -79,8 +84,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .listen((docSnap) {
           if (!mounted) return;
 
+          // 2. Hitung Total Semua Ulasan (Produk + Toko) untuk kolom "Respon"
+          FirebaseFirestore.instance
+              .collection('reviews')
+              .where('shopId', isEqualTo: user!.uid)
+              .count()
+              .get()
+              .then((countSnap) {
+                if (mounted)
+                  setState(() => totalAllInteractions = countSnap.count ?? 0);
+              });
+
           if (docSnap.exists) {
-            // --- SKENARIO 1: AKUN SUDAH PUNYA DATA ---
             final data = docSnap.data()!;
             setState(() {
               businessProfile = {
@@ -93,16 +108,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 'openingHours': data['openingHours'] ?? "",
                 'established': data['established'] ?? "",
                 'image': data['image'] ?? user!.photoURL ?? "",
-                'rating': (data['rating'] ?? 0).toDouble(),
-                'totalReviews': data['totalReviews'] ?? 0,
+                'rating': (data['rating'] ?? 0)
+                    .toDouble(), // INI MURNI RATING TOKO
+                'totalReviews':
+                    data['totalReviews'] ?? 0, // INI JUMLAH ULASAN TOKO
                 'totalSales': data['totalSales'] ?? 0,
                 'responseRate': data['responseRate'] ?? 0,
               };
               isLoading = false;
             });
           } else {
-            // --- SKENARIO 2: AKUN BARU (DATA BELUM ADA) ---
-            // Kita isi dengan data dasar dari Login agar tidak "Memuat..." terus
             setState(() {
               businessProfile = {
                 'name': user!.displayName ?? "Nama Toko Anda",
@@ -144,11 +159,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       final downloadURL = await storageRef.getDownloadURL();
 
-      // GUNAKAN SET MERGE AGAR TIDAK ERROR JIKA DOC BELUM ADA
       await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
         'image': downloadURL,
       }, SetOptions(merge: true));
-
       await user!.updatePhotoURL(downloadURL);
       _showToast("Foto berhasil diperbarui!", ToastificationType.success);
     } catch (e) {
@@ -240,7 +253,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _toggleEdit() {
     if (!isEditing) {
-      // Isi controller dengan data saat ini agar tidak kosong saat diedit
       _nameController.text = businessProfile['name'];
       _descController.text = businessProfile['description'];
       _addressController.text = businessProfile['address'];
@@ -256,10 +268,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => isSaving = true);
     try {
       final scheduleString = _generateScheduleString();
-
-      // PERBAIKAN UTAMA: GUNAKAN SET DENGAN MERGE
-      // Ini akan membuat dokumen baru jika belum ada (akun baru),
-      // atau mengupdate jika sudah ada.
       await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
         'storeName': _nameController.text,
         'description': _descController.text,
@@ -268,7 +276,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'email': _emailController.text,
         'established': _yearController.text,
         'openingHours': scheduleString,
-        // Kita juga bisa set default value lain jika ini akun baru
         'ownerName': user!.displayName ?? "Pemilik",
       }, SetOptions(merge: true));
 
@@ -324,7 +331,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final labelColor = isDark ? Colors.white70 : Colors.grey[600]!;
     final primaryColor = theme.primaryColor;
 
-    // Safety check agar nama tidak null
     String displayName = businessProfile['name'];
     if (displayName.isEmpty) displayName = "Nama Toko Anda";
     String image = businessProfile['image'];
@@ -500,7 +506,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(width: 8),
                   _buildStatCard(
-                    "Rating",
+                    "Rating Toko",
                     "${businessProfile['rating']}",
                     LucideIcons.star,
                     cardColor,
@@ -509,7 +515,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(width: 8),
                   _buildStatCard(
-                    "Ulasan",
+                    "Ulasan Toko",
                     "${businessProfile['totalReviews']}",
                     LucideIcons.messageSquare,
                     cardColor,
@@ -517,10 +523,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     primaryColor,
                   ),
                   const SizedBox(width: 8),
+                  // INI TOTAL SEMUA INTERAKSI
                   _buildStatCard(
-                    "Respon",
-                    "${businessProfile['responseRate']}%",
-                    LucideIcons.messageCircle,
+                    "Total Ulasan",
+                    "$totalAllInteractions",
+                    LucideIcons.users,
                     cardColor,
                     textColor,
                     primaryColor,
@@ -826,7 +833,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 16),
 
-            // 4. LIST ULASAN
+            // 4. LIST ULASAN (Realtime)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
@@ -895,6 +902,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       return Column(
                         children: snapshot.data!.docs.map((doc) {
                           final data = doc.data() as Map<String, dynamic>;
+                          bool isShopReview =
+                              (data['productId'] == null ||
+                              data['productId'] == "");
+
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(12),
@@ -937,7 +948,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                   ],
                                 ),
+
                                 const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  margin: const EdgeInsets.only(bottom: 6),
+                                  decoration: BoxDecoration(
+                                    color: isShopReview
+                                        ? Colors.purple.withOpacity(0.1)
+                                        : Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    isShopReview
+                                        ? "Ulasan Toko"
+                                        : "Ulasan Produk",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: isShopReview
+                                          ? Colors.purple
+                                          : Colors.blue,
+                                    ),
+                                  ),
+                                ),
+
                                 Text(
                                   data['comment'] ?? "",
                                   style: TextStyle(
@@ -1009,6 +1047,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(
               label,
               style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
             ),
             Text(
               value == "0" ? "-" : value,

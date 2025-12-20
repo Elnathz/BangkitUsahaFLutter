@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
-import '../home/product_detail_screen.dart'; // Agar bisa klik produk di etalase toko
-import '../chat/chat_detail_screen.dart'; // Agar bisa chat penjual
+import 'package:toastification/toastification.dart';
+
+import '../home/product_detail_screen.dart';
+import '../chat/chat_detail_screen.dart';
 
 class ShopProfileScreen extends StatefulWidget {
-  final String shopId; // UID Penjual
+  final String shopId;
 
   const ShopProfileScreen({super.key, required this.shopId});
 
@@ -21,6 +24,149 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
     symbol: 'Rp ',
     decimalDigits: 0,
   );
+  final currentUser = FirebaseAuth.instance.currentUser;
+
+  // --- LOGIC: TAMBAH ULASAN KHUSUS TOKO ---
+  void _showAddShopReviewDialog() {
+    if (currentUser == null) return;
+    if (currentUser!.uid == widget.shopId) {
+      toastification.show(
+        context: context,
+        title: const Text("Anda tidak bisa mereview toko sendiri"),
+        type: ToastificationType.warning,
+      );
+      return;
+    }
+
+    final commentCtrl = TextEditingController();
+    double rating = 5.0;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateSB) {
+            return AlertDialog(
+              title: const Text("Tulis Ulasan Toko"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("Bagaimana pelayanan toko ini?"),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return IconButton(
+                        onPressed: () => setStateSB(() => rating = index + 1.0),
+                        icon: Icon(
+                          LucideIcons.star,
+                          color: index < rating
+                              ? Colors.orange
+                              : Colors.grey[300],
+                          size: 32,
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: commentCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      hintText: "Contoh: Pelayanan ramah, respon cepat...",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Batal"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (commentCtrl.text.trim().isEmpty) return;
+                    Navigator.pop(context);
+                    await _submitShopReview(rating, commentCtrl.text);
+                  },
+                  child: const Text("Kirim"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _submitShopReview(double rating, String comment) async {
+    try {
+      // Simpan Ulasan (ProductId KOSONG "" = Tanda ini Ulasan Toko)
+      await FirebaseFirestore.instance.collection('reviews').add({
+        'productId': "",
+        'shopId': widget.shopId,
+        'userId': currentUser!.uid,
+        'userName': currentUser!.displayName ?? "Pembeli",
+        'userImage': currentUser!.photoURL ?? "",
+        'rating': rating,
+        'comment': comment,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Hitung Ulang Rating
+      await _recalculateShopRating();
+
+      if (mounted)
+        toastification.show(
+          context: context,
+          title: const Text("Ulasan toko terkirim!"),
+          type: ToastificationType.success,
+          autoCloseDuration: const Duration(seconds: 3),
+        );
+    } catch (e) {
+      debugPrint("Error: $e");
+    }
+  }
+
+  // --- LOGIC HITUNG YANG DIPERBAIKI ---
+  Future<void> _recalculateShopRating() async {
+    try {
+      // 1. Ambil HANYA review yang productId-nya KOSONG ("")
+      // Ini memastikan ulasan produk TIDAK ikut terhitung
+      final snapshot = await FirebaseFirestore.instance
+          .collection('reviews')
+          .where('shopId', isEqualTo: widget.shopId)
+          .where('productId', isEqualTo: "")
+          .get();
+
+      // Jika belum ada review toko sama sekali
+      if (snapshot.docs.isEmpty) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.shopId)
+            .update({'rating': 0.0, 'totalReviews': 0});
+        return;
+      }
+
+      double totalStars = 0;
+      for (var doc in snapshot.docs) {
+        totalStars += (doc['rating'] as num).toDouble();
+      }
+      double avg = totalStars / snapshot.docs.length;
+
+      // 2. Update Data Toko (User) dengan Rating Murni Toko
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.shopId)
+          .update({
+            'rating': double.parse(avg.toStringAsFixed(1)),
+            'totalReviews': snapshot.docs.length,
+          });
+    } catch (e) {
+      debugPrint("Gagal hitung rating toko (Mungkin butuh Index): $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +178,15 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      // DefaultTabController untuk mengatur Tab Produk & Ulasan
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddShopReviewDialog,
+        backgroundColor: Colors.orange,
+        icon: const Icon(LucideIcons.star, color: Colors.white),
+        label: const Text(
+          "Beri Nilai Toko",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
       body: DefaultTabController(
         length: 2,
         child: NestedScrollView(
@@ -61,7 +215,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
                       indicatorWeight: 3,
                       tabs: const [
                         Tab(text: "Produk"),
-                        Tab(text: "Ulasan"),
+                        Tab(text: "Semua Ulasan"),
                       ],
                     ),
                   ),
@@ -80,13 +234,12 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
     );
   }
 
-  // --- 1. HEADER TOKO (FOTO, NAMA, RATING, CHAT) ---
   Widget _buildShopHeader(Color primaryColor) {
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
           .collection('users')
           .doc(widget.shopId)
-          .get(),
+          .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return Container(color: primaryColor);
 
@@ -95,14 +248,9 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
 
         String name = data['storeName'] ?? "Toko";
         String image = data['image'] ?? "";
+        // Ini Rating yang diambil dari DB (akan berubah setelah recalculate berjalan)
         double rating = (data['rating'] ?? 0).toDouble();
         int totalReviews = data['totalReviews'] ?? 0;
-        int totalSales = data['totalSales'] ?? 0;
-        String joinedDate = "";
-        if (data['createdAt'] != null) {
-          // Jika ada data tanggal gabung
-          // joinedDate = ...
-        }
 
         return Container(
           decoration: BoxDecoration(
@@ -118,7 +266,6 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // FOTO PROFIL
                   Container(
                     padding: const EdgeInsets.all(2),
                     decoration: const BoxDecoration(
@@ -144,8 +291,6 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
                     ),
                   ),
                   const SizedBox(width: 16),
-
-                  // INFO TOKO
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,7 +323,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              "|  $totalReviews Ulasan",
+                              "|  $totalReviews Ulasan Toko",
                               style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 12,
@@ -188,7 +333,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          "Online 10 menit lalu",
+                          "Online",
                           style: TextStyle(
                             color: Colors.greenAccent,
                             fontSize: 11,
@@ -197,8 +342,6 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
                       ],
                     ),
                   ),
-
-                  // TOMBOL CHAT
                   OutlinedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -224,22 +367,6 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-
-              // STATISTIK KECIL
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatItem(
-                    "Produk",
-                    "Memuat...",
-                  ), // Nanti diisi stream count
-                  Container(height: 20, width: 1, color: Colors.white24),
-                  _buildStatItem("Penilaian", "$rating"),
-                  Container(height: 20, width: 1, color: Colors.white24),
-                  _buildStatItem("Performa Chat", "98%"),
-                ],
-              ),
             ],
           ),
         );
@@ -247,26 +374,6 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
     );
   }
 
-  Widget _buildStatItem(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white70, fontSize: 11),
-        ),
-      ],
-    );
-  }
-
-  // --- 2. TAB PRODUK (GRID) ---
   Widget _buildProductGrid(
     Color cardColor,
     Color textColor,
@@ -275,21 +382,19 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('products')
-          .where('uid', isEqualTo: widget.shopId) // Ambil produk toko ini saja
+          .where('uid', isEqualTo: widget.shopId)
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData)
           return const Center(child: CircularProgressIndicator());
         final products = snapshot.data!.docs;
-
-        if (products.isEmpty) {
+        if (products.isEmpty)
           return Center(
             child: Text(
               "Toko ini belum memiliki produk.",
               style: TextStyle(color: Colors.grey[500]),
             ),
           );
-        }
 
         return GridView.builder(
           padding: const EdgeInsets.all(16),
@@ -302,19 +407,16 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
           itemCount: products.length,
           itemBuilder: (context, index) {
             final data = products[index].data() as Map<String, dynamic>;
-            final id = products[index].id;
-
-            // Reuse Card Design
             return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ProductDetailScreen(productData: data, productId: id),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProductDetailScreen(
+                    productData: data,
+                    productId: products[index].id,
                   ),
-                );
-              },
+                ),
+              ),
               child: Container(
                 decoration: BoxDecoration(
                   color: cardColor,
@@ -400,36 +502,25 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
     );
   }
 
-  // --- 3. TAB ULASAN TOKO (LIST) ---
   Widget _buildReviewList(Color cardColor, Color textColor, bool isDark) {
     return StreamBuilder<QuerySnapshot>(
-      // Ambil review yang ditujukan untuk SHOP ID ini
+      // Tampilkan SEMUA ulasan di sini (Campuran), tapi diberi Label
       stream: FirebaseFirestore.instance
           .collection('reviews')
           .where('shopId', isEqualTo: widget.shopId)
           .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Center(
-            child: Text(
-              "Perlu Index Database (shopId + createdAt)",
-              style: TextStyle(color: Colors.red),
-            ),
-          );
-        }
         if (!snapshot.hasData)
           return const Center(child: CircularProgressIndicator());
-
         final reviews = snapshot.data!.docs;
-        if (reviews.isEmpty) {
+        if (reviews.isEmpty)
           return Center(
             child: Text(
-              "Belum ada ulasan untuk toko ini.",
+              "Belum ada ulasan.",
               style: TextStyle(color: Colors.grey[500]),
             ),
           );
-        }
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -437,11 +528,13 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
           itemBuilder: (context, index) {
             final data = reviews[index].data() as Map<String, dynamic>;
             String dateStr = "";
-            if (data['createdAt'] != null) {
+            if (data['createdAt'] != null)
               dateStr = DateFormat(
                 'dd MMM yyyy',
               ).format((data['createdAt'] as Timestamp).toDate());
-            }
+
+            bool isShopReview =
+                (data['productId'] == null || data['productId'] == "");
 
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
@@ -465,13 +558,13 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
                         radius: 16,
                         backgroundColor: Colors.grey[300],
                         backgroundImage:
-                            (data['userImage'] != null &&
-                                data['userImage'] != "")
+                            (data['userImage'] != "" &&
+                                data['userImage'] != null)
                             ? NetworkImage(data['userImage'])
                             : null,
                         child:
-                            (data['userImage'] == null ||
-                                data['userImage'] == "")
+                            (data['userImage'] == "" ||
+                                data['userImage'] == null)
                             ? const Icon(
                                 LucideIcons.user,
                                 size: 16,
@@ -533,6 +626,29 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
                     ],
                   ),
                   const SizedBox(height: 8),
+
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    margin: const EdgeInsets.only(bottom: 6),
+                    decoration: BoxDecoration(
+                      color: isShopReview
+                          ? Colors.purple.withOpacity(0.1)
+                          : Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      isShopReview ? "Ulasan Toko" : "Ulasan Produk",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isShopReview ? Colors.purple : Colors.blue,
+                      ),
+                    ),
+                  ),
+
                   Text(
                     data['comment'] ?? "",
                     style: TextStyle(
