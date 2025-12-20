@@ -28,17 +28,8 @@ class _MainWrapperState extends State<MainWrapper> {
   // Daftar Halaman
   final List<Widget> _screens = [
     const DashboardScreen(), // 0: Beranda
-    const TransactionsScreen(), // 1: Keuangan
+    const TransactionsPage(), // 1: Keuangan
     const ProductsScreen(), // 2: Toko
-    const Scaffold(
-      // 3: Komunitas (Placeholder)
-      body: Center(
-        child: Text(
-          "Komunitas Segera Hadir",
-          style: TextStyle(color: Colors.grey),
-        ),
-      ),
-    ),
     const ProfileScreen(), // 4: Akun
   ];
 

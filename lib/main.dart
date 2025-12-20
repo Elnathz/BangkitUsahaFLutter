@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:toastification/toastification.dart';
 import 'firebase_options.dart';
+import 'package:intl/date_symbol_data_local.dart'; // ✅ TAMBAHKAN BARIS INI
+import 'features/finance/transactions_screen.dart';
 import 'theme_manager.dart';
 
 import 'features/auth/login_screen.dart';
@@ -14,6 +16,10 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    await Future.wait([
+    initializeDateFormatting('id_ID', null),
+    initializeDateFormatting('en_US', null),
+  ]);
     await ThemeManager.init();
     runApp(const MyApp());
   } catch (e) {
