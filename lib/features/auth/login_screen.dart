@@ -14,7 +14,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passController = TextEditingController();
+
   bool _isLoading = false;
+  bool _isPasswordVisible = false; // State to toggle password visibility
 
   // Login Email/Password
   Future<void> _handleEmailLogin() async {
@@ -29,11 +31,10 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passController.text.trim(),
       );
-      // Jika berhasil, StreamBuilder di main.dart otomatis pindah ke Home
     } on FirebaseAuthException catch (e) {
       _showToast(e.message ?? "Gagal login", ToastificationType.error);
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -41,29 +42,21 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleGoogleLogin() async {
     setState(() => _isLoading = true);
     try {
-      // 1. Trigger flow Google Sign In
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
         setState(() => _isLoading = false);
-        return; // User membatalkan
+        return;
       }
-
-      // 2. Ambil detail otentikasi
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // 3. Buat kredensial baru
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-
-      // 4. Masuk ke Firebase
       await FirebaseAuth.instance.signInWithCredential(credential);
     } catch (e) {
       _showToast("Gagal login Google: $e", ToastificationType.error);
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -79,107 +72,177 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.white, // Background mainly white
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Logo / Judul
-              const Icon(LucideIcons.store, size: 64, color: Colors.blue),
-              const SizedBox(height: 16),
-              const Text(
-                "Bangkit Usaha",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
-              ),
-              const Text(
-                "Kelola bisnis Anda dengan mudah",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 40),
-
-              // Form Email
-              TextField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: "Email",
-                  prefixIcon: const Icon(LucideIcons.mail),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Password",
-                  prefixIcon: const Icon(LucideIcons.lock),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              // 1. LOGO FRONT AND CENTER
+              Center(
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withOpacity(0.2),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      )
+                    ],
+                    // Using the asset found in your dashboard_screen.dart
+                    image: const DecorationImage(
+                      image: AssetImage('assets/images/bangkitusaha.jpeg'),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
 
-              // Tombol Login Email
+              // 2. HOOK TEXT
+              const Text(
+                "Kembangkan bisnismu\nbersama kami!",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange, // Orange palette
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 40),
+
+              // 3. EMAIL INPUT (with Mail Icon)
+              TextField(
+                controller: _emailController,
+                decoration: InputDecoration(
+                  labelText: "Email",
+                  prefixIcon: const Icon(LucideIcons.mail, color: Colors.orange),
+                  filled: true,
+                  fillColor: Colors.orange.withOpacity(0.05),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.orange, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 4. PASSWORD INPUT (with Lock Icon & Eye Toggle)
+              TextField(
+                controller: _passController,
+                obscureText: !_isPasswordVisible, // Toggle logic
+                decoration: InputDecoration(
+                  labelText: "Kata Sandi",
+                  prefixIcon: const Icon(LucideIcons.lock, color: Colors.orange),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isPasswordVisible ? LucideIcons.eye : LucideIcons.eyeOff,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                  ),
+                  filled: true,
+                  fillColor: Colors.orange.withOpacity(0.05),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.orange, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // 5. LOGIN BUTTON (Orange)
               ElevatedButton(
                 onPressed: _isLoading ? null : _handleEmailLogin,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: Colors.orange, // Orange
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  elevation: 2,
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(color: Colors.white),
-                      )
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                )
                     : const Text(
-                        "Masuk",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                  "MASUK",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
               ),
 
               const SizedBox(height: 24),
               const Row(
                 children: [
                   Expanded(child: Divider()),
-                  Padding(padding: EdgeInsets.all(8.0), child: Text("ATAU")),
+                  Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text("atau", style: TextStyle(color: Colors.grey))),
                   Expanded(child: Divider()),
                 ],
               ),
               const SizedBox(height: 24),
 
-              // Tombol Google
+              // 6. GOOGLE BUTTON (Chrome Icon)
               OutlinedButton.icon(
                 onPressed: _isLoading ? null : _handleGoogleLogin,
-                icon: const Icon(
-                  LucideIcons.chrome,
-                ), // Ikon sementara sbg Google
+                icon: const Icon(LucideIcons.chrome, color: Colors.blueAccent), // Chrome logo
                 label: const Text("Masuk dengan Google"),
                 style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.black87,
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: const BorderSide(color: Colors.grey),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // Register Link
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Belum punya akun? ", style: TextStyle(color: Colors.grey)),
+                  GestureDetector(
+                    onTap: () {
+                      // Navigate to Register Screen
+                    },
+                    child: const Text(
+                      "Daftar Sekarang",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepOrange,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
