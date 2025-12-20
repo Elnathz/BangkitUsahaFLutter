@@ -8,6 +8,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 
 import 'settings_screen.dart';
+import '../notifications/notification_screen.dart';
+import '../chat/chat_screen.dart';
 
 const List<String> DAYS = [
   'Senin',
@@ -80,7 +82,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           businessProfile = {
             'name': data['storeName'] ?? user!.displayName ?? "Toko Saya",
             'owner': data['ownerName'] ?? user!.displayName ?? "Pemilik",
-            'category': data['category'] ?? "Umum",
             'description': data['description'] ?? "",
             'address': data['address'] ?? "",
             'phone': data['phoneNumber'] ?? "",
@@ -308,9 +309,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final Color cardColor = isDark
-        ? const Color(0xFF6D4C41).withOpacity(0.2)
-        : Colors.white;
+    // Perbaikan warna dengan tanda seru '!'
+    final Color cardColor = isDark ? Colors.grey[900]! : Colors.white;
     final Color textColor = isDark ? Colors.white : Colors.black87;
     final Color labelColor = isDark ? Colors.white70 : Colors.grey[600]!;
     final Color primaryColor = theme.primaryColor;
@@ -336,7 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   end: Alignment.bottomRight,
                   colors: [
                     primaryColor,
-                    const Color(0xFF503C37), // Cokelat Lebih Gelap (Van Dike)
+                    const Color(0xFF503C37), // Van Dike
                   ],
                 ),
                 borderRadius: const BorderRadius.only(
@@ -431,7 +431,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white, // Teks Putih di atas Cokelat
+                            color: Colors.white,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -454,21 +454,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            "Akun Bisnis",
-                            style: TextStyle(color: Colors.white, fontSize: 10),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -477,19 +462,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Row(
                     children: [
                       _buildHeaderIcon(
+                        context,
                         LucideIcons.bell,
-                        () => _showToast(
-                          "Notifikasi kosong",
-                          ToastificationType.info,
-                        ),
+                        const NotificationScreen(),
                       ),
                       const SizedBox(width: 8),
                       _buildHeaderIcon(
+                        context,
                         LucideIcons.messageCircle,
-                        () => _showToast(
-                          "Belum ada pesan",
-                          ToastificationType.info,
-                        ),
+                        const ChatScreen(),
                       ),
                     ],
                   ),
@@ -939,9 +920,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // --- WIDGET HELPERS ---
 
   // Widget Icon Header Transparan
-  Widget _buildHeaderIcon(IconData icon, VoidCallback onTap) {
+  Widget _buildHeaderIcon(
+    BuildContext context,
+    IconData icon,
+    Widget destination,
+  ) {
     return InkWell(
-      onTap: onTap,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => destination),
+      ),
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(8),
