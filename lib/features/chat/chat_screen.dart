@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+
+import 'chat_detail_screen.dart';
+import 'search_user_screen.dart';
 
 class ChatScreen extends StatelessWidget {
   const ChatScreen({super.key});
@@ -8,36 +14,9 @@ class ChatScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final primaryColor = theme.primaryColor; // Warna Cokelat Kita
+    final primaryColor = theme.primaryColor;
     final textColor = isDark ? Colors.white : Colors.black87;
-
-    // Data Dummy sesuai gambar referensi
-    final List<Map<String, dynamic>> chats = [
-      {
-        "name": "Budi Santoso",
-        "message": "Terima kasih, produknya sudah sampai",
-        "time": "10:30",
-        "unread": 0,
-        "isOnline": true,
-        "avatar": null, // Nanti pakai inisial
-      },
-      {
-        "name": "Siti Aminah",
-        "message": "Apakah produk ready stock?",
-        "time": "09:15",
-        "unread": 2, // Badge pesan
-        "isOnline": false,
-        "avatar": "https://via.placeholder.com/150",
-      },
-      {
-        "name": "Ahmad Yani",
-        "message": "Oke, saya transfer sekarang",
-        "time": "Kemarin",
-        "unread": 0,
-        "isOnline": false,
-        "avatar": null,
-      },
-    ];
+    final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -52,135 +31,202 @@ class ChatScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // SEARCH BAR
+          // SEARCH BAR (Sebagai Tombol ke Halaman Search User)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: "Cari chat...",
-                hintStyle: TextStyle(color: Colors.grey[500]),
-                prefixIcon: Icon(
-                  LucideIcons.search,
-                  color: Colors.grey[400],
-                  size: 20,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SearchUserScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
-                fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
-                filled: true,
-                border: OutlineInputBorder(
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[900] : Colors.grey[100],
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  border: Border.all(color: Colors.transparent),
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.search, color: Colors.grey[400], size: 20),
+                    const SizedBox(width: 12),
+                    Text(
+                      "Cari pemilik toko...",
+                      style: TextStyle(color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
           const Divider(height: 1),
 
-          // LIST CHAT
+          // LIST CHAT (STREAM DARI FIRESTORE)
           Expanded(
-            child: ListView.builder(
-              itemCount: chats.length,
-              itemBuilder: (context, index) {
-                final chat = chats[index];
-                return _buildChatTile(chat, textColor, primaryColor);
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('chats')
+                  .where(
+                    'participants',
+                    arrayContains: currentUser?.uid,
+                  ) // Ambil chat yg ada saya
+                  .orderBy(
+                    'lastTime',
+                    descending: true,
+                  ) // Urutkan dari yg terbaru
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError)
+                  return Center(child: Text("Error: ${snapshot.error}"));
+                if (!snapshot.hasData)
+                  return const Center(child: CircularProgressIndicator());
+
+                final docs = snapshot.data!.docs;
+
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.messageSquare,
+                          size: 64,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          "Belum ada pesan.",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SearchUserScreen(),
+                            ),
+                          ),
+                          child: Text(
+                            "Mulai Chat Baru",
+                            style: TextStyle(color: primaryColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+
+                    // Cari UID lawan bicara (yang bukan saya)
+                    final List<dynamic> participants = data['participants'];
+                    final String otherUid = participants.firstWhere(
+                      (id) => id != currentUser?.uid,
+                      orElse: () => "",
+                    );
+
+                    // Ambil Data Lawan Bicara (Foto & Nama)
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(otherUid)
+                          .get(),
+                      builder: (context, userSnap) {
+                        if (!userSnap.hasData)
+                          return const SizedBox(); // Loading state hidden
+
+                        final userData =
+                            userSnap.data!.data() as Map<String, dynamic>?;
+                        final String name = userData?['storeName'] ?? "User";
+                        final String? image = userData?['image'];
+
+                        // Format Waktu
+                        String timeStr = "";
+                        if (data['lastTime'] != null) {
+                          Timestamp t = data['lastTime'];
+                          timeStr = DateFormat('HH:mm').format(t.toDate());
+                        }
+
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          leading: CircleAvatar(
+                            radius: 24,
+                            backgroundColor: Colors.grey[300],
+                            backgroundImage: (image != null && image != "")
+                                ? NetworkImage(image)
+                                : null,
+                            child: (image == null || image == "")
+                                ? Text(
+                                    name[0],
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey[700],
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                              Text(
+                                timeStr,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Text(
+                            data['lastMessage'] ?? "Gambar",
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ChatDetailScreen(
+                                  targetUid: otherUid,
+                                  targetName: name,
+                                  targetImage: image,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                );
               },
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildChatTile(
-    Map<String, dynamic> chat,
-    Color textColor,
-    Color primaryColor,
-  ) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Stack(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: Colors.grey[300],
-            backgroundImage: chat['avatar'] != null
-                ? NetworkImage(chat['avatar'])
-                : null,
-            child: chat['avatar'] == null
-                ? Text(
-                    chat['name'][0],
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[700],
-                    ),
-                  )
-                : null,
-          ),
-          // Indikator Online (Hijau)
-          if (chat['isOnline'])
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-              ),
-            ),
-        ],
-      ),
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            chat['name'],
-            style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
-          ),
-          Text(
-            chat['time'],
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
-          ),
-        ],
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                chat['message'],
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            // Badge Unread (Warna Cokelat Primary biar serasi tema)
-            if (chat['unread'] > 0)
-              Container(
-                margin: const EdgeInsets.only(left: 8),
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: primaryColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  "${chat['unread']}",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-      onTap: () {}, // Nanti masuk ke detail chat
     );
   }
 }
