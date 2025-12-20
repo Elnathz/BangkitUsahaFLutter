@@ -8,7 +8,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 import 'package:intl/intl.dart';
 
-// Pastikan import ini benar (sesuai struktur folder Anda)
 import 'settings_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
@@ -37,9 +36,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool isSaving = false;
   bool isUploading = false;
 
-  // Data Profil
   Map<String, dynamic> businessProfile = {
-    'name': 'Memuat...',
+    'name': '',
     'owner': '',
     'description': '',
     'address': '',
@@ -54,7 +52,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'responseRate': 0,
   };
 
-  // Controller
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -62,7 +59,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
 
-  // Jadwal
   List<String> selectedDays = [];
   TimeOfDay openTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay closeTime = const TimeOfDay(hour: 17, minute: 0);
@@ -73,16 +69,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchUserData();
   }
 
-  // Ambil Data Realtime
   Future<void> _fetchUserData() async {
     if (user == null) return;
+
     FirebaseFirestore.instance
         .collection('users')
         .doc(user!.uid)
         .snapshots()
         .listen((docSnap) {
           if (!mounted) return;
+
           if (docSnap.exists) {
+            // --- SKENARIO 1: AKUN SUDAH PUNYA DATA ---
             final data = docSnap.data()!;
             setState(() {
               businessProfile = {
@@ -103,12 +101,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
               isLoading = false;
             });
           } else {
-            setState(() => isLoading = false);
+            // --- SKENARIO 2: AKUN BARU (DATA BELUM ADA) ---
+            // Kita isi dengan data dasar dari Login agar tidak "Memuat..." terus
+            setState(() {
+              businessProfile = {
+                'name': user!.displayName ?? "Nama Toko Anda",
+                'owner': user!.displayName ?? "Nama Pemilik",
+                'description': "",
+                'address': "",
+                'phone': user!.phoneNumber ?? "",
+                'email': user!.email ?? "",
+                'openingHours': "",
+                'established': "",
+                'image': user!.photoURL ?? "",
+                'rating': 0.0,
+                'totalReviews': 0,
+                'totalSales': 0,
+                'responseRate': 0,
+              };
+              isLoading = false;
+            });
           }
         });
   }
 
-  // Logic Upload Foto
   Future<void> _handleImageUpload() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -128,10 +144,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       final downloadURL = await storageRef.getDownloadURL();
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .update({'image': downloadURL});
+      // GUNAKAN SET MERGE AGAR TIDAK ERROR JIKA DOC BELUM ADA
+      await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
+        'image': downloadURL,
+      }, SetOptions(merge: true));
+
       await user!.updatePhotoURL(downloadURL);
       _showToast("Foto berhasil diperbarui!", ToastificationType.success);
     } catch (e) {
@@ -141,7 +158,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Logic Parsing Jadwal
   void _parseSchedule(String scheduleString) {
     if (scheduleString.isEmpty) return;
     try {
@@ -222,9 +238,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return "$dayStr: $openStr - $closeStr";
   }
 
-  // Logic Simpan Profil
   void _toggleEdit() {
     if (!isEditing) {
+      // Isi controller dengan data saat ini agar tidak kosong saat diedit
       _nameController.text = businessProfile['name'];
       _descController.text = businessProfile['description'];
       _addressController.text = businessProfile['address'];
@@ -240,18 +256,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => isSaving = true);
     try {
       final scheduleString = _generateScheduleString();
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .update({
-            'storeName': _nameController.text,
-            'description': _descController.text,
-            'address': _addressController.text,
-            'phoneNumber': _phoneController.text,
-            'email': _emailController.text,
-            'established': _yearController.text,
-            'openingHours': scheduleString,
-          });
+
+      // PERBAIKAN UTAMA: GUNAKAN SET DENGAN MERGE
+      // Ini akan membuat dokumen baru jika belum ada (akun baru),
+      // atau mengupdate jika sudah ada.
+      await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
+        'storeName': _nameController.text,
+        'description': _descController.text,
+        'address': _addressController.text,
+        'phoneNumber': _phoneController.text,
+        'email': _emailController.text,
+        'established': _yearController.text,
+        'openingHours': scheduleString,
+        // Kita juga bisa set default value lain jika ini akun baru
+        'ownerName': user!.displayName ?? "Pemilik",
+      }, SetOptions(merge: true));
 
       setState(() {
         isEditing = false;
@@ -260,7 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _showToast("Profil berhasil disimpan!", ToastificationType.success);
     } catch (e) {
       setState(() => isSaving = false);
-      _showToast("Gagal menyimpan.", ToastificationType.error);
+      _showToast("Gagal menyimpan: $e", ToastificationType.error);
     }
   }
 
@@ -305,12 +324,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final labelColor = isDark ? Colors.white70 : Colors.grey[600]!;
     final primaryColor = theme.primaryColor;
 
+    // Safety check agar nama tidak null
+    String displayName = businessProfile['name'];
+    if (displayName.isEmpty) displayName = "Nama Toko Anda";
+    String image = businessProfile['image'];
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 1. HEADER (Profil, Nama, Chat, Notif, SETTINGS)
+            // 1. HEADER
             Container(
               padding: const EdgeInsets.only(
                 top: 50,
@@ -350,16 +374,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           radius: 32,
                           backgroundColor: Colors.grey[300],
                           backgroundImage:
-                              (businessProfile['image'] != "" &&
-                                  businessProfile['image'] != null)
-                              ? NetworkImage(businessProfile['image'])
+                              (image != "" && image.startsWith("http"))
+                              ? NetworkImage(image)
                               : null,
-                          child:
-                              (businessProfile['image'] == "" ||
-                                  businessProfile['image'] == null)
+                          child: (image == "" || !image.startsWith("http"))
                               ? Text(
-                                  businessProfile['name'].isNotEmpty
-                                      ? businessProfile['name'][0].toUpperCase()
+                                  displayName.isNotEmpty
+                                      ? displayName[0].toUpperCase()
                                       : "?",
                                   style: TextStyle(
                                     fontSize: 24,
@@ -407,7 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          businessProfile['name'],
+                          displayName,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -451,7 +472,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const ChatScreen(),
                       ),
                       const SizedBox(width: 8),
-                      // IKON SETTING DI KANAN ATAS
                       _buildHeaderIcon(
                         context,
                         LucideIcons.settings,
@@ -510,7 +530,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 3. INFORMASI BISNIS (Editable)
+            // 3. INFORMASI BISNIS
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
@@ -761,7 +781,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ] else ...[
-                    // INFO VIEW
+                    // VIEW MODE
                     _buildDescriptionView(isDark),
                     const SizedBox(height: 20),
                     _buildInfoRow(
@@ -806,7 +826,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 16),
 
-            // 4. LIST ULASAN (Realtime)
+            // 4. LIST ULASAN
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
