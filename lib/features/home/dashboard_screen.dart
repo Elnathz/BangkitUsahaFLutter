@@ -4,6 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
+// --- IMPORT BARU (Sesuai Struktur Anda) ---
+import '../../services/market_service.dart'; // Import Service Logic
+import '../cart/cart_screen.dart'; // Import Halaman Keranjang
+// ------------------------------------------
+
 import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
 import 'search_page.dart';
@@ -133,10 +138,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 const ChatScreen(),
                               ),
                               const SizedBox(width: 8),
+                              // --- UPDATE: ICON KERANJANG DIKLIK KE CartScreen ---
                               _buildHeaderIcon(
                                 context,
                                 LucideIcons.shoppingCart,
-                                null,
+                                CartScreen(), // Arahkan ke sini
                               ),
                             ],
                           ),
@@ -234,27 +240,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 16),
 
+                  // --- UPDATE: MENGGUNAKAN MARKET SERVICE UTK FILTER STOK ---
                   StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('products')
-                        .orderBy('updatedAt', descending: true)
-                        .snapshots(),
+                    stream: MarketService()
+                        .getAvailableProducts(), // Pakai Service
                     builder: (context, snapshot) {
                       if (!snapshot.hasData)
                         return const Center(child: CircularProgressIndicator());
+
                       final allProducts = snapshot.data!.docs;
+
+                      // Filter tambahan: Jangan tampilkan barang dagangan sendiri
                       final otherShopProducts = allProducts.where((doc) {
                         final data = doc.data() as Map<String, dynamic>;
-                        return data['uid'] != user?.uid;
+                        // Pastikan stok > 0 (Double check) dan bukan uid sendiri
+                        final stock = data['stock'] ?? 0;
+                        return data['uid'] != user?.uid && stock > 0;
                       }).toList();
 
                       if (otherShopProducts.isEmpty) {
                         return Center(
                           child: Padding(
                             padding: const EdgeInsets.all(32.0),
-                            child: Text(
-                              "Belum ada produk dari toko lain.",
-                              style: TextStyle(color: Colors.grey[500]),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.remove_shopping_cart,
+                                  size: 40,
+                                  color: Colors.grey[400],
+                                ),
+                                SizedBox(height: 10),
+                                Text(
+                                  "Belum ada produk tersedia.",
+                                  style: TextStyle(color: Colors.grey[500]),
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -341,15 +361,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Color textColor,
     bool isDark,
   ) {
-    String image = (item['image'] != null && item['image'] != "")
-        ? item['image']
+    // Fallback data agar tidak error jika field kosong
+    String image = (item['imageUrl'] != null && item['imageUrl'] != "")
+        ? item['imageUrl']
+        : (item['image'] != null && item['image'] != "")
+        ? item['image'] // Handle jika nama field di db 'image' atau 'imageUrl'
         : "https://via.placeholder.com/150";
+
     String name = item['name'] ?? "Tanpa Nama";
     String category = item['category'] ?? "Umum";
     int price = (item['price'] ?? 0).toInt();
+    int stock = (item['stock'] ?? 0).toInt();
 
-    // PERBAIKAN: Ambil data rating & reviews asli dari Database
-    // Jika belum ada field 'rating', default ke 0.0
     double rating = (item['rating'] ?? 0).toDouble();
     int totalReviews = item['totalReviews'] ?? 0;
 
@@ -441,26 +464,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                // TAMPILAN RATING DINAMIS
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(
-                      LucideIcons.star,
-                      size: 10,
-                      color: rating > 0 ? Colors.orange : Colors.grey[300],
+                    Row(
+                      children: [
+                        Icon(
+                          LucideIcons.star,
+                          size: 10,
+                          color: rating > 0 ? Colors.orange : Colors.grey[300],
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          "$rating",
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          "($totalReviews)",
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 2),
+                    // Tampilkan sisa stok kecil
                     Text(
-                      "$rating",
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      "($totalReviews)",
+                      "Sisa: $stock",
                       style: TextStyle(fontSize: 10, color: Colors.grey[500]),
                     ),
                   ],

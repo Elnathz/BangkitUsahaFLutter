@@ -7,8 +7,11 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:toastification/toastification.dart';
 import 'package:intl/intl.dart';
+
 // IMPORT INI PENTING AGAR BISA PINDAH KE HALAMAN ULASAN
 import '../home/product_reviews_screen.dart';
+// IMPORT UNTUK PINDAH KE HALAMAN EDIT PROFIL TOKO
+import '../shop/shop_profile_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -60,6 +63,73 @@ class _ProductsScreenState extends State<ProductsScreen>
     _tabController.addListener(() {
       setState(() {});
     });
+  }
+
+  // --- LOGIC VALIDASI TOKO SEBELUM TAMBAH PRODUK ---
+  Future<void> _checkStoreProfileBeforeAdd() async {
+    if (user == null) return;
+
+    // 1. Ambil data user dari Firestore
+    final docSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user!.uid)
+        .get();
+
+    if (!docSnap.exists) {
+      _showWarningDialog("Data user tidak ditemukan.");
+      return;
+    }
+
+    final data = docSnap.data() as Map<String, dynamic>;
+    final String? storeName = data['storeName'];
+
+    // 2. Cek apakah nama toko sudah diisi
+    if (storeName == null || storeName.trim().isEmpty) {
+      // JIKA BELUM: Tampilkan Peringatan
+      _showWarningDialog(
+        "Anda belum melengkapi Informasi Bisnis (Nama Toko). \n\nSilakan lengkapi profil toko Anda agar pembeli dapat mengenali dan menghubungi Anda.",
+        showEditButton: true,
+      );
+    } else {
+      // JIKA SUDAH: Lanjut buka dialog tambah produk
+      _showProductDialog();
+    }
+  }
+
+  void _showWarningDialog(String message, {bool showEditButton = false}) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Profil Toko Belum Lengkap"),
+        content: Text(message),
+        actions: [
+          TextButton(
+            child: const Text("Nanti Saja"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          if (showEditButton)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+              ),
+              child: const Text(
+                "Lengkapi Sekarang",
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                // PERBAIKAN: Menghapus parameter 'isOwner' yang error
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ShopProfileScreen(shopId: user!.uid),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
   }
 
   // --- LOGIC PRODUK (CRUD & REORDER) ---
@@ -309,11 +379,12 @@ class _ProductsScreenState extends State<ProductsScreen>
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
 
+      // --- MODIFIKASI: PANGGIL FUNGSI CEK PROFIL SAAT KLIK ---
       floatingActionButton: _tabController.index == 0
           ? Padding(
               padding: const EdgeInsets.only(bottom: 100),
               child: FloatingActionButton.extended(
-                onPressed: () => _showProductDialog(),
+                onPressed: () => _checkStoreProfileBeforeAdd(),
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
                 icon: const Icon(LucideIcons.plus),
@@ -618,7 +689,7 @@ class _ProductsScreenState extends State<ProductsScreen>
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // TOMBOL LIHAT ULASAN (Sekarang sudah aman variabel-nya)
+            // TOMBOL LIHAT ULASAN
             IconButton(
               icon: const Icon(
                 LucideIcons.messageSquare,

@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+
+// --- IMPORT BARU ---
+import '../../services/market_service.dart'; // Import Service Logic
+// -------------------
+
 import '../chat/chat_detail_screen.dart';
 import 'product_reviews_screen.dart';
-// IMPORT INI WAJIB ADA AGAR BISA PINDAH KE PROFIL TOKO
 import '../shop/shop_profile_screen.dart';
 
 class ProductDetailScreen extends StatelessWidget {
@@ -190,13 +194,12 @@ class ProductDetailScreen extends StatelessWidget {
                             .collection('users')
                             .doc(ownerUid)
                             .get()
-                      : null, // Jangan fetch kalau UID kosong
+                      : null,
                   builder: (context, snapshot) {
                     String shopName = "Memuat...";
                     String? shopImage;
                     bool isOnline = false;
 
-                    // Logic Tampilan Nama Toko
                     if (ownerUid.isEmpty) {
                       shopName = "Info Toko Tidak Tersedia";
                     } else if (snapshot.connectionState ==
@@ -264,12 +267,9 @@ class ProductDetailScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-
-                          // TOMBOL KUNJUNGI (DIPERBAIKI)
                           OutlinedButton(
                             onPressed: () {
                               if (ownerUid.isNotEmpty) {
-                                // Pindah ke Profil Toko
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -278,11 +278,10 @@ class ProductDetailScreen extends StatelessWidget {
                                   ),
                                 );
                               } else {
-                                // Tampilkan pesan jika data toko rusak/kosong
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text(
-                                      "Data toko tidak tersedia untuk produk ini (Produk Lama)",
+                                      "Data toko tidak tersedia untuk produk ini",
                                     ),
                                   ),
                                 );
@@ -371,7 +370,6 @@ class ProductDetailScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 16),
-
                       StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
                             .collection('reviews')
@@ -411,7 +409,7 @@ class ProductDetailScreen extends StatelessWidget {
             ),
           ),
 
-          // BOTTOM BAR
+          // --- BOTTOM BAR (DIPERBARUI) ---
           Positioned(
             bottom: 0,
             left: 0,
@@ -430,6 +428,7 @@ class ProductDetailScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
+                  // TOMBOL CHAT (TETAP)
                   IconButton(
                     icon: Column(
                       children: [
@@ -442,16 +441,7 @@ class ProductDetailScreen extends StatelessWidget {
                       ],
                     ),
                     onPressed: () async {
-                      if (ownerUid.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              "Tidak dapat chat (Data toko tidak valid)",
-                            ),
-                          ),
-                        );
-                        return;
-                      }
+                      if (ownerUid.isEmpty) return;
                       String targetName = "Toko";
                       try {
                         final userSnap = await FirebaseFirestore.instance
@@ -479,20 +469,53 @@ class ProductDetailScreen extends StatelessWidget {
                     },
                   ),
                   const SizedBox(width: 16),
-                  Column(
-                    children: [
-                      Icon(
-                        LucideIcons.shoppingCart,
-                        size: 20,
-                        color: primaryColor,
-                      ),
-                      const Text("Keranjang", style: TextStyle(fontSize: 9)),
-                    ],
+
+                  // TOMBOL KERANJANG (DIBERIKAN FUNGSI)
+                  InkWell(
+                    onTap: () async {
+                      try {
+                        await MarketService().addToCart(
+                          productId,
+                          productData['name'] ?? "Produk",
+                          price,
+                          productData['image'] ?? "",
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Berhasil masuk keranjang!"),
+                          ),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text("Gagal: $e")));
+                      }
+                    },
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.shoppingCart,
+                          size: 20,
+                          color: primaryColor,
+                        ),
+                        const Text("Keranjang", style: TextStyle(fontSize: 9)),
+                      ],
+                    ),
                   ),
                   const SizedBox(width: 24),
+
+                  // TOMBOL BELI SEKARANG (DIBERIKAN FUNGSI)
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        // Tampilkan Dialog Konfirmasi
+                        _showBuyDialog(
+                          context,
+                          productData['name'] ?? "Produk",
+                          price,
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
@@ -510,6 +533,63 @@ class ProductDetailScreen extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- HELPER UNTUK DIALOG BELI ---
+  void _showBuyDialog(BuildContext context, String productName, int price) {
+    // Format rupiah helper
+    final currency = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Konfirmasi Pembelian"),
+        content: Text(
+          "Apakah Anda yakin ingin membeli '$productName' seharga ${currency.format(price)}?",
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Batal"),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text("Bayar"),
+            onPressed: () async {
+              Navigator.pop(ctx); // Tutup dialog
+
+              // PANGGIL SERVICE TRANSAKSI
+              String result = await MarketService().processPayment(
+                productId,
+                1,
+              );
+
+              if (result == "SUCCESS") {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    backgroundColor: Colors.green,
+                    content: Text("Pembelian Berhasil! Barang akan dikirim."),
+                  ),
+                );
+                // Opsional: Kembali ke halaman sebelumnya
+                Navigator.pop(context);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: Colors.red,
+                    content: Text("Gagal: $result"),
+                  ),
+                );
+              }
+            },
           ),
         ],
       ),
