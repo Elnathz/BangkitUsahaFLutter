@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'transaction_model.dart';
 import 'finance_log_page.dart';
+// Import halaman tujuan (Naik 1 level dari folder finance)
+import '../chat/chat_screen.dart';
+import '../notifications/notification_screen.dart';
 
 class TransactionsPage extends StatefulWidget {
   const TransactionsPage({Key? key}) : super(key: key);
@@ -11,7 +15,7 @@ class TransactionsPage extends StatefulWidget {
 }
 
 class _TransactionsPageState extends State<TransactionsPage> {
-  String selectedPeriod = 'week'; // 'week' or 'month'
+  String selectedPeriod = 'week';
 
   // --- MOCK DATA ---
   List<Transaction> transactions = [
@@ -34,34 +38,26 @@ class _TransactionsPageState extends State<TransactionsPage> {
     Transaction(
       id: '3',
       type: TransactionType.income,
-      category: 'Penjualan Produk',
-      amount: 180000,
-      description: 'Penjualan Sambal Matah',
-      date: DateTime(2025, 12, 2),
+      category: 'Jasa',
+      amount: 500000,
+      description: 'Konsultasi Bisnis',
+      date: DateTime(2025, 12, 1),
     ),
     Transaction(
       id: '4',
       type: TransactionType.expense,
       category: 'Operasional',
       amount: 50000,
-      description: 'Biaya listrik',
-      date: DateTime(2025, 12, 1),
+      description: 'Bensin pengiriman',
+      date: DateTime(2025, 11, 30),
     ),
     Transaction(
       id: '5',
       type: TransactionType.income,
       category: 'Penjualan Produk',
-      amount: 320000,
-      description: 'Penjualan Kue Lapis',
-      date: DateTime(2025, 12, 1),
-    ),
-    Transaction(
-      id: '7',
-      type: TransactionType.income,
-      category: 'Penjualan Produk',
-      amount: 420000,
-      description: 'Penjualan Brownies Premium',
-      date: DateTime(2025, 11, 29),
+      amount: 1200000,
+      description: 'Pesanan Katering',
+      date: DateTime(2025, 11, 28),
     ),
   ];
 
@@ -70,27 +66,19 @@ class _TransactionsPageState extends State<TransactionsPage> {
     revenueChange: 12.5,
     orders: 28,
   );
-
   final PeriodData monthlyData = PeriodData(
     revenue: 18500000,
     revenueChange: 15.3,
     orders: 95,
   );
 
-  double get totalIncome {
-    return transactions
-        .where((t) => t.type == TransactionType.income)
-        .fold(0.0, (sum, t) => sum + t.amount);
-  }
-
-  double get totalExpense {
-    return transactions
-        .where((t) => t.type == TransactionType.expense)
-        .fold(0.0, (sum, t) => sum + t.amount);
-  }
-
+  double get totalIncome => transactions
+      .where((t) => t.type == TransactionType.income)
+      .fold(0.0, (sum, t) => sum + t.amount);
+  double get totalExpense => transactions
+      .where((t) => t.type == TransactionType.expense)
+      .fold(0.0, (sum, t) => sum + t.amount);
   double get balance => totalIncome - totalExpense;
-
   PeriodData get periodData =>
       selectedPeriod == 'week' ? weeklyData : monthlyData;
 
@@ -114,23 +102,22 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primaryColor = theme.primaryColor;
+    final primaryColor = const Color(0xFF5D4037);
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
-          // --- BAGIAN FIXED (Header & Summary Card) ---
+          // --- HEADER FIXED ---
           SizedBox(
-            height: 340, // Tinggi area tetap
+            height: 340,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // 1. Background Header
+                // Background Header
                 Container(
                   height: 280,
-                  padding: const EdgeInsets.fromLTRB(24, 60, 24, 0),
+                  padding: const EdgeInsets.fromLTRB(24, 48, 24, 0),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -145,34 +132,47 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // --- HEADER ROW (JUDUL + TOMBOL) ---
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'Keuangan Toko',
+                            'Keuangan',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
                           ),
-                          IconButton(
-                            onPressed: navigateToFinanceLog,
-                            icon: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
+                          // Ganti IconButton biasa dengan _buildHeaderIcon
+                          Row(
+                            children: [
+                              _buildHeaderIcon(
+                                context,
+                                LucideIcons.messageCircle,
+                                const ChatScreen(),
                               ),
-                              child: const Icon(
+                              const SizedBox(width: 8),
+                              _buildHeaderIcon(
+                                context,
+                                LucideIcons.bell,
+                                const NotificationScreen(),
+                              ),
+                              const SizedBox(width: 8),
+                              // Tombol History pakai style sama biar seragam
+                              _buildHeaderIcon(
+                                context,
                                 Icons.history,
-                                color: Colors.white,
-                                size: 20,
+                                FinanceLogPage(
+                                  transactions: transactions,
+                                  onAddTransaction: handleAddTransaction,
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         ],
                       ),
+
                       const SizedBox(height: 24),
                       const Text(
                         'Total Saldo Saat Ini',
@@ -191,7 +191,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   ),
                 ),
 
-                // 2. KARTU PEMASUKAN & PENGELUARAN
+                // SUMMARY CARD
                 Positioned(
                   bottom: 10,
                   left: 20,
@@ -241,11 +241,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
             ),
           ),
 
-          // --- BAGIAN SCROLLABLE ---
+          // --- CONTENT LIST ---
           Expanded(
             child: ListView(
-              // PERUBAHAN PENTING DI SINI:
-              // Bottom padding diubah jadi 100 agar tidak ketutup Nav Bar
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
               children: [
                 Row(
@@ -262,13 +260,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
                     _buildPeriodSelector(primaryColor),
                   ],
                 ),
-
                 const SizedBox(height: 16),
-
                 _buildRevenueCard(primaryColor),
-
                 const SizedBox(height: 24),
-
                 const Text(
                   "Riwayat Terbaru",
                   style: TextStyle(
@@ -278,7 +272,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
                 ...transactions.take(5).map((transaction) {
                   return _buildProfessionalTransactionTile(transaction);
                 }).toList(),
@@ -290,7 +283,33 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
-  // --- WIDGET HELPER ---
+  // --- HELPER WIDGETS ---
+
+  // *** Widget Tombol Header Baru (Sama dengan Dashboard/Toko) ***
+  Widget _buildHeaderIcon(
+    BuildContext context,
+    IconData icon,
+    Widget destination,
+  ) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15), // Efek transparan
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: Colors.white, size: 18),
+      ),
+    );
+  }
 
   Widget _buildSummaryItem({
     required String title,
@@ -321,7 +340,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
         const SizedBox(height: 8),
         Text(
           'Rp ${NumberFormat.compact(locale: "id_ID").format(amount)}',
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -462,10 +481,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
   Widget _buildProfessionalTransactionTile(Transaction transaction) {
     final isIncome = transaction.type == TransactionType.income;
     final color = isIncome ? Colors.green : Colors.red;
-    final icon = isIncome
-        ? Icons.monetization_on_outlined
-        : Icons.shopping_bag_outlined;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -481,7 +496,13 @@ class _TransactionsPageState extends State<TransactionsPage> {
             color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: color, size: 24),
+          child: Icon(
+            isIncome
+                ? Icons.monetization_on_outlined
+                : Icons.shopping_bag_outlined,
+            color: color,
+            size: 24,
+          ),
         ),
         title: Text(
           transaction.category,

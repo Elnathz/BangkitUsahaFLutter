@@ -220,16 +220,9 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                     ElevatedButton(
                       onPressed: handleSubmit,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4F46E5),
+                        backgroundColor: const Color(0xFF5D4037), // Coklat Tua
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        // ...
                       ),
                       child: const Text('Posting Sekarang'),
                     ),

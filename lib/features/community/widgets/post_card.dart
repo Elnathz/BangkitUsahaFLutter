@@ -20,23 +20,33 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    // Definisi warna tema lokal untuk card ini
+    final primaryBrown = const Color(0xFF5D4037);
+    final accentGold = const Color(0xFF8D6E63);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8), // Jarak antar post ala FB
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.grey[200]!,
+            width: 4,
+          ), // Separator tebal
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header (Avatar + Nama + Opsi)
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Avatar
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: const Color(0xFF4F46E5),
+                  backgroundColor: accentGold,
                   backgroundImage: post.author.avatar != null
                       ? NetworkImage(post.author.avatar!)
                       : null,
@@ -51,7 +61,6 @@ class PostCard extends StatelessWidget {
                       : null,
                 ),
                 const SizedBox(width: 12),
-                // Author info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,42 +70,70 @@ class PostCard extends StatelessWidget {
                           Text(
                             post.author.name,
                             style: const TextStyle(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
                               fontSize: 15,
+                              color: Colors.black87,
                             ),
                           ),
                           if (post.author.verified) ...[
                             const SizedBox(width: 4),
                             const Icon(
                               LucideIcons.checkCircle,
-                              size: 16,
-                              color: Color(0xFF2563EB),
+                              size: 14,
+                              color: Colors.blue, // Verified tetap biru umum
                             ),
                           ],
                         ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        post.author.businessName,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        post.timestamp,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF9CA3AF),
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            '${post.author.businessName} • ${post.timestamp}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          if (post.category.isNotEmpty) ...[
+                            const SizedBox(width: 4),
+                            const Text(
+                              "•",
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.brown[50],
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                post.category,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: primaryBrown,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
                 ),
-                // More button
                 IconButton(
-                  icon: const Icon(LucideIcons.moreHorizontal, size: 20),
+                  icon: const Icon(
+                    LucideIcons.moreHorizontal,
+                    size: 20,
+                    color: Colors.grey,
+                  ),
                   onPressed: () {},
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -105,189 +142,149 @@ class PostCard extends StatelessWidget {
             ),
           ),
 
-          // Category badge
+          // Content Text
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                post.category,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
-              ),
-            ),
-          ),
-
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Text(
               post.content,
               style: const TextStyle(
                 fontSize: 15,
                 color: Color(0xFF1F2937),
-                height: 1.5,
+                height: 1.4,
               ),
             ),
           ),
 
-          // Image
+          // Image (Full Width ala Facebook)
           if (post.image != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  post.image!,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+            Image.network(
+              post.image!,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+
+          // Stats (Like count etc)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF5D4037), // Coklat icon like
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        LucideIcons.thumbsUp,
+                        size: 10,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${post.likes}',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Text(
+                      '${post.comments} komentar',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${post.shares} dibagikan',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1, thickness: 1),
+
+          // Action Buttons (Like, Comment, Share)
+          Row(
+            children: [
+              Expanded(
+                child: _ActionButton(
+                  icon: post.isLiked
+                      ? LucideIcons.thumbsUp
+                      : LucideIcons.thumbsUp,
+                  label: 'Suka',
+                  color: post.isLiked ? primaryBrown : Colors.grey[600]!,
+                  onTap: onLike,
+                  isActive: post.isLiked,
                 ),
               ),
-            ),
-
-          // Stats
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Text(
-                  '${post.likes} suka',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF6B7280),
-                  ),
+              Expanded(
+                child: _ActionButton(
+                  icon: LucideIcons.messageCircle,
+                  label: 'Komentar',
+                  color: Colors.grey[600]!,
+                  onTap: onComment,
                 ),
-                const SizedBox(width: 16),
-                Text(
-                  '${post.comments} komentar',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF6B7280),
-                  ),
+              ),
+              Expanded(
+                child: _ActionButton(
+                  icon: LucideIcons.share2,
+                  label: 'Bagikan',
+                  color: Colors.grey[600]!,
+                  onTap: onShare,
                 ),
-                const SizedBox(width: 16),
-                Text(
-                  '${post.shares} dibagikan',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-
-          const Divider(height: 1),
-
-          // Actions
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                // Like
-                Expanded(
-                  child: InkWell(
-                    onTap: onLike,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            LucideIcons.heart,
-                            size: 18,
-                            color: post.isLiked
-                                ? const Color(0xFFDC2626)
-                                : const Color(0xFF6B7280),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Suka',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: post.isLiked
-                                  ? const Color(0xFFDC2626)
-                                  : const Color(0xFF6B7280),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                // Comment
-                Expanded(
-                  child: InkWell(
-                    onTap: onComment,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(
-                            LucideIcons.messageCircle,
-                            size: 18,
-                            color: Color(0xFF6B7280),
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            'Komentar',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF6B7280),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                // Share
-                Expanded(
-                  child: InkWell(
-                    onTap: onShare,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(
-                            LucideIcons.share2,
-                            size: 18,
-                            color: Color(0xFF6B7280),
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            'Bagikan',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF6B7280),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                // Bookmark
-                IconButton(
-                  icon: Icon(
-                    LucideIcons.bookmark,
-                    size: 18,
-                    color: post.isBookmarked
-                        ? const Color(0xFF4F46E5)
-                        : const Color(0xFF6B7280),
-                  ),
-                  onPressed: onBookmark,
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(height: 4),
         ],
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  final bool isActive;
+
+  const _ActionButton({
+    Key? key,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.isActive = false,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

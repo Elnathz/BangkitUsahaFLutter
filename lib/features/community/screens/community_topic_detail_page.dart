@@ -139,7 +139,7 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFF97316), Color(0xFFEF4444)],
+          colors: [Color(0xFFD84315), Color(0xFF5D4037)], // Oranye ke Coklat
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),

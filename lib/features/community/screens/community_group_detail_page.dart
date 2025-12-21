@@ -159,7 +159,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF2563EB), Color(0xFF4F46E5)],
+          colors: [Color(0xFF5D4037), Color(0xFF8D6E63)], // Coklat Tua ke Muda
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),

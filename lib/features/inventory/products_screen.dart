@@ -8,10 +8,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:toastification/toastification.dart';
 import 'package:intl/intl.dart';
 
-// IMPORT INI PENTING AGAR BISA PINDAH KE HALAMAN ULASAN
+// IMPORT HALAMAN LAIN
 import '../home/product_reviews_screen.dart';
-// IMPORT UNTUK PINDAH KE HALAMAN EDIT PROFIL TOKO
 import '../shop/shop_profile_screen.dart';
+
+// --- IMPORT BARU AGAR BISA NAVIGASI KE CHAT & NOTIFIKASI ---
+import '../chat/chat_screen.dart';
+import '../notifications/notification_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -69,7 +72,6 @@ class _ProductsScreenState extends State<ProductsScreen>
   Future<void> _checkStoreProfileBeforeAdd() async {
     if (user == null) return;
 
-    // 1. Ambil data user dari Firestore
     final docSnap = await FirebaseFirestore.instance
         .collection('users')
         .doc(user!.uid)
@@ -83,15 +85,12 @@ class _ProductsScreenState extends State<ProductsScreen>
     final data = docSnap.data() as Map<String, dynamic>;
     final String? storeName = data['storeName'];
 
-    // 2. Cek apakah nama toko sudah diisi
     if (storeName == null || storeName.trim().isEmpty) {
-      // JIKA BELUM: Tampilkan Peringatan
       _showWarningDialog(
         "Anda belum melengkapi Informasi Bisnis (Nama Toko). \n\nSilakan lengkapi profil toko Anda agar pembeli dapat mengenali dan menghubungi Anda.",
         showEditButton: true,
       );
     } else {
-      // JIKA SUDAH: Lanjut buka dialog tambah produk
       _showProductDialog();
     }
   }
@@ -118,7 +117,6 @@ class _ProductsScreenState extends State<ProductsScreen>
               ),
               onPressed: () {
                 Navigator.pop(context);
-                // PERBAIKAN: Menghapus parameter 'isOwner' yang error
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -379,7 +377,6 @@ class _ProductsScreenState extends State<ProductsScreen>
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
 
-      // --- MODIFIKASI: PANGGIL FUNGSI CEK PROFIL SAAT KLIK ---
       floatingActionButton: _tabController.index == 0
           ? Padding(
               padding: const EdgeInsets.only(bottom: 100),
@@ -415,13 +412,36 @@ class _ProductsScreenState extends State<ProductsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Manajemen Toko",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    // --- HEADER TOKO DENGAN TOMBOL CHAT & NOTIFIKASI ---
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text(
+                          "Manajemen Toko",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        // TOMBOL CHAT & NOTIF (Gaya Dashboard)
+                        Row(
+                          children: [
+                            _buildHeaderIcon(
+                              context,
+                              LucideIcons.messageCircle,
+                              const ChatScreen(),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildHeaderIcon(
+                              context,
+                              LucideIcons.bell,
+                              const NotificationScreen(),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     StreamBuilder<QuerySnapshot>(
@@ -482,6 +502,32 @@ class _ProductsScreenState extends State<ProductsScreen>
             _buildOrdersTab(isDark, cardColor, textColor, primaryColor),
           ],
         ),
+      ),
+    );
+  }
+
+  // --- WIDGET HELPER BARU (SAMA PERSIS DENGAN DASHBOARD) ---
+  Widget _buildHeaderIcon(
+    BuildContext context,
+    IconData icon,
+    Widget destination,
+  ) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15), // Transparan ala Dashboard
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: Colors.white, size: 18),
       ),
     );
   }
