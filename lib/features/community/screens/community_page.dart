@@ -11,7 +11,7 @@ import 'community_group_detail_page.dart';
 import '../widgets/create_post_dialog.dart';
 import '../widgets/comments_dialog.dart';
 
-// --- IMPORT CHAT & NOTIFIKASI (NAIK 2 LEVEL) ---
+// Import Chat & Notification
 import '../../chat/chat_screen.dart';
 import '../../notifications/notification_screen.dart';
 
@@ -78,6 +78,27 @@ class _CommunityPageState extends State<CommunityPage>
       isLiked: false,
       isBookmarked: true,
     ),
+    Post(
+      id: '3',
+      author: Author(
+        name: 'Ibu Dewi',
+        avatar:
+            'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
+        businessName: 'Sambal Dewi',
+        verified: false,
+      ),
+      content:
+          'Tips foto produk: gunakan cahaya alami dari jendela, background polos putih/kayu, dan foto dari berbagai sudut. Hasilnya langsung meningkat penjualan 40%! 📸✨',
+      image:
+          'https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=600',
+      category: 'Tips Bisnis',
+      likes: 256,
+      comments: 48,
+      shares: 67,
+      timestamp: '1 hari lalu',
+      isLiked: true,
+      isBookmarked: true,
+    ),
   ];
 
   final List<TrendingTopic> trendingTopics = [
@@ -92,6 +113,12 @@ class _CommunityPageState extends State<CommunityPage>
       title: 'Packaging Ramah Lingkungan',
       posts: 156,
       icon: LucideIcons.package,
+    ),
+    TrendingTopic(
+      id: '3',
+      title: 'Digital Marketing UMKM',
+      posts: 189,
+      icon: LucideIcons.monitor,
     ),
   ];
 
@@ -111,6 +138,14 @@ class _CommunityPageState extends State<CommunityPage>
       image:
           'https://images.unsplash.com/photo-1445205170230-053b83016050?w=200',
     ),
+    CommunityGroup(
+      id: '3',
+      name: 'Digital Marketing UMKM',
+      members: 3120,
+      posts: 2341,
+      image:
+          'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=200',
+    ),
   ];
 
   final List<String> categories = [
@@ -121,7 +156,20 @@ class _CommunityPageState extends State<CommunityPage>
     'Testimoni',
     'Event',
   ];
-  final Map<String, List<Comment>> comments = {};
+
+  final Map<String, List<Comment>> comments = {
+    '1': [
+      Comment(
+        id: '1',
+        author: 'Pak Budi',
+        avatar:
+            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100',
+        content: 'Mantap Bu Sari! Konsistensi memang kunci sukses ya 👍',
+        timestamp: '1 jam lalu',
+        likes: 12,
+      ),
+    ],
+  };
 
   @override
   void initState() {
@@ -135,35 +183,88 @@ class _CommunityPageState extends State<CommunityPage>
     super.dispose();
   }
 
-  List<Post> get filteredPosts => posts;
+  // Filtered posts with search and category
+  List<Post> get filteredPosts {
+    return posts.where((post) {
+      final matchesSearch =
+          searchQuery.isEmpty ||
+          post.content.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          post.author.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          post.author.businessName.toLowerCase().contains(
+            searchQuery.toLowerCase(),
+          );
+
+      final matchesCategory =
+          selectedCategory == 'Semua' || post.category == selectedCategory;
+
+      return matchesSearch && matchesCategory;
+    }).toList();
+  }
+
   void handleCategorySelect(String c) {
-    setState(() => selectedCategory = c);
+    setState(() {
+      selectedCategory = c;
+    });
+    _showToast(
+      c == 'Semua' ? 'Menampilkan semua kategori' : 'Filter: $c',
+      ToastificationType.info,
+    );
   }
 
   void handleLikePost(String id) {
     setState(() {
-      var p = posts.firstWhere((e) => e.id == id);
-      var idx = posts.indexOf(p);
-      posts[idx] = p.copyWith(
-        isLiked: !p.isLiked,
-        likes: !p.isLiked ? p.likes + 1 : p.likes - 1,
-      );
+      final index = posts.indexWhere((e) => e.id == id);
+      if (index != -1) {
+        final p = posts[index];
+        posts[index] = p.copyWith(
+          isLiked: !p.isLiked,
+          likes: !p.isLiked ? p.likes + 1 : p.likes - 1,
+        );
+      }
     });
   }
 
-  void handleBookmarkPost(String id) {}
-  void handleSharePost(String id, String name) {}
+  void handleBookmarkPost(String id) {
+    setState(() {
+      final index = posts.indexWhere((e) => e.id == id);
+      if (index != -1) {
+        final p = posts[index];
+        posts[index] = p.copyWith(isBookmarked: !p.isBookmarked);
+        _showToast(
+          !p.isBookmarked ? 'Disimpan ke bookmark 🔖' : 'Dihapus dari bookmark',
+          ToastificationType.success,
+        );
+      }
+    });
+  }
+
+  void handleSharePost(String id, String name) {
+    _showToast('Membagikan postingan dari $name', ToastificationType.success);
+  }
+
   void handleCommentClick(Post p) {
     _showCommentsDialog(p);
   }
 
-  void handleJoinGroupById(String id, String name) {}
+  void handleJoinGroupById(String id, String name) {
+    if (!joinedGroups.contains(id)) {
+      setState(() {
+        joinedGroups.add(id);
+      });
+      _showToast(
+        'Berhasil bergabung dengan grup $name! 🎉',
+        ToastificationType.success,
+      );
+    }
+  }
+
   void _showToast(String msg, ToastificationType type) {
     toastification.show(
       context: context,
       title: Text(msg),
       type: type,
       autoCloseDuration: const Duration(seconds: 2),
+      alignment: Alignment.topCenter,
     );
   }
 
@@ -173,17 +274,39 @@ class _CommunityPageState extends State<CommunityPage>
       builder: (c) => CreatePostDialog(
         onCreatePost: (p) {
           setState(() => posts.insert(0, p));
+          _showToast(
+            'Postingan berhasil dibagikan! 🎉',
+            ToastificationType.success,
+          );
         },
       ),
     );
   }
 
   void _showCommentsDialog(Post p) {
+    final postComments = comments[p.id] ?? [];
     showDialog(
       context: context,
-      builder: (c) =>
-          CommentsDialog(post: p, comments: [], onAddComment: (s) {}),
+      builder: (c) => CommentsDialog(
+        post: p,
+        comments: postComments,
+        onAddComment: (s) {
+          _showToast(
+            'Komentar berhasil ditambahkan! 💬',
+            ToastificationType.success,
+          );
+        },
+      ),
     );
+  }
+
+  void _toggleSearchMode() {
+    setState(() {
+      isPostDialogOpen = !isPostDialogOpen;
+      if (!isPostDialogOpen) {
+        searchQuery = ''; // Clear search when closing
+      }
+    });
   }
 
   @override
@@ -206,20 +329,18 @@ class _CommunityPageState extends State<CommunityPage>
           ),
         ],
       ),
-      // Cari bagian floatingActionButton di dalam Scaffold, ganti jadi ini:
       floatingActionButton: Padding(
-        // Kita beri jarak 90 pixel dari bawah supaya naik ke atas Nav Bar
         padding: const EdgeInsets.only(bottom: 90),
         child: FloatingActionButton(
           onPressed: _showCreatePostDialog,
           backgroundColor: primaryBrown,
-          child: const Icon(LucideIcons.penTool),
+          child: const Icon(LucideIcons.penTool, color: Colors.white),
         ),
       ),
     );
   }
 
-  // HEADER DENGAN TOMBOL CHAT & NOTIFIKASI
+  // HEADER WITH SEARCH, CHAT & NOTIFICATION
   Widget _buildHeader() {
     return Container(
       decoration: BoxDecoration(
@@ -232,6 +353,7 @@ class _CommunityPageState extends State<CommunityPage>
       padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
       child: Column(
         children: [
+          // Top Row: Back button, Title, Icons
           Row(
             children: [
               IconButton(
@@ -255,15 +377,9 @@ class _CommunityPageState extends State<CommunityPage>
                   ),
                 ),
               ),
-              // TOMBOL KANAN (Search, Chat, Notif)
+              // Header Icons
               Row(
                 children: [
-                  _buildHeaderIcon(
-                    context,
-                    LucideIcons.search,
-                    null,
-                  ), // Search dummy
-                  const SizedBox(width: 8),
                   _buildHeaderIcon(
                     context,
                     LucideIcons.messageCircle,
@@ -279,24 +395,78 @@ class _CommunityPageState extends State<CommunityPage>
               ),
             ],
           ),
+
+          // Search Box (White box below header)
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value;
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Cari diskusi, topik, atau anggota...',
+                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                prefixIcon: Icon(
+                  LucideIcons.search,
+                  color: Colors.grey[400],
+                  size: 20,
+                ),
+                suffixIcon: searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(
+                          LucideIcons.x,
+                          color: Colors.grey[400],
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+              ),
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // *** Widget Helper untuk Tombol Header (Sama Persis) ***
   Widget _buildHeaderIcon(
     BuildContext context,
     IconData icon,
-    Widget? destination,
-  ) {
+    Widget? destination, {
+    VoidCallback? onTap,
+  }) {
     return InkWell(
-      onTap: destination != null
-          ? () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (c) => destination),
-            )
-          : () {},
+      onTap:
+          onTap ??
+          (destination != null
+              ? () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (c) => destination),
+                )
+              : null),
       borderRadius: BorderRadius.circular(8),
       child: Container(
         width: 36,
@@ -310,7 +480,6 @@ class _CommunityPageState extends State<CommunityPage>
     );
   }
 
-  // TAB BAR COKLAT
   Widget _buildTabBar() {
     return Container(
       color: Colors.white,
@@ -332,7 +501,7 @@ class _CommunityPageState extends State<CommunityPage>
     return ListView(
       padding: const EdgeInsets.only(top: 0),
       children: [
-        // 1. Header "Apa yang Anda pikirkan"
+        // 1. Create Post Header
         Container(
           padding: const EdgeInsets.all(16),
           color: Colors.white,
@@ -367,14 +536,14 @@ class _CommunityPageState extends State<CommunityPage>
               ),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: () {},
+                onPressed: _showCreatePostDialog,
                 icon: const Icon(LucideIcons.image, color: Colors.green),
               ),
             ],
           ),
         ),
 
-        // 2. Kategori Chips
+        // 2. Category Chips
         Container(
           color: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -410,11 +579,25 @@ class _CommunityPageState extends State<CommunityPage>
 
         const SizedBox(height: 8),
 
-        // 3. List Postingan
+        // 3. Posts List
         if (filteredPosts.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(32),
-            child: Center(child: Text("Belum ada postingan")),
+          Padding(
+            padding: const EdgeInsets.all(48),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(LucideIcons.search, size: 64, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    searchQuery.isNotEmpty
+                        ? 'Tidak ada postingan ditemukan untuk "$searchQuery"'
+                        : 'Belum ada postingan',
+                    style: TextStyle(color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
           )
         else
           ...filteredPosts.map((post) {
@@ -427,7 +610,6 @@ class _CommunityPageState extends State<CommunityPage>
             );
           }),
 
-        // --- TAMBAHAN: KOTAK KOSONG DI BAWAH (Seperti Dashboard) ---
         const SizedBox(height: 120),
       ],
     );
@@ -437,9 +619,15 @@ class _CommunityPageState extends State<CommunityPage>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Spread operator (...) untuk mengeluarkan isi list trendingTopics
+        const Text(
+          '🔥 Topik Trending',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+
         ...trendingTopics.map(
           (topic) => Card(
+            margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(8),
@@ -455,12 +643,25 @@ class _CommunityPageState extends State<CommunityPage>
               ),
               subtitle: Text('${topic.posts} diskusi'),
               trailing: const Icon(LucideIcons.chevronRight),
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CommunityTopicDetailPage(
+                      topic: topic,
+                      posts: posts,
+                      onLikePost: handleLikePost,
+                      onBookmarkPost: handleBookmarkPost,
+                      onSharePost: handleSharePost,
+                      onCommentClick: handleCommentClick,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ),
 
-        // --- TAMBAHAN: KOTAK KOSONG DI BAWAH ---
         const SizedBox(height: 120),
       ],
     );
@@ -470,9 +671,16 @@ class _CommunityPageState extends State<CommunityPage>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Spread operator (...) untuk mengeluarkan isi list groups
-        ...groups.map(
-          (group) => Card(
+        const Text(
+          '👥 Grup Populer',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+
+        ...groups.map((group) {
+          final isJoined = joinedGroups.contains(group.id);
+
+          return Card(
             margin: const EdgeInsets.only(bottom: 12),
             child: Column(
               children: [
@@ -491,31 +699,66 @@ class _CommunityPageState extends State<CommunityPage>
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    '${group.members} anggota • ${group.posts} postingan',
+                    '${group.members.toStringAsFixed(0)} anggota • ${group.posts} postingan',
                   ),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryBrown,
+                  child: Row(
+                    children: [
+                      if (!isJoined)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              handleJoinGroupById(group.id, group.name);
+                            },
+                            icon: const Icon(LucideIcons.userPlus, size: 16),
+                            label: const Text('Gabung'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: primaryBrown,
+                              side: BorderSide(color: primaryBrown),
+                            ),
+                          ),
+                        ),
+                      if (!isJoined) const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryBrown,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CommunityGroupDetailPage(
+                                  group: group,
+                                  posts: posts,
+                                  onLikePost: handleLikePost,
+                                  onBookmarkPost: handleBookmarkPost,
+                                  onSharePost: handleSharePost,
+                                  onCommentClick: handleCommentClick,
+                                  isJoined: isJoined,
+                                  onJoinGroup: handleJoinGroupById,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: Icon(
+                            isJoined ? LucideIcons.users : LucideIcons.eye,
+                            size: 16,
+                          ),
+                          label: Text(isJoined ? 'Lihat Grup' : 'Lihat'),
+                        ),
                       ),
-                      onPressed: () {},
-                      child: const Text(
-                        "Lihat Grup",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-        ),
+          );
+        }),
 
-        // --- TAMBAHAN: KOTAK KOSONG DI BAWAH ---
         const SizedBox(height: 120),
       ],
     );

@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/post.dart';
 import '../models/comment.dart';
 import '../models/group.dart';
@@ -16,6 +18,7 @@ class CommunityGroupDetailPage extends StatefulWidget {
   final Function(Post) onCommentClick;
   final bool isJoined;
   final Function(String, String)? onJoinGroup;
+  final Function(Post)? onCreatePost;
 
   const CommunityGroupDetailPage({
     Key? key,
@@ -27,6 +30,7 @@ class CommunityGroupDetailPage extends StatefulWidget {
     required this.onCommentClick,
     this.isJoined = false,
     this.onJoinGroup,
+    this.onCreatePost,
   }) : super(key: key);
 
   @override
@@ -36,8 +40,15 @@ class CommunityGroupDetailPage extends StatefulWidget {
 
 class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   bool isCommentDialogOpen = false;
+  bool isCreatePostDialogOpen = false;
   Post? selectedPost;
   String newComment = '';
+
+  // Create Post State
+  String newPostContent = '';
+  String newPostCategory = 'Tips Bisnis';
+  File? uploadedImage;
+  final ImagePicker _picker = ImagePicker();
 
   // Mock existing comments - GUNAKAN Comment dari model
   final List<Comment> mockComments = [
@@ -113,6 +124,87 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     );
   }
 
+  // Handle Create Post
+  void handleCreatePost() {
+    if (newPostContent.trim().isEmpty) {
+      _showToast('Konten post tidak boleh kosong!', ToastificationType.error);
+      return;
+    }
+
+    final newPost = Post(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      author: Author(
+        name: 'Anda',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Anda',
+        businessName: 'Usaha Anda',
+        verified: false,
+      ),
+      content: newPostContent,
+      image: uploadedImage?.path, // Path to local image
+      category: newPostCategory,
+      likes: 0,
+      comments: 0,
+      shares: 0,
+      timestamp: 'Baru saja',
+      isLiked: false,
+      isBookmarked: false,
+    );
+
+    if (widget.onCreatePost != null) {
+      widget.onCreatePost!(newPost);
+    }
+
+    _showToast('Post berhasil dibuat! 📝', ToastificationType.success);
+
+    setState(() {
+      newPostContent = '';
+      newPostCategory = 'Tips Bisnis';
+      uploadedImage = null;
+      isCreatePostDialogOpen = false;
+    });
+  }
+
+  // Handle Image Upload
+  Future<void> handleImageUpload() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        final file = File(pickedFile.path);
+        final fileSize = await file.length();
+
+        // Validasi ukuran file (max 5MB)
+        if (fileSize > 5 * 1024 * 1024) {
+          _showToast(
+            'Ukuran file terlalu besar! Maksimal 5MB',
+            ToastificationType.error,
+          );
+          return;
+        }
+
+        setState(() {
+          uploadedImage = file;
+        });
+        _showToast('Gambar berhasil diupload! 📷', ToastificationType.success);
+      }
+    } catch (e) {
+      _showToast('Gagal upload gambar!', ToastificationType.error);
+    }
+  }
+
+  // Handle Remove Image
+  void handleRemoveImage() {
+    setState(() {
+      uploadedImage = null;
+    });
+    _showToast('Gambar dihapus', ToastificationType.success);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,28 +216,51 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
 
           // Content
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
+            child: Stack(
               children: [
-                // Group Info Card
-                _buildGroupInfoCard(),
+                ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // Group Info Card
+                    _buildGroupInfoCard(),
 
-                const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                // Posts
-                if (groupPosts.isEmpty)
-                  _buildEmptyState()
-                else
-                  ...groupPosts.map((post) {
-                    return PostCard(
-                      post: post,
-                      onLike: () => widget.onLikePost(post.id),
-                      onComment: () => handleCommentClick(post),
-                      onShare: () =>
-                          widget.onSharePost(post.id, post.author.name),
-                      onBookmark: () => widget.onBookmarkPost(post.id),
-                    );
-                  }),
+                    // Posts
+                    if (groupPosts.isEmpty)
+                      _buildEmptyState()
+                    else
+                      ...groupPosts.map((post) {
+                        return PostCard(
+                          post: post,
+                          onLike: () => widget.onLikePost(post.id),
+                          onComment: () => handleCommentClick(post),
+                          onShare: () =>
+                              widget.onSharePost(post.id, post.author.name),
+                          onBookmark: () => widget.onBookmarkPost(post.id),
+                        );
+                      }),
+
+                    const SizedBox(height: 100),
+                  ],
+                ),
+
+                // Floating Action Button - CREATE POST
+                if (widget.isJoined)
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: FloatingActionButton(
+                      onPressed: () {
+                        setState(() {
+                          isCreatePostDialogOpen = true;
+                        });
+                        _showCreatePostDialog();
+                      },
+                      backgroundColor: const Color(0xFF2563EB),
+                      child: const Icon(LucideIcons.plus, color: Colors.white),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -159,7 +274,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF5D4037), Color(0xFF8D6E63)], // Coklat Tua ke Muda
+          colors: [Color(0xFF2563EB), Color(0xFF4F46E5)],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
@@ -434,6 +549,265 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
           });
           handleSubmitComment();
         },
+      ),
+    );
+  }
+
+  // Create Post Dialog
+  void _showCreatePostDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Buat Post Baru',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(LucideIcons.x),
+                      onPressed: () {
+                        setState(() {
+                          newPostContent = '';
+                          uploadedImage = null;
+                          isCreatePostDialogOpen = false;
+                        });
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Tulis Post
+                      const Text(
+                        'Tulis Post',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        maxLines: 5,
+                        decoration: InputDecoration(
+                          hintText: 'Tulis post Anda...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            newPostContent = value;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Kategori
+                      const Text(
+                        'Kategori',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: newPostCategory,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Tips Bisnis',
+                            child: Text('Tips Bisnis'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Pengalaman',
+                            child: Text('Pengalaman'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Pertanyaan',
+                            child: Text('Pertanyaan'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Informasi',
+                            child: Text('Informasi'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              newPostCategory = value;
+                            });
+                          }
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Upload Gambar
+                      const Text(
+                        'Upload Gambar (Opsional)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      if (uploadedImage != null)
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                uploadedImage!,
+                                width: double.infinity,
+                                height: 200,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: handleRemoveImage,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    LucideIcons.x,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        GestureDetector(
+                          onTap: handleImageUpload,
+                          child: Container(
+                            height: 150,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: const Color(0xFFD1D5DB),
+                                width: 2,
+                                style: BorderStyle.solid,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    LucideIcons.image,
+                                    size: 48,
+                                    color: Color(0xFF9CA3AF),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Klik untuk upload gambar',
+                                    style: TextStyle(
+                                      color: Color(0xFF6B7280),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Maksimal 5MB',
+                                    style: TextStyle(
+                                      color: Color(0xFF9CA3AF),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Footer
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          newPostContent = '';
+                          uploadedImage = null;
+                          isCreatePostDialogOpen = false;
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Batal'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: newPostContent.trim().isEmpty
+                          ? null
+                          : () {
+                              handleCreatePost();
+                              Navigator.pop(context);
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                      ),
+                      child: const Text('Kirim Post'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
