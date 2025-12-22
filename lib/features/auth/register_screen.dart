@@ -136,7 +136,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).primaryColor;
+    final primaryColor = Theme
+        .of(context)
+        .primaryColor;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -159,7 +161,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: Colors.orange, // Update to orange
                 ),
               ),
               const SizedBox(height: 8),
@@ -217,7 +219,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextField(
                 controller: _passCtrl,
                 obscureText: !_isPasswordVisible,
-                decoration: _inputDecor("Kata Sandi", LucideIcons.lock).copyWith(
+                decoration: _inputDecor("Kata Sandi", LucideIcons.lock)
+                    .copyWith(
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isPasswordVisible ? LucideIcons.eye : LucideIcons.eyeOff,
@@ -251,7 +254,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 // Jam Operasional
                 TextField(
                   controller: _hoursCtrl,
-                  decoration: _inputDecor("Jam Operasional (Contoh: 08:00 - 17:00)", LucideIcons.clock),
+                  decoration: _inputDecor(
+                      "Jam Operasional (Contoh: 08:00 - 17:00)",
+                      LucideIcons.clock),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -262,26 +267,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _handleRegister,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor, // Menggunakan warna tema (Coklat)
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.orange, // Explicitly set to orange
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 50),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2),
-                )
+                    ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                  _isSeller ? "DAFTAR SEBAGAI PENJUAL" : "DAFTAR SEBAGAI PEMBELI",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  _isSeller
+                      ? "DAFTAR SEBAGAI PENJUAL"
+                      : "DAFTAR SEBAGAI PEMBELI",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -294,7 +293,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Widget Helper: Tombol Pilihan Role
   Widget _buildRoleButton(String title, bool isRoleSeller) {
     final isSelected = _isSeller == isRoleSeller;
-    final primaryColor = Theme.of(context).primaryColor;
+    // Change primaryColor to orange
+    const primaryColor = Colors.orange;
 
     return GestureDetector(
       onTap: () => setState(() => _isSeller = isRoleSeller),
@@ -303,6 +303,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         decoration: BoxDecoration(
           color: isSelected ? primaryColor : Colors.transparent,
           borderRadius: BorderRadius.circular(11),
+          border: isSelected ? null : Border.all(
+              color: Colors.grey[300]!), // Added border for unselected
         ),
         alignment: Alignment.center,
         child: Text(
@@ -320,16 +322,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
   InputDecoration _inputDecor(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: Colors.grey),
+      prefixIcon: Icon(icon, color: Colors.orange),
+      // Changed to orange
       filled: true,
-      fillColor: Colors.grey[50],
+      fillColor: Colors.orange.withOpacity(0.05),
+      // Matches login screen's subtle orange fill
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Theme.of(context).primaryColor),
+        borderSide: const BorderSide(
+            color: Colors.orange, width: 2), // Orange focus border
       ),
     );
   }
