@@ -4,11 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-// --- IMPORT BARU (Sesuai Struktur Anda) ---
-import '../../services/market_service.dart'; // Import Service Logic
-import '../cart/cart_screen.dart'; // Import Halaman Keranjang
-// ------------------------------------------
-
+// Import Service & Screen Lainnya
+import '../../services/market_service.dart';
+import '../cart/cart_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
 import 'search_page.dart';
@@ -64,6 +62,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       Row(
                         children: [
+                          // Foto Profil
                           Container(
                             width: 45,
                             height: 45,
@@ -79,6 +78,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
+                          // Nama User
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,25 +124,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ],
                             ),
                           ),
+
+                          // --- ICON BARIS (NOTIF, CHAT, CART) ---
                           Row(
                             children: [
+                              // 1. Notifikasi (Manual Badge)
                               _buildHeaderIcon(
                                 context,
                                 LucideIcons.bell,
                                 const NotificationScreen(),
+                                showBadge:
+                                    false, // Ubah logic jika sudah ada notif
                               ),
                               const SizedBox(width: 8),
-                              _buildHeaderIcon(
-                                context,
-                                LucideIcons.messageCircle,
-                                const ChatScreen(),
+
+                              // 2. Chat (SMART BADGE - Realtime dari Database)
+                              // ...
+                              // 2. Chat (SMART BADGE + SYSTEM NOTIFICATION)
+                              StreamBuilder<QuerySnapshot>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('chat_rooms')
+                                    .where(
+                                      'participants',
+                                      arrayContains: user?.uid,
+                                    )
+                                    .snapshots(),
+                                builder: (context, snapshot) {
+                                  bool hasUnread = false;
+
+                                  if (snapshot.hasData) {
+                                    for (var doc in snapshot.data!.docs) {
+                                      final data =
+                                          doc.data() as Map<String, dynamic>;
+                                      final int unreadCount =
+                                          data['unread_count_${user?.uid}'] ??
+                                          0;
+
+                                      if (unreadCount > 0) {
+                                        hasUnread = true;
+
+                                        // --- LOGIKA NOTIFIKASI SYSTEM (SIMPLE) ---
+                                        // Cek apakah pesan sangat baru (kurang dari 2 detik yg lalu)
+                                        // Ini trik sederhana agar notif muncul saat app dibuka
+                                        final Timestamp? lastTime =
+                                            data['last_message_time'];
+                                        if (lastTime != null) {
+                                          final now = DateTime.now();
+                                          final diff = now
+                                              .difference(lastTime.toDate())
+                                              .inSeconds;
+
+                                          // Jika pesan baru saja masuk (diff < 5 detik)
+                                          if (diff < 5) {
+                                            // Panggil Service Notifikasi
+                                            // Kita butuh import 'package:bangkit_usaha/services/notification_service.dart' di atas
+                                            // NotificationService.showNotification(
+                                            //   id: doc.id.hashCode,
+                                            //   title: "Pesan Baru",
+                                            //   body: data['last_message'] ?? "Anda mendapat pesan",
+                                            // );
+
+                                            // *Catatan: Aktifkan baris di atas setelah import service berhasil
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+
+                                  return _buildHeaderIcon(
+                                    context,
+                                    LucideIcons.messageCircle,
+                                    const ChatScreen(),
+                                    showBadge: hasUnread,
+                                  );
+                                },
                               ),
+
+                              // ...
                               const SizedBox(width: 8),
-                              // --- UPDATE: ICON KERANJANG DIKLIK KE CartScreen ---
+
+                              // 3. Cart
                               _buildHeaderIcon(
                                 context,
                                 LucideIcons.shoppingCart,
-                                CartScreen(), // Arahkan ke sini
+                                CartScreen(),
+                                showBadge: false,
                               ),
                             ],
                           ),
@@ -201,7 +267,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             const SizedBox(height: 40),
 
-            // MARKETPLACE FEED
+            // MARKETPLACE FEED (GRID PRODUK)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
@@ -240,22 +306,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // --- UPDATE: MENGGUNAKAN MARKET SERVICE UTK FILTER STOK ---
                   StreamBuilder<QuerySnapshot>(
-                    stream: MarketService()
-                        .getAvailableProducts(), // Pakai Service
+                    stream: MarketService().getAvailableProducts(),
                     builder: (context, snapshot) {
-                      if (!snapshot.hasData)
+                      if (!snapshot.hasData) {
                         return const Center(child: CircularProgressIndicator());
+                      }
 
                       final allProducts = snapshot.data!.docs;
 
-                      // Filter tambahan: Jangan tampilkan barang dagangan sendiri
+                      // --- LOGIKA FILTER ---
                       final otherShopProducts = allProducts.where((doc) {
                         final data = doc.data() as Map<String, dynamic>;
-                        // Pastikan stok > 0 (Double check) dan bukan uid sendiri
                         final stock = data['stock'] ?? 0;
-                        return data['uid'] != user?.uid && stock > 0;
+
+                        // SAYA EDIT: Bagian 'uid != user.uid' saya komentari dulu
+                        // supaya Anda bisa melihat barang sendiri saat testing.
+                        // Nanti kalau sudah rilis, bisa diaktifkan lagi.
+
+                        // return data['uid'] != user?.uid && stock > 0; // <--- Kode Asli
+                        return stock > 0; // <--- Kode Testing (Tampilkan Semua)
                       }).toList();
 
                       if (otherShopProducts.isEmpty) {
@@ -269,7 +339,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   size: 40,
                                   color: Colors.grey[400],
                                 ),
-                                SizedBox(height: 10),
+                                const SizedBox(height: 10),
                                 Text(
                                   "Belum ada produk tersedia.",
                                   style: TextStyle(color: Colors.grey[500]),
@@ -320,7 +390,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 100),
+
+                  // SPACING BAWAH (Supaya tidak tertutup Nav Bar)
+                  const SizedBox(height: 200),
                 ],
               ),
             ),
@@ -333,8 +405,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHeaderIcon(
     BuildContext context,
     IconData icon,
-    Widget? destination,
-  ) {
+    Widget? destination, {
+    bool showBadge = false,
+  }) {
     return InkWell(
       onTap: destination != null
           ? () => Navigator.push(
@@ -343,14 +416,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
             )
           : () {},
       borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: Colors.white, size: 18),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+          if (showBadge)
+            Positioned(
+              top: -2,
+              right: -2,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFF5D4037),
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -361,18 +456,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Color textColor,
     bool isDark,
   ) {
-    // Fallback data agar tidak error jika field kosong
     String image = (item['imageUrl'] != null && item['imageUrl'] != "")
         ? item['imageUrl']
         : (item['image'] != null && item['image'] != "")
-        ? item['image'] // Handle jika nama field di db 'image' atau 'imageUrl'
+        ? item['image']
         : "https://via.placeholder.com/150";
 
     String name = item['name'] ?? "Tanpa Nama";
     String category = item['category'] ?? "Umum";
     int price = (item['price'] ?? 0).toInt();
     int stock = (item['stock'] ?? 0).toInt();
-
     double rating = (item['rating'] ?? 0).toDouble();
     int totalReviews = item['totalReviews'] ?? 0;
 
@@ -493,7 +586,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ],
                     ),
-                    // Tampilkan sisa stok kecil
                     Text(
                       "Sisa: $stock",
                       style: TextStyle(fontSize: 10, color: Colors.grey[500]),

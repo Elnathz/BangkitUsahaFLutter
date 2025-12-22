@@ -7,25 +7,28 @@ import 'firebase_options.dart';
 import 'theme_manager.dart';
 import 'features/auth/login_screen.dart';
 import 'features/home/main_wrapper.dart';
+import 'features/notifications/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   try {
     // Initialize Firebase
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    
+
+    await NotificationService.initialize();
+
     // Initialize date formatting for Indonesian and English
     await Future.wait([
       initializeDateFormatting('id_ID', null),
       initializeDateFormatting('en_US', null),
     ]);
-    
+
     // Initialize theme manager
     await ThemeManager.init();
-    
+
     runApp(const MyApp());
   } catch (e) {
     runApp(ErrorApp(error: e.toString()));
@@ -36,9 +39,9 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   // Color Scheme - Brown Theme
-  static const Color primaryBrown = Color(0xFF8D6E63);   // Main Brown
-  static const Color lightBrown = Color(0xFFA1887F);     // Light Brown
-  static const Color darkBrown = Color(0xFF6D4C41);      // Dark Brown
+  static const Color primaryBrown = Color(0xFF8D6E63); // Main Brown
+  static const Color lightBrown = Color(0xFFA1887F); // Light Brown
+  static const Color darkBrown = Color(0xFF6D4C41); // Dark Brown
 
   @override
   Widget build(BuildContext context) {
@@ -135,17 +138,15 @@ class MyApp extends StatelessWidget {
                 // Loading state
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Scaffold(
-                    body: Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    body: Center(child: CircularProgressIndicator()),
                   );
                 }
-                
+
                 // User logged in
                 if (snapshot.hasData) {
                   return const MainWrapper();
                 }
-                
+
                 // User not logged in
                 return const LoginScreen();
               },
@@ -159,7 +160,7 @@ class MyApp extends StatelessWidget {
 
 class ErrorApp extends StatelessWidget {
   final String error;
-  
+
   const ErrorApp({super.key, required this.error});
 
   @override
@@ -174,11 +175,7 @@ class ErrorApp extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.error_outline,
-                  color: Colors.red,
-                  size: 64,
-                ),
+                const Icon(Icons.error_outline, color: Colors.red, size: 64),
                 const SizedBox(height: 24),
                 const Text(
                   'Error Initializing App',
@@ -192,10 +189,7 @@ class ErrorApp extends StatelessWidget {
                 Text(
                   error,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.white70),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(

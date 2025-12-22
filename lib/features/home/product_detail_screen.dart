@@ -459,9 +459,18 @@ class ProductDetailScreen extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (context) => ChatDetailScreen(
-                              targetUid: ownerUid,
-                              targetName: targetName,
-                              targetImage: null,
+                              // HAPUS 'widget.' DI SINI
+                              targetUid: productData['uid'],
+
+                              // HAPUS 'widget.' DI SINI JUGA
+                              targetName: productData['ownerName'] ?? 'Penjual',
+
+                              // DAN DI SINI
+                              targetImage:
+                                  (productData['ownerImage'] != null &&
+                                      productData['ownerImage'] != '')
+                                  ? productData['ownerImage']
+                                  : 'https://via.placeholder.com/150',
                             ),
                           ),
                         );

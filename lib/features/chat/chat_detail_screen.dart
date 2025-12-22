@@ -7,13 +7,13 @@ import 'package:intl/intl.dart';
 class ChatDetailScreen extends StatefulWidget {
   final String targetUid;
   final String targetName;
-  final String? targetImage;
+  final String targetImage;
 
   const ChatDetailScreen({
     super.key,
     required this.targetUid,
     required this.targetName,
-    this.targetImage,
+    required this.targetImage,
   });
 
   @override
@@ -21,92 +21,105 @@ class ChatDetailScreen extends StatefulWidget {
 }
 
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
-  final TextEditingController _msgCtrl = TextEditingController();
+  final TextEditingController _messageController = TextEditingController();
   final currentUser = FirebaseAuth.instance.currentUser;
-  late String chatId;
+  late String chatRoomId;
 
   @override
   void initState() {
     super.initState();
-    // Membuat Chat ID unik gabungan UID (agar A->B dan B->A masuk room yang sama)
-    final List<String> ids = [currentUser!.uid, widget.targetUid];
-    ids.sort(); // Urutkan biar konsisten
-    chatId = ids.join("_");
+    // Generate ID Room yang konsisten
+    chatRoomId = getChatRoomId(currentUser!.uid, widget.targetUid);
+
+    // Reset Unread Count saat membuka chat
+    resetUnreadCount();
   }
 
-  void _sendMessage() async {
-    if (_msgCtrl.text.trim().isEmpty) return;
+  String getChatRoomId(String user1, String user2) {
+    if (user1.compareTo(user2) > 0) {
+      return "${user2}_$user1";
+    } else {
+      return "${user1}_$user2";
+    }
+  }
 
-    final msg = _msgCtrl.text.trim();
-    _msgCtrl.clear();
+  void resetUnreadCount() {
+    FirebaseFirestore.instance
+        .collection('chat_rooms')
+        .doc(chatRoomId)
+        .update({'unread_count_${currentUser!.uid}': 0})
+        .catchError((e) {
+          // Ignore error jika dokumen belum ada
+        });
+  }
 
-    final timestamp = FieldValue.serverTimestamp();
+  void sendMessage() async {
+    if (_messageController.text.trim().isEmpty) return;
 
-    // 1. Simpan Pesan di Sub-collection
+    final String message = _messageController.text.trim();
+    _messageController.clear();
+
+    final timestamp = Timestamp.now();
+
+    // 1. Simpan pesan ke sub-collection 'messages'
     await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(chatId)
+        .collection('chat_rooms')
+        .doc(chatRoomId)
         .collection('messages')
         .add({
           'senderId': currentUser!.uid,
-          'text': msg,
-          'createdAt': timestamp,
+          'text': message,
+          'timestamp': timestamp,
+          'isRead': false,
         });
 
-    // 2. Update Metadata Chat (Untuk ditampilkan di List Chat Terluar)
-    await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
-      'participants': [currentUser!.uid, widget.targetUid],
-      'lastMessage': msg,
-      'lastTime': timestamp,
-      // Kita simpan info user biar gampang load di list
-      'users': {
-        currentUser!.uid: true, // Marker participant
-        widget.targetUid: true,
-      },
-    }, SetOptions(merge: true));
+    // 2. UPDATE/BUAT Dokumen 'chat_rooms' (Agar muncul di halaman depan)
+    // Kita gunakan set(..., SetOptions(merge: true)) agar tidak menimpa data lain
+    await FirebaseFirestore.instance
+        .collection('chat_rooms')
+        .doc(chatRoomId)
+        .set({
+          'participants': [currentUser!.uid, widget.targetUid],
+          'last_message': message,
+          'last_message_time': timestamp,
+          // Increment unread count untuk lawan bicara
+          'unread_count_${widget.targetUid}': FieldValue.increment(1),
+          // Reset unread count untuk diri sendiri
+          'unread_count_${currentUser!.uid}': 0,
+        }, SetOptions(merge: true));
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final primaryColor = theme.primaryColor;
-    final bgColor = theme.scaffoldBackgroundColor;
-    final textColor = isDark ? Colors.white : Colors.black87;
-
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: const Color(0xFFE5DDD5), // Warna Background Chat WA
       appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation: 1,
-        shadowColor: Colors.black12,
-        leading: IconButton(
-          icon: Icon(LucideIcons.arrowLeft, color: textColor),
-          onPressed: () => Navigator.pop(context),
+        leadingWidth: 70,
+        backgroundColor: const Color(0xFF075E54), // Hijau WA Gelap
+        leading: InkWell(
+          onTap: () => Navigator.pop(context),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(LucideIcons.arrowLeft, color: Colors.white),
+              const SizedBox(width: 5),
+              CircleAvatar(
+                radius: 16,
+                backgroundImage: NetworkImage(widget.targetImage),
+                backgroundColor: Colors.grey,
+              ),
+            ],
+          ),
         ),
-        title: Row(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundImage:
-                  (widget.targetImage != null && widget.targetImage != "")
-                  ? NetworkImage(widget.targetImage!)
-                  : null,
-              backgroundColor: Colors.grey[300],
-              child: (widget.targetImage == null || widget.targetImage == "")
-                  ? const Icon(LucideIcons.user, size: 16, color: Colors.grey)
-                  : null,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                widget.targetName,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                overflow: TextOverflow.ellipsis,
+            Text(
+              widget.targetName,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
@@ -114,43 +127,85 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       ),
       body: Column(
         children: [
-          // DAFTAR PESAN
+          // LIST PESAN
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('chats')
-                  .doc(chatId)
+                  .collection('chat_rooms')
+                  .doc(chatRoomId)
                   .collection('messages')
-                  .orderBy('createdAt', descending: true)
+                  .orderBy('timestamp', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData)
                   return const Center(child: CircularProgressIndicator());
 
-                final docs = snapshot.data!.docs;
-                if (docs.isEmpty) {
-                  return Center(
-                    child: Text(
-                      "Mulai percakapan dengan ${widget.targetName}",
-                      style: TextStyle(color: Colors.grey[400]),
-                    ),
-                  );
-                }
+                final messages = snapshot.data!.docs;
 
                 return ListView.builder(
-                  reverse: true, // Pesan terbaru di bawah
-                  padding: const EdgeInsets.all(16),
-                  itemCount: docs.length,
+                  reverse: true, // Pesan baru di bawah
+                  itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
+                    final data = messages[index].data() as Map<String, dynamic>;
                     final isMe = data['senderId'] == currentUser!.uid;
+                    final time = (data['timestamp'] as Timestamp).toDate();
 
-                    return _buildMessageBubble(
-                      data['text'],
-                      isMe,
-                      data['createdAt'],
-                      primaryColor,
-                      isDark,
+                    return Align(
+                      alignment: isMe
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isMe
+                              ? const Color(0xFFDCF8C6)
+                              : Colors.white, // Hijau muda WA untuk user
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(10),
+                            topRight: const Radius.circular(10),
+                            bottomLeft: isMe
+                                ? const Radius.circular(10)
+                                : Radius.zero,
+                            bottomRight: isMe
+                                ? Radius.zero
+                                : const Radius.circular(10),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 2,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.75,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              data['text'],
+                              style: const TextStyle(fontSize: 15),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              DateFormat('HH:mm').format(time),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 );
@@ -158,115 +213,51 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
           ),
 
-          // INPUT AREA
+          // INPUT FIELD
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.grey[900] : Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            color: Colors.transparent,
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _msgCtrl,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      hintText: "Tulis pesan...",
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      filled: true,
-                      fillColor: isDark ? Colors.black26 : Colors.grey[100],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.2),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _messageController,
+                      decoration: const InputDecoration(
+                        hintText: "Ketik pesan...",
+                        border: InputBorder.none,
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _sendMessage,
-                  child: CircleAvatar(
-                    backgroundColor: primaryColor,
-                    radius: 22,
-                    child: const Icon(
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: const Color(0xFF075E54),
+                  child: IconButton(
+                    icon: const Icon(
                       LucideIcons.send,
                       color: Colors.white,
                       size: 20,
                     ),
+                    onPressed: sendMessage,
                   ),
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildMessageBubble(
-    String msg,
-    bool isMe,
-    Timestamp? timestamp,
-    Color primaryColor,
-    bool isDark,
-  ) {
-    // Format Jam
-    String timeStr = "";
-    if (timestamp != null) {
-      timeStr = DateFormat('HH:mm').format(timestamp.toDate());
-    }
-
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        constraints: const BoxConstraints(maxWidth: 280),
-        decoration: BoxDecoration(
-          color: isMe
-              ? primaryColor
-              : (isDark ? Colors.grey[800] : Colors.grey[200]),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: isMe ? const Radius.circular(16) : Radius.zero,
-            bottomRight: isMe ? Radius.zero : const Radius.circular(16),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.end, // Agar jam ada di kanan bawah bubble
-          children: [
-            Text(
-              msg,
-              style: TextStyle(
-                color: isMe
-                    ? Colors.white
-                    : (isDark ? Colors.white : Colors.black87),
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              timeStr,
-              style: TextStyle(
-                color: isMe ? Colors.white70 : Colors.grey,
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
