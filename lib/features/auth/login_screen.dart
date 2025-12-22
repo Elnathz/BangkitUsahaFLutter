@@ -42,12 +42,24 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleGoogleLogin() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      // --- PERUBAHAN ADA DI SINI ---
+      // Kita inisialisasi GoogleSignIn dengan clientId khusus untuk WEB
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        // PASTE KODE CLIENT ID DARI FIREBASE DI BAWAH INI:
+        clientId:
+            '1083523484604-h2im51pc98fnofml1lpjfs2k324fo162.apps.googleusercontent.com',
+      );
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      // -----------------------------
+
       if (googleUser == null) {
         setState(() => _isLoading = false);
         return;
       }
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -93,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.orange.withOpacity(0.2),
                         blurRadius: 15,
                         offset: const Offset(0, 5),
-                      )
+                      ),
                     ],
                     // Using the asset found in your dashboard_screen.dart
                     image: const DecorationImage(
@@ -123,7 +135,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _emailController,
                 decoration: InputDecoration(
                   labelText: "Email",
-                  prefixIcon: const Icon(LucideIcons.mail, color: Colors.orange),
+                  prefixIcon: const Icon(
+                    LucideIcons.mail,
+                    color: Colors.orange,
+                  ),
                   filled: true,
                   fillColor: Colors.orange.withOpacity(0.05),
                   border: OutlineInputBorder(
@@ -132,7 +147,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.orange, width: 2),
+                    borderSide: const BorderSide(
+                      color: Colors.orange,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -144,7 +162,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: !_isPasswordVisible, // Toggle logic
                 decoration: InputDecoration(
                   labelText: "Kata Sandi",
-                  prefixIcon: const Icon(LucideIcons.lock, color: Colors.orange),
+                  prefixIcon: const Icon(
+                    LucideIcons.lock,
+                    color: Colors.orange,
+                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isPasswordVisible ? LucideIcons.eye : LucideIcons.eyeOff,
@@ -164,7 +185,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.orange, width: 2),
+                    borderSide: const BorderSide(
+                      color: Colors.orange,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -184,52 +208,88 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                )
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : const Text(
-                  "MASUK",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1,
-                  ),
-                ),
+                        "MASUK",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                      ),
               ),
 
               const SizedBox(height: 24),
               const Row(
                 children: [
                   Expanded(child: Divider()),
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text("atau", style: TextStyle(color: Colors.grey))),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text("atau", style: TextStyle(color: Colors.grey)),
+                  ),
                   Expanded(child: Divider()),
                 ],
               ),
               const SizedBox(height: 24),
 
               // 6. GOOGLE BUTTON (Chrome Icon)
+              // ...
               OutlinedButton.icon(
-                onPressed: _isLoading ? null : _handleGoogleLogin,
-                icon: const Icon(LucideIcons.chrome, color: Colors.blueAccent), // Chrome logo
-                label: const Text("Masuk dengan Google"),
+                onPressed: _handleGoogleLogin,
+                icon: Container(
+                  width: 24,
+                  height: 24,
+                  child: Image.network(
+                    // LINK LOGO RESMI GOOGLE (PNG Transparan)
+                    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/225px-Google_%22G%22_logo.svg.png',
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      // Jika internet mati, muncul icon globe sebagai cadangan
+                      return const Icon(LucideIcons.globe, color: Colors.grey);
+                    },
+                  ),
+                ),
+                label: const Text(
+                  "Masuk dengan Google",
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.black87,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: const BorderSide(color: Colors.grey),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  side: BorderSide(color: Colors.grey[300]!),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  backgroundColor: Colors.white,
                 ),
               ),
 
+              // ...
               const SizedBox(height: 32),
 
               // Register Link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Belum punya akun? ", style: TextStyle(color: Colors.grey)),
+                  const Text(
+                    "Belum punya akun? ",
+                    style: TextStyle(color: Colors.grey),
+                  ),
                   GestureDetector(
                     onTap: () {
                       // Navigate to Register Screen

@@ -3,14 +3,13 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-
-// Import Service & Screen Lainnya
 import '../../services/market_service.dart';
 import '../cart/cart_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
 import 'search_page.dart';
 import 'product_detail_screen.dart';
+import '../../services/notification_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -141,6 +140,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               // 2. Chat (SMART BADGE - Realtime dari Database)
                               // ...
                               // 2. Chat (SMART BADGE + SYSTEM NOTIFICATION)
+                              // ...
                               StreamBuilder<QuerySnapshot>(
                                 stream: FirebaseFirestore.instance
                                     .collection('chat_rooms')
@@ -163,28 +163,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       if (unreadCount > 0) {
                                         hasUnread = true;
 
-                                        // --- LOGIKA NOTIFIKASI SYSTEM (SIMPLE) ---
-                                        // Cek apakah pesan sangat baru (kurang dari 2 detik yg lalu)
-                                        // Ini trik sederhana agar notif muncul saat app dibuka
+                                        // --- LOGIKA NOTIFIKASI SYSTEM ---
                                         final Timestamp? lastTime =
                                             data['last_message_time'];
                                         if (lastTime != null) {
                                           final now = DateTime.now();
+                                          final messageTime = lastTime.toDate();
+                                          // Perbesar toleransi waktu jadi 10 detik
                                           final diff = now
-                                              .difference(lastTime.toDate())
+                                              .difference(messageTime)
                                               .inSeconds;
 
-                                          // Jika pesan baru saja masuk (diff < 5 detik)
-                                          if (diff < 5) {
-                                            // Panggil Service Notifikasi
-                                            // Kita butuh import 'package:bangkit_usaha/services/notification_service.dart' di atas
-                                            // NotificationService.showNotification(
-                                            //   id: doc.id.hashCode,
-                                            //   title: "Pesan Baru",
-                                            //   body: data['last_message'] ?? "Anda mendapat pesan",
-                                            // );
+                                          // Debug Print (Cek ini di Terminal VS Code saat chat masuk)
+                                          print(
+                                            "Pesan masuk! Selisih waktu: $diff detik",
+                                          );
 
-                                            // *Catatan: Aktifkan baris di atas setelah import service berhasil
+                                          if (diff.abs() <= 10) {
+                                            try {
+                                              NotificationService.showNotification(
+                                                id: doc.id.hashCode,
+                                                title: "Pesan Baru",
+                                                body:
+                                                    data['last_message'] ??
+                                                    "Anda mendapat pesan",
+                                              );
+                                            } catch (e) {
+                                              print(
+                                                "Gagal menampilkan notif: $e",
+                                              );
+                                            }
                                           }
                                         }
                                       }
@@ -200,7 +208,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 },
                               ),
 
-                              // ...
                               const SizedBox(width: 8),
 
                               // 3. Cart

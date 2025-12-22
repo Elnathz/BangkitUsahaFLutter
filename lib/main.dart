@@ -7,7 +7,7 @@ import 'firebase_options.dart';
 import 'theme_manager.dart';
 import 'features/auth/login_screen.dart';
 import 'features/home/main_wrapper.dart';
-import 'features/notifications/notification_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

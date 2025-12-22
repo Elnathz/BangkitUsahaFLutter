@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-
-// --- IMPORT BARU ---
 import '../../services/market_service.dart'; // Import Service Logic
-// -------------------
-
 import '../chat/chat_detail_screen.dart';
 import 'product_reviews_screen.dart';
 import '../shop/shop_profile_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+// ... kode selanjutnya ...
 
 class ProductDetailScreen extends StatelessWidget {
   final Map<String, dynamic> initialData;
@@ -441,35 +442,72 @@ class ProductDetailScreen extends StatelessWidget {
                       ],
                     ),
                     onPressed: () async {
-                      if (ownerUid.isEmpty) return;
+                      print("Tombol Chat Ditekan..."); // Cek di Terminal
+
+                      // 1. Cek apakah ownerUid valid
+                      if (ownerUid.isEmpty) {
+                        print("Error: Owner UID Kosong!");
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Error: Data penjual tidak valid"),
+                          ),
+                        );
+                        return;
+                      }
+
+                      // 2. Cek apakah chat diri sendiri
+                      final currentUser = FirebaseAuth.instance.currentUser;
+                      if (currentUser != null && ownerUid == currentUser.uid) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Ini produk Anda sendiri"),
+                          ),
+                        );
+                        return;
+                      }
+
+                      // 3. Ambil data target (Nama & Foto Toko)
                       String targetName = "Toko";
+                      String targetImage = "";
+
                       try {
+                        // Kita coba ambil data real-time penjual biar akurat
                         final userSnap = await FirebaseFirestore.instance
                             .collection('users')
                             .doc(ownerUid)
                             .get();
-                        if (userSnap.exists)
+
+                        if (userSnap.exists) {
+                          final userData =
+                              userSnap.data() as Map<String, dynamic>;
                           targetName =
-                              (userSnap.data() as Map)['storeName'] ?? "Toko";
+                              userData['storeName'] ??
+                              userData['name'] ??
+                              "Penjual";
+                          targetImage =
+                              userData['image'] ?? userData['imageUrl'] ?? "";
+                        }
                       } catch (e) {
-                        /* ignore */
+                        print("Gagal ambil data user: $e");
+                        // Lanjut saja pakai data default/yang ada di produk
                       }
+
+                      // Jika data foto di user kosong, coba pakai data dari produk
+                      if (targetImage.isEmpty) {
+                        targetImage = productData['ownerImage'] ?? "";
+                      }
+
+                      print("Navigasi ke Chat dengan: $targetName ($ownerUid)");
+
                       if (context.mounted) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => ChatDetailScreen(
-                              // HAPUS 'widget.' DI SINI
-                              targetUid: productData['uid'],
-
-                              // HAPUS 'widget.' DI SINI JUGA
-                              targetName: productData['ownerName'] ?? 'Penjual',
-
-                              // DAN DI SINI
-                              targetImage:
-                                  (productData['ownerImage'] != null &&
-                                      productData['ownerImage'] != '')
-                                  ? productData['ownerImage']
+                              targetUid: ownerUid,
+                              targetName: targetName,
+                              targetImage: targetImage.isNotEmpty
+                                  ? targetImage
                                   : 'https://via.placeholder.com/150',
                             ),
                           ),

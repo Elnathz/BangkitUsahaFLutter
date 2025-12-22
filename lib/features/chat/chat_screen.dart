@@ -16,7 +16,6 @@ class ChatScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        // FITUR: TOMBOL BACK KIRI ATAS
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
@@ -31,11 +30,10 @@ class ChatScreen extends StatelessWidget {
         ),
         backgroundColor: Colors.white,
         elevation: 0.5,
-        // FITUR: SEARCH DI ATAS DIHAPUS (Kosongkan actions)
         actions: [],
       ),
 
-      // TOMBOL HIJAU DI BAWAH (FAB) UNTUK CARI KONTAK/CHAT BARU
+      // TOMBOL HIJAU DI BAWAH (FAB)
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -48,7 +46,6 @@ class ChatScreen extends StatelessWidget {
       ),
 
       body: StreamBuilder<QuerySnapshot>(
-        // QUERY INI MEMBUTUHKAN INDEX DI FIREBASE CONSOLE
         stream: FirebaseFirestore.instance
             .collection('chat_rooms')
             .where('participants', arrayContains: currentUser?.uid)
@@ -60,45 +57,9 @@ class ChatScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // 2. CEK ERROR (BIASANYA KARENA INDEX BELUM DIBUAT)
+          // 2. Error
           if (snapshot.hasError) {
-            // Cetak link error ke console agar bisa diklik
-            debugPrint("⚠️ ERROR FIREBASE: ${snapshot.error}");
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "Chat tidak muncul karena Index belum dibuat.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.red[700],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Lihat 'Debug Console' di VS Code, cari link yang dimulai dengan 'https://console.firebase...', lalu klik link tersebut untuk membuat Index secara otomatis.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "Error: ${snapshot.error}",
-                      style: const TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            );
+            return Center(child: Text("Error: ${snapshot.error}"));
           }
 
           // 3. Kosong
@@ -115,148 +76,35 @@ class ChatScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     "Belum ada percakapan",
-                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Ketuk tombol hijau di bawah untuk mulai chat",
-                    style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                    style: TextStyle(color: Colors.grey[600]),
                   ),
                 ],
               ),
             );
           }
 
-          // 4. Ada Data (List Chat)
+          // 4. List Chat
           return ListView.builder(
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
               final chatRoom = snapshot.data!.docs[index];
               final data = chatRoom.data() as Map<String, dynamic>;
 
+              // Cari ID Lawan Bicara
               final List participants = data['participants'] ?? [];
-              final String otherUid = participants.firstWhere(
+              final String partnerId = participants.firstWhere(
                 (id) => id != currentUser?.uid,
-                orElse: () => 'unknown',
+                orElse: () => '',
               );
 
-              // Ambil Data User Lawan Bicara
-              return StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(otherUid)
-                    .snapshots(),
-                builder: (context, userSnapshot) {
-                  if (!userSnapshot.hasData) return const SizedBox();
+              if (partnerId.isEmpty) return const SizedBox();
 
-                  final userData =
-                      userSnapshot.data!.data() as Map<String, dynamic>?;
-
-                  // Handle Nama & Foto
-                  final String name =
-                      userData?['ownerName'] ?? userData?['name'] ?? 'Pengguna';
-                  String avatarUrl = 'https://via.placeholder.com/150';
-
-                  if (userData != null) {
-                    if (userData['imageUrl'] != null &&
-                        userData['imageUrl'] != '') {
-                      avatarUrl = userData['imageUrl'];
-                    } else if (userData['image'] != null &&
-                        userData['image'] != '') {
-                      avatarUrl = userData['image'];
-                    }
-                  }
-
-                  final lastMessage = data['last_message'] ?? '';
-                  final timestamp =
-                      (data['last_message_time'] as Timestamp?)?.toDate() ??
-                      DateTime.now();
-                  final int unreadCount =
-                      data['unread_count_${currentUser?.uid}'] ?? 0;
-
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ChatDetailScreen(
-                            targetUid: otherUid,
-                            targetName: name,
-                            targetImage: avatarUrl,
-                          ),
-                        ),
-                      );
-                    },
-                    leading: CircleAvatar(
-                      radius: 28,
-                      backgroundImage: NetworkImage(avatarUrl),
-                      backgroundColor: Colors.grey[200],
-                    ),
-                    title: Text(
-                      name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        lastMessage,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: unreadCount > 0
-                              ? Colors.black87
-                              : Colors.grey[600],
-                          fontWeight: unreadCount > 0
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          _formatWhatsAppTime(timestamp),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: unreadCount > 0
-                                ? const Color(0xFF25D366)
-                                : Colors.grey,
-                            fontWeight: unreadCount > 0
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                        ),
-                        if (unreadCount > 0) ...[
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF25D366),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              unreadCount.toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                },
+              // Panggil Widget Tile Khusus (Supaya kodingan rapi)
+              return _ChatListTile(
+                partnerId: partnerId,
+                lastMessage: data['last_message'] ?? '',
+                lastTime: data['last_message_time'] as Timestamp?,
+                unreadCount: data['unread_count_${currentUser?.uid}'] ?? 0,
               );
             },
           );
@@ -264,7 +112,145 @@ class ChatScreen extends StatelessWidget {
       ),
     );
   }
+}
 
+// --- WIDGET TILE: MENGAMBIL DATA USER (NAMA & FOTO) ---
+class _ChatListTile extends StatelessWidget {
+  final String partnerId;
+  final String lastMessage;
+  final Timestamp? lastTime;
+  final int unreadCount;
+
+  const _ChatListTile({
+    required this.partnerId,
+    required this.lastMessage,
+    required this.lastTime,
+    required this.unreadCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      // Kita pakai StreamBuilder untuk User juga, biar kalau dia ganti foto profil
+      // di HP kita langsung berubah realtime.
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(partnerId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String name = "Pengguna";
+        String image = "";
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final userData = snapshot.data!.data() as Map<String, dynamic>;
+          // Cek berbagai kemungkinan nama field di database
+          name = userData['storeName'] ?? userData['name'] ?? "Pengguna";
+          // Cek berbagai kemungkinan nama field gambar
+          image = userData['imageUrl'] ?? userData['image'] ?? "";
+        }
+
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChatDetailScreen(
+                  targetUid: partnerId,
+                  targetName: name,
+                  targetImage: image, // Kirim URL gambar ke halaman detail
+                ),
+              ),
+            );
+          },
+          // FOTO PROFIL
+          leading: CircleAvatar(
+            radius: 28,
+            backgroundColor: Colors.grey[200],
+            backgroundImage: (image.isNotEmpty) ? NetworkImage(image) : null,
+            child: (image.isEmpty)
+                ? const Icon(LucideIcons.user, color: Colors.grey)
+                : null,
+          ),
+          // NAMA USER & WAKTU
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              if (lastTime != null)
+                Text(
+                  _formatWhatsAppTime(lastTime!.toDate()),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: unreadCount > 0
+                        ? const Color(0xFF25D366)
+                        : Colors.grey,
+                    fontWeight: unreadCount > 0
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+            ],
+          ),
+          // PESAN TERAKHIR & BADGE UNREAD
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    lastMessage,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: unreadCount > 0
+                          ? Colors.black87
+                          : Colors.grey[600],
+                      fontWeight: unreadCount > 0
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                if (unreadCount > 0)
+                  Container(
+                    margin: const EdgeInsets.only(left: 8),
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF25D366),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      unreadCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper Format Waktu
   String _formatWhatsAppTime(DateTime timestamp) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);

@@ -3,7 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
-import 'package:intl/intl.dart';
+
+// --- IMPORT WIDGET REVIEW CARD YANG BARU ---
+// (Sesuaikan path ini dengan lokasi Anda menyimpan review_card.dart)
+import '../home/review_card.dart';
+// ------------------------------------------
 
 class ProductReviewsScreen extends StatefulWidget {
   final String productId;
@@ -87,14 +91,12 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
     );
   }
 
-  // ... import dan class ...
-
   Future<void> _submitReview(double rating, String comment) async {
     try {
       final shopId = widget.productData['uid'];
 
       await FirebaseFirestore.instance.collection('reviews').add({
-        'productId': widget.productId, // Ada ID Produk
+        'productId': widget.productId,
         'shopId': shopId,
         'userId': user!.uid,
         'userName': user!.displayName ?? "Pembeli",
@@ -104,10 +106,8 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // HANYA Update Rating PRODUK
+      // Update Rating PRODUK
       await _recalculateProductRating(widget.productId);
-
-      // (Logika update rating Toko SUDAH DIHAPUS agar rating toko murni)
 
       if (mounted) {
         toastification.show(
@@ -122,10 +122,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
     }
   }
 
-  // ... sisanya sama ...
-
   Future<void> _recalculateProductRating(String productId) async {
-    // Ambil semua review khusus produk ini
     final snapshot = await FirebaseFirestore.instance
         .collection('reviews')
         .where('productId', isEqualTo: productId)
@@ -138,7 +135,6 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
     }
     double avg = totalStars / snapshot.docs.length;
 
-    // Update rata-rata bintang di dokumen Produk
     await FirebaseFirestore.instance
         .collection('products')
         .doc(productId)
@@ -151,11 +147,13 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
+    final textColor = theme.brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black87;
     final primaryColor = theme.primaryColor;
 
-    bool isMyProduct = widget.productData['uid'] == user?.uid;
+    // Cek apakah user yang login adalah pemilik produk (untuk fitur balasan)
+    bool isProductOwner = widget.productData['uid'] == user?.uid;
 
     return Scaffold(
       appBar: AppBar(
@@ -167,7 +165,6 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
         elevation: 0,
         iconTheme: IconThemeData(color: textColor),
       ),
-      // MENGGUNAKAN STREAM YANG SUDAH KITA BUATKAN INDEX-NYA
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('reviews')
@@ -176,16 +173,16 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            // Jika masih error index, tampilkan pesan manual
-            return Center(
+            return const Center(
               child: Text(
                 "Perlu Index Database (Cek Console)",
                 style: TextStyle(color: Colors.red),
               ),
             );
           }
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           final reviews = snapshot.data!.docs;
 
@@ -212,14 +209,28 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: reviews.length,
+            // ... di dalam ListView.builder ...
             itemBuilder: (context, index) {
-              final data = reviews[index].data() as Map<String, dynamic>;
-              return _buildReviewCard(data, isDark, textColor);
+              final doc = reviews[index];
+              final data = doc.data() as Map<String, dynamic>;
+
+              return ReviewCard(
+                // --- TAMBAHKAN BARIS INI ---
+                productId: widget.productId,
+
+                // ---------------------------
+                reviewId: doc.id,
+                data: data,
+                currentUserId: user?.uid ?? "",
+                isProductOwner: isProductOwner,
+              );
             },
+            // ...
           );
         },
       ),
-      floatingActionButton: !isMyProduct
+      // Tombol Tulis Ulasan (Hanya muncul jika BUKAN pemilik produk)
+      floatingActionButton: !isProductOwner
           ? FloatingActionButton.extended(
               onPressed: _showAddReviewDialog,
               backgroundColor: primaryColor,
@@ -230,91 +241,6 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
               ),
             )
           : null,
-    );
-  }
-
-  Widget _buildReviewCard(
-    Map<String, dynamic> data,
-    bool isDark,
-    Color textColor,
-  ) {
-    String dateStr = "";
-    if (data['createdAt'] != null) {
-      dateStr = DateFormat(
-        'dd MMM yyyy',
-      ).format((data['createdAt'] as Timestamp).toDate());
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: Colors.grey[300],
-                backgroundImage:
-                    (data['userImage'] != null && data['userImage'] != "")
-                    ? NetworkImage(data['userImage'])
-                    : null,
-                child: (data['userImage'] == null || data['userImage'] == "")
-                    ? const Icon(LucideIcons.user, size: 16, color: Colors.grey)
-                    : null,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      data['userName'] ?? "User",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: textColor,
-                      ),
-                    ),
-                    Text(
-                      dateStr,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: List.generate(5, (index) {
-              return Icon(
-                LucideIcons.star,
-                size: 14,
-                color: index < (data['rating'] ?? 0)
-                    ? Colors.orange
-                    : Colors.grey[300],
-              );
-            }),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            data['comment'] ?? "",
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.grey[300] : Colors.grey[800],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
