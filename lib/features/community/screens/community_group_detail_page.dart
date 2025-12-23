@@ -13,9 +13,7 @@ import '../widgets/comments_dialog.dart';
 import '../services/firebase_storage_service.dart';
 
 /// Community Group Detail Page - PRODUCTION VERSION
-/// - Clean UI without debug panels
-/// - Firebase Storage integration for image upload
-/// - Firestore integration for post storage
+/// Clean UI with Firebase Storage integration
 class CommunityGroupDetailPage extends StatefulWidget {
   final CommunityGroup group;
   final List<Post> posts;
@@ -164,8 +162,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
             context: context,
             type: ToastificationType.error,
             title: Text(
-              'Ukuran file terlalu besar! Maksimal 5MB (${sizeInMB.toStringAsFixed(2)} MB)',
-            ),
+                'Ukuran file terlalu besar! Maksimal 5MB (${sizeInMB.toStringAsFixed(2)} MB)'),
             autoCloseDuration: const Duration(seconds: 3),
           );
           return;
@@ -229,8 +226,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
           imageFile: pickedImageFile!,
           userId: user.uid,
           userName: user.displayName ?? 'User',
-          userAvatar:
-              user.photoURL ??
+          userAvatar: user.photoURL ??
               'https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}',
           businessName: 'Toko Saya',
           content: newPostContent,
@@ -248,8 +244,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         postId = await _firebaseService.savePost(
           userId: user.uid,
           userName: user.displayName ?? 'User',
-          userAvatar:
-              user.photoURL ??
+          userAvatar: user.photoURL ??
               'https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}',
           businessName: 'Toko Saya',
           content: newPostContent,
@@ -308,7 +303,10 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         ),
         title: Text(widget.group.name),
         actions: [
-          IconButton(icon: const Icon(LucideIcons.search), onPressed: () {}),
+          IconButton(
+            icon: const Icon(LucideIcons.search),
+            onPressed: () {},
+          ),
           IconButton(
             icon: const Icon(LucideIcons.moreVertical),
             onPressed: () {},
@@ -391,11 +389,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(
-                          LucideIcons.users,
-                          size: 14,
-                          color: Color(0xFF6B7280),
-                        ),
+                        const Icon(LucideIcons.users,
+                            size: 14, color: Color(0xFF6B7280)),
                         const SizedBox(width: 4),
                         Text(
                           '${widget.group.members} anggota',
@@ -405,11 +400,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Icon(
-                          LucideIcons.fileText,
-                          size: 14,
-                          color: Color(0xFF6B7280),
-                        ),
+                        const Icon(LucideIcons.fileText,
+                            size: 14, color: Color(0xFF6B7280)),
                         const SizedBox(width: 4),
                         Text(
                           '${widget.group.posts} post',
@@ -437,9 +429,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                 backgroundColor: widget.isJoined
                     ? const Color(0xFFE5E7EB)
                     : const Color(0xFF5D4037),
-                foregroundColor: widget.isJoined
-                    ? const Color(0xFF6B7280)
-                    : Colors.white,
+                foregroundColor:
+                    widget.isJoined ? const Color(0xFF6B7280) : Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               child: Row(
@@ -525,14 +516,19 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+              border: Border(
+                bottom: BorderSide(color: Color(0xFFE5E7EB)),
+              ),
             ),
             child: Row(
               children: [
                 const Expanded(
                   child: Text(
                     'Buat Post Baru',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -586,21 +582,13 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                     ),
                     items: const [
                       DropdownMenuItem(
-                        value: 'Tips Bisnis',
-                        child: Text('Tips Bisnis'),
-                      ),
+                          value: 'Tips Bisnis', child: Text('Tips Bisnis')),
                       DropdownMenuItem(
-                        value: 'Pertanyaan',
-                        child: Text('Pertanyaan'),
-                      ),
+                          value: 'Pertanyaan', child: Text('Pertanyaan')),
                       DropdownMenuItem(
-                        value: 'Pengalaman',
-                        child: Text('Pengalaman'),
-                      ),
+                          value: 'Pengalaman', child: Text('Pengalaman')),
                       DropdownMenuItem(
-                        value: 'Promosi',
-                        child: Text('Promosi'),
-                      ),
+                          value: 'Promosi', child: Text('Promosi')),
                     ],
                     onChanged: isUploading
                         ? null
@@ -632,11 +620,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                LucideIcons.image,
-                                size: 48,
-                                color: Color(0xFF9CA3AF),
-                              ),
+                              Icon(LucideIcons.image,
+                                  size: 48, color: Color(0xFF9CA3AF)),
                               SizedBox(height: 8),
                               Text(
                                 'Klik untuk upload gambar',
@@ -646,9 +631,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                               Text(
                                 'Maksimal 5MB',
                                 style: TextStyle(
-                                  color: Color(0xFF9CA3AF),
-                                  fontSize: 12,
-                                ),
+                                    color: Color(0xFF9CA3AF), fontSize: 12),
                               ),
                             ],
                           ),
@@ -729,14 +712,17 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+              border: Border(
+                top: BorderSide(color: Color(0xFFE5E7EB)),
+              ),
             ),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: (newPostContent.trim().isEmpty || isUploading)
-                    ? null
-                    : _handleCreatePost,
+                onPressed:
+                    (newPostContent.trim().isEmpty || isUploading)
+                        ? null
+                        : _handleCreatePost,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF5D4037),
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -750,7 +736,10 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Kirim Post', style: TextStyle(fontSize: 16)),
+                    : const Text(
+                        'Kirim Post',
+                        style: TextStyle(fontSize: 16),
+                      ),
               ),
             ),
           ),
