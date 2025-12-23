@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Import Pages
 import '../account/profile_screen.dart';
 import 'dashboard_screen.dart';
-import '../finance/transactions_screen.dart';
+import '../finance/screens/transactions_screen.dart';
 import '../community/screens/community_page.dart';
 import '../inventory/products_screen.dart';
 
@@ -39,7 +39,7 @@ class _MainWrapperState extends State<MainWrapper> {
       case 0:
         return const DashboardScreen();
       case 1:
-        return const TransactionsPage();
+        return const TransactionsScreen();
       case 2:
         return const ProductsScreen();
       case 3:

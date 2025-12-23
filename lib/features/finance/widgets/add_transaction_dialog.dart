@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../transaction_model.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:toastification/toastification.dart';
+import '../services/finance_service.dart';
+// Jika ingin menggunakan TransactionModel untuk passing data balik, uncomment baris bawah
+import '../models/transaction_model.dart'; 
 
 class AddTransactionDialog extends StatefulWidget {
-  final Function(Transaction) onAdd;
-
-  const AddTransactionDialog({Key? key, required this.onAdd}) : super(key: key);
+  const AddTransactionDialog({super.key});
 
   @override
   State<AddTransactionDialog> createState() => _AddTransactionDialogState();
@@ -13,254 +14,239 @@ class AddTransactionDialog extends StatefulWidget {
 
 class _AddTransactionDialogState extends State<AddTransactionDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _categoryController = TextEditingController();
+  final _titleController = TextEditingController();
   final _amountController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  
+  // Default Values
+  String _selectedCategory = 'Operasional';
+  DateTime _selectedDate = DateTime.now();
+  final FinanceService _financeService = FinanceService();
+  bool _isLoading = false;
 
-  TransactionType selectedType = TransactionType.income;
+  final List<String> _categories = [
+    'Operasional',
+    'Bahan Baku',
+    'Gaji Karyawan',
+    'Sewa Tempat',
+    'Listrik & Air',
+    'Pemasaran',
+    'Lainnya',
+  ];
 
   @override
   void dispose() {
-    _categoryController.dispose();
+    _titleController.dispose();
     _amountController.dispose();
-    _descriptionController.dispose();
     super.dispose();
   }
 
-  void _handleSubmit() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    final transaction = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      type: selectedType,
-      category: _categoryController.text,
-      amount: double.parse(_amountController.text),
-      description: _descriptionController.text,
-      date: DateTime.now(),
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF5D4037),
+              onPrimary: Colors.white,
+              onSurface: Colors.black87,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
 
-    widget.onAdd(transaction);
+  Future<void> _submit() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+
+      try {
+        final amount = double.parse(_amountController.text.replaceAll(RegExp(r'[^0-9]'), ''));
+
+        // Simpan ke Firebase menggunakan Service
+        await _financeService.addExpense(
+          title: _titleController.text,
+          amount: amount,
+          category: _selectedCategory,
+          date: _selectedDate,
+        );
+
+        if (!mounted) return;
+
+        // Tutup Dialog
+        Navigator.of(context).pop();
+
+        // Tampilkan Notifikasi Sukses
+        toastification.show(
+          context: context,
+          type: ToastificationType.success,
+          title: const Text('Berhasil'),
+          description: const Text('Pengeluaran berhasil dicatat!'),
+          autoCloseDuration: const Duration(seconds: 2),
+        );
+      } catch (e) {
+        toastification.show(
+          context: context,
+          type: ToastificationType.error,
+          title: const Text('Gagal'),
+          description: Text('Terjadi kesalahan: $e'),
+          autoCloseDuration: const Duration(seconds: 3),
+        );
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Format tanggal untuk tampilan
+    final dateStr = "${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}";
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title
-                const Text(
-                  'Tambah Transaksi',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Tambahkan transaksi baru ke pencatatan keuangan Anda.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                ),
-                const SizedBox(height: 24),
-
-                // Transaction Type
-                const Text(
-                  'Jenis Transaksi',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildTypeButton(
-                        TransactionType.income,
-                        'Pemasukan',
-                        Icons.arrow_upward,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildTypeButton(
-                        TransactionType.expense,
-                        'Pengeluaran',
-                        Icons.arrow_downward,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Category
-                const Text(
-                  'Kategori',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _categoryController,
-                  decoration: InputDecoration(
-                    hintText: 'Contoh: Penjualan Produk',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Kategori harus diisi';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Amount
-                const Text(
-                  'Jumlah (Rp)',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _amountController,
-                  decoration: InputDecoration(
-                    hintText: '0',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                  ),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Jumlah harus diisi';
-                    }
-                    if (double.tryParse(value) == null) {
-                      return 'Jumlah harus berupa angka';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Description
-                const Text(
-                  'Keterangan (Opsional)',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: InputDecoration(
-                    hintText: 'Tambahkan keterangan...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 24),
-
-                // Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text('Batal'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _handleSubmit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF16A34A),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Simpan Transaksi',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTypeButton(TransactionType type, String label, IconData icon) {
-    final isSelected = selectedType == type;
-    final color = type == TransactionType.income
-        ? const Color(0xFF16A34A)
-        : const Color(0xFFDC2626);
-
-    return Material(
-      color: isSelected ? color : Colors.white,
-      borderRadius: BorderRadius.circular(8),
-      elevation: 0,
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            selectedType = type;
-          });
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: isSelected ? color : const Color(0xFFE5E7EB),
-              width: isSelected ? 2 : 1,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isSelected ? Colors.white : const Color(0xFF6B7280),
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Catat Pengeluaran',
+                    style: TextStyle(
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF5D4037),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(LucideIcons.x, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: isSelected ? Colors.white : const Color(0xFF6B7280),
+              const SizedBox(height: 20),
+
+              // Title Input
+              TextFormField(
+                controller: _titleController,
+                decoration: InputDecoration(
+                  labelText: 'Judul Transaksi',
+                  hintText: 'Contoh: Beli Kertas, Bayar Listrik',
+                  prefixIcon: const Icon(LucideIcons.type, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
+                validator: (value) => value == null || value.isEmpty ? 'Judul tidak boleh kosong' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Amount Input
+              TextFormField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Nominal (Rp)',
+                  prefixIcon: const Icon(LucideIcons.banknote, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Nominal harus diisi';
+                  if (double.tryParse(value) == null) return 'Masukkan angka yang valid';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Category Dropdown
+              DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                decoration: InputDecoration(
+                  labelText: 'Kategori',
+                  prefixIcon: const Icon(LucideIcons.tag, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                items: _categories.map((String category) {
+                  return DropdownMenuItem<String>(
+                    value: category,
+                    child: Text(category),
+                  );
+                }).toList(),
+                onChanged: (newValue) {
+                  setState(() => _selectedCategory = newValue!);
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Date Picker
+              InkWell(
+                onTap: () => _selectDate(context),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.calendar, size: 20, color: Colors.grey),
+                      const SizedBox(width: 12),
+                      Text(
+                        dateStr,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const Spacer(),
+                      const Icon(LucideIcons.chevronDown, size: 16, color: Colors.grey),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Submit Button
+              ElevatedButton(
+                onPressed: _isLoading ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF5D4037),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                child: _isLoading 
+                  ? const SizedBox(
+                      width: 20, 
+                      height: 20, 
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text(
+                      'Simpan Pengeluaran',
+                      style: TextStyle(
+                        fontSize: 16, 
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
               ),
             ],
           ),

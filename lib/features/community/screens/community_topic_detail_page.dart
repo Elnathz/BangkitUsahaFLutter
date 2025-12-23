@@ -1,28 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/post.dart';
 import '../models/comment.dart';
 import '../models/trending_topic.dart';
 import '../widgets/post_card.dart';
 import '../widgets/comments_dialog.dart';
+import '../services/firebase_storage_service.dart';
 
 class CommunityTopicDetailPage extends StatefulWidget {
   final TrendingTopic topic;
-  final List<Post> posts;
-  final Function(String) onLikePost;
-  final Function(String) onBookmarkPost;
-  final Function(String, String) onSharePost;
-  final Function(Post) onCommentClick;
 
   const CommunityTopicDetailPage({
     Key? key,
     required this.topic,
-    required this.posts,
-    required this.onLikePost,
-    required this.onBookmarkPost,
-    required this.onSharePost,
-    required this.onCommentClick,
   }) : super(key: key);
 
   @override
@@ -31,11 +23,10 @@ class CommunityTopicDetailPage extends StatefulWidget {
 }
 
 class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
-  bool isCommentDialogOpen = false;
-  Post? selectedPost;
-  String newComment = '';
+  final FirebaseStorageService _firebaseService = FirebaseStorageService();
+  final user = FirebaseAuth.instance.currentUser;
 
-  // Mock existing comments - GUNAKAN Comment dari model
+  // Mock Comment Data (Sementara)
   final List<Comment> mockComments = [
     Comment(
       id: '1',
@@ -46,51 +37,61 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
       timestamp: '2 jam yang lalu',
       likes: 5,
     ),
-    Comment(
-      id: '2',
-      author: 'Rina Wijaya',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rina',
-      content:
-          'Terima kasih sharingnya! Saya sudah coba terapkan dan hasilnya bagus 👍',
-      timestamp: '5 jam yang lalu',
-      likes: 3,
-    ),
-    Comment(
-      id: '3',
-      author: 'Dedi Prasetyo',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dedi',
-      content:
-          'Ada yang pernah coba untuk produk fashion juga? Share dong pengalamannya',
-      timestamp: '1 hari yang lalu',
-      likes: 8,
-    ),
   ];
 
-  // Filter posts yang relevan dengan topik (mock - di real app filter berdasarkan tags)
-  List<Post> get topicRelatedPosts => widget.posts.take(3).toList();
+  // --- ACTIONS ---
 
-  void handleCommentClick(Post post) {
-    setState(() {
-      selectedPost = post;
-      isCommentDialogOpen = true;
-    });
-    _showCommentsDialog();
+  void _handleLike(Post post) {
+    if (user == null) {
+      _showLoginToast();
+      return;
+    }
+    _firebaseService.toggleLike(post.id, post.isLiked);
   }
 
-  void handleSubmitComment() {
-    if (newComment.trim().isNotEmpty) {
-      toastification.show(
-        context: context,
-        type: ToastificationType.success,
-        title: const Text('Komentar berhasil ditambahkan! 💬'),
-        autoCloseDuration: const Duration(seconds: 2),
-        alignment: Alignment.topCenter,
-      );
-      setState(() {
-        newComment = '';
-        isCommentDialogOpen = false;
-      });
-    }
+  void _handleComment(Post post) {
+    showDialog(
+      context: context,
+      builder: (context) => CommentsDialog(
+        post: post,
+        comments: mockComments,
+        onAddComment: (comment) {
+          toastification.show(
+            context: context,
+            type: ToastificationType.info,
+            title: const Text('Fitur komentar database akan segera hadir!'),
+            autoCloseDuration: const Duration(seconds: 2),
+          );
+        },
+      ),
+    );
+  }
+
+  void _handleShare(String postId, String authorName) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.success,
+      title: Text('Tautan post dari $authorName berhasil disalin!'),
+      autoCloseDuration: const Duration(seconds: 2),
+    );
+  }
+
+  void _handleBookmark(String postId) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.success,
+      title: const Text('Post disimpan ke koleksi!'),
+      autoCloseDuration: const Duration(seconds: 2),
+    );
+  }
+
+  void _showLoginToast() {
+    toastification.show(
+      context: context,
+      type: ToastificationType.error,
+      title: const Text('Silakan login untuk berinteraksi'),
+      autoCloseDuration: const Duration(seconds: 3),
+    );
   }
 
   @override
@@ -104,29 +105,58 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
 
           // Content
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Topic Info Card
-                _buildTopicInfoCard(),
+            child: StreamBuilder<List<Post>>(
+              // Mengambil semua post lalu kita filter di client-side
+              // (Untuk skala besar, sebaiknya filter dilakukan di query Firestore)
+              stream: _firebaseService.getPosts(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                const SizedBox(height: 16),
+                if (snapshot.hasError) {
+                  return Center(child: Text("Error: ${snapshot.error}"));
+                }
 
-                // Posts
-                if (topicRelatedPosts.isEmpty)
-                  _buildEmptyState()
-                else
-                  ...topicRelatedPosts.map((post) {
-                    return PostCard(
-                      post: post,
-                      onLike: () => widget.onLikePost(post.id),
-                      onComment: () => handleCommentClick(post),
-                      onShare: () =>
-                          widget.onSharePost(post.id, post.author.name),
-                      onBookmark: () => widget.onBookmarkPost(post.id),
-                    );
-                  }),
-              ],
+                final allPosts = snapshot.data ?? [];
+                
+                // FILTER: Cari post yang mengandung kata dari Judul Topik
+                // Contoh: Topik "Strategi Marketing" akan mencari post dengan kata "Strategi" atau "Marketing"
+                final topicKeywords = widget.topic.title.toLowerCase().split(' ');
+                final relatedPosts = allPosts.where((post) {
+                  final contentLower = post.content.toLowerCase();
+                  final categoryLower = post.category.toLowerCase();
+                  
+                  // Cek apakah ada keyword yang cocok di konten atau kategori
+                  return topicKeywords.any((word) => 
+                    contentLower.contains(word) || categoryLower.contains(word)
+                  );
+                }).toList();
+
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // Topic Info Card
+                    _buildTopicInfoCard(relatedPosts.length),
+
+                    const SizedBox(height: 16),
+
+                    // Posts List
+                    if (relatedPosts.isEmpty)
+                      _buildEmptyState()
+                    else
+                      ...relatedPosts.map((post) {
+                        return PostCard(
+                          post: post,
+                          onLike: () => _handleLike(post),
+                          onComment: () => _handleComment(post),
+                          onShare: () => _handleShare(post.id, post.author.name),
+                          onBookmark: () => _handleBookmark(post.id),
+                        );
+                      }).toList(),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -134,12 +164,15 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
     );
   }
 
-  // Header
+  // Header Widget
   Widget _buildHeader() {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFD84315), Color(0xFF5D4037)], // Oranye ke Coklat
+          colors: [
+            Color(0xFFD84315),
+            Color(0xFF5D4037)
+          ], // Oranye ke Coklat
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
@@ -172,7 +205,7 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${widget.topic.posts} diskusi',
+                  'Topik Hangat 🔥',
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFFFEF3C7),
@@ -188,7 +221,7 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
   }
 
   // Topic Info Card
-  Widget _buildTopicInfoCard() {
+  Widget _buildTopicInfoCard(int postCount) {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -214,7 +247,7 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
-                LucideIcons.trendingUp,
+                LucideIcons.hash,
                 color: Color(0xFFEA580C),
                 size: 24,
               ),
@@ -223,19 +256,19 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
-                    'Topik Trending',
-                    style: TextStyle(
+                    '${widget.topic.title}',
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF7C2D12),
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    'Topik ini sedang banyak dibahas oleh komunitas UMKM. Ikuti diskusi untuk mendapat insight terbaru!',
-                    style: TextStyle(
+                    'Ditemukan $postCount diskusi terkait topik ini. Bergabunglah dalam percakapan!',
+                    style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF9A3412),
                       height: 1.5,
@@ -250,40 +283,26 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
     );
   }
 
-  // Empty State
+  // Empty State Widget
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 48),
         child: Column(
-          children: const [
-            Icon(LucideIcons.trendingUp, size: 64, color: Color(0xFFD1D5DB)),
-            SizedBox(height: 16),
-            Text(
+          children: [
+            const Icon(LucideIcons.searchX, size: 64, color: Color(0xFFD1D5DB)),
+            const SizedBox(height: 16),
+            const Text(
               'Belum ada diskusi untuk topik ini',
               style: TextStyle(color: Color(0xFF6B7280)),
             ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Kembali ke Feed"),
+            )
           ],
         ),
-      ),
-    );
-  }
-
-  // Comments Dialog
-  void _showCommentsDialog() {
-    if (selectedPost == null) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => CommentsDialog(
-        post: selectedPost!,
-        comments: mockComments,
-        onAddComment: (commentText) {
-          setState(() {
-            newComment = commentText;
-          });
-          handleSubmitComment();
-        },
       ),
     );
   }
