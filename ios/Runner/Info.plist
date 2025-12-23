@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+    <string>Aplikasi membutuhkan akses ke galeri untuk upload foto post</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Aplikasi membutuhkan akses ke kamera untuk mengambil foto</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Aplikasi membutuhkan akses untuk menyimpan foto ke galeri</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

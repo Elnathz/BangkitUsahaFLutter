@@ -37,7 +37,7 @@ dependencies:
     cloud_firestore: ^5.6.12
     firebase_storage: ^12.4.10
     google_sign_in: ^6.2.1
-
+    
     # UI & Utilities
     google_fonts: ^6.2.1 # Untuk font keren
     lucide_icons: ^0.257.0 # Agar icon sama dengan versi React
@@ -59,6 +59,7 @@ dev_dependencies:
     
     # Icons (opsional, jika mau pakai Lucide)
     flutter_lucide: 1.7.0
+    permission_handler: ^11.0.1
 
     # The "flutter_lints" package below contains a set of recommended lints to
     # activated in the `analysis_options.yaml` file located at the root of your

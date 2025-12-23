@@ -300,14 +300,6 @@ class _CommunityPageState extends State<CommunityPage>
     );
   }
 
-  void _toggleSearchMode() {
-    setState(() {
-      isPostDialogOpen = !isPostDialogOpen;
-      if (!isPostDialogOpen) {
-        searchQuery = ''; // Clear search when closing
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
