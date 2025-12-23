@@ -1,5 +1,6 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart'; // Tambahan untuk kIsWeb
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
@@ -15,10 +16,7 @@ import '../widgets/comments_dialog.dart';
 class CommunityGroupDetailPage extends StatefulWidget {
   final CommunityGroup group;
 
-  const CommunityGroupDetailPage({
-    super.key,
-    required this.group,
-  });
+  const CommunityGroupDetailPage({super.key, required this.group});
 
   @override
   State<CommunityGroupDetailPage> createState() =>
@@ -28,32 +26,63 @@ class CommunityGroupDetailPage extends StatefulWidget {
 class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   final FirebaseStorageService _firebaseService = FirebaseStorageService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   bool isJoined = false;
+  bool isLoadingStatus = true;
 
   @override
   void initState() {
     super.initState();
-    isJoined = false; 
+    _checkMembershipStatus();
   }
 
-  // --- ACTIONS ---
+  Future<void> _checkMembershipStatus() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final status = await _firebaseService.hasJoinedGroup(
+        widget.group.id,
+        user.uid,
+      );
+      if (mounted) {
+        setState(() {
+          isJoined = status;
+          isLoadingStatus = false;
+        });
+      }
+    }
+  }
 
-  void _handleJoinGroup() {
-    setState(() {
-      isJoined = !isJoined;
-    });
-    
-    final msg = isJoined 
-        ? 'Berhasil bergabung ke grup ${widget.group.name}'
-        : 'Anda keluar dari grup ${widget.group.name}';
-        
-    toastification.show(
-      context: context,
-      type: isJoined ? ToastificationType.success : ToastificationType.info,
-      title: Text(msg),
-      autoCloseDuration: const Duration(seconds: 2),
-    );
+  Future<void> _handleJoinToggle() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      _showLoginError();
+      return;
+    }
+
+    setState(() => isLoadingStatus = true);
+
+    if (isJoined) {
+      // Leave
+      await _firebaseService.leaveGroup(widget.group.id, user.uid);
+      if (mounted) {
+        setState(() {
+          isJoined = false;
+          isLoadingStatus = false;
+        });
+        _showToast('Anda keluar dari grup', ToastificationType.info);
+      }
+    } else {
+      // Join
+      await _firebaseService.joinGroup(widget.group.id, user.uid);
+      if (mounted) {
+        setState(() {
+          isJoined = true;
+          isLoadingStatus = false;
+        });
+        _showToast('Berhasil bergabung!', ToastificationType.success);
+      }
+    }
   }
 
   void _handleLike(Post post) {
@@ -78,28 +107,22 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   }
 
   void _handleShare(String authorName) {
-    toastification.show(
-      context: context,
-      type: ToastificationType.success,
-      title: Text('Tautan post dari $authorName disalin!'),
-      autoCloseDuration: const Duration(seconds: 2),
-    );
+    _showToast('Tautan disalin', ToastificationType.success);
   }
 
   void _handleBookmark() {
-    toastification.show(
-      context: context,
-      type: ToastificationType.success,
-      title: const Text('Post disimpan!'),
-      autoCloseDuration: const Duration(seconds: 2),
-    );
+    _showToast('Disimpan', ToastificationType.success);
   }
 
   void _showLoginError() {
+    _showToast('Silakan login dahulu', ToastificationType.error);
+  }
+
+  void _showToast(String msg, ToastificationType type) {
     toastification.show(
       context: context,
-      type: ToastificationType.error,
-      title: const Text('Silakan login terlebih dahulu'),
+      type: type,
+      title: Text(msg),
       autoCloseDuration: const Duration(seconds: 2),
     );
   }
@@ -109,7 +132,14 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       _showLoginError();
       return;
     }
-    
+    if (!isJoined) {
+      _showToast(
+        'Gabung grup dulu untuk memposting',
+        ToastificationType.warning,
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -119,11 +149,9 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         group: widget.group,
         currentUser: _auth.currentUser!,
         onSuccess: () {
-          toastification.show(
-            context: context,
-            type: ToastificationType.success,
-            title: const Text('Postingan grup berhasil dibuat!'),
-            autoCloseDuration: const Duration(seconds: 2),
+          _showToast(
+            'Postingan grup berhasil dibuat!',
+            ToastificationType.success,
           );
         },
       ),
@@ -179,75 +207,85 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
               onPressed: () => Navigator.pop(context),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(LucideIcons.share2, color: Colors.white),
-                onPressed: () {},
-              ),
-              IconButton(
-                icon: const Icon(LucideIcons.moreVertical, color: Colors.white),
-                onPressed: () {},
-              ),
-            ],
           ),
 
           // 2. INFO GRUP & TOMBOL ACTIONS
           SliverToBoxAdapter(
-            child: Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(bottom: 8),
-              child: Column(
-                children: [
-                  Row(
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: _firestore
+                  .collection('groups')
+                  .doc(widget.group.id)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                int memberCount = widget.group.members;
+                int postCount = widget.group.posts;
+
+                if (snapshot.hasData &&
+                    snapshot.data != null &&
+                    snapshot.data!.exists) {
+                  final data = snapshot.data!.data() as Map<String, dynamic>;
+                  memberCount = data['members'] ?? 0;
+                  postCount = data['posts'] ?? 0;
+                }
+
+                return Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Column(
                     children: [
-                      _buildStatItem('Anggota', '${widget.group.members}'),
-                      _buildDivider(),
-                      _buildStatItem('Postingan', '${widget.group.posts}'),
-                      _buildDivider(),
-                      _buildStatItem('Kategori', 'Bisnis'),
+                      Row(
+                        children: [
+                          _buildStatItem('Anggota', '$memberCount'),
+                          _buildDivider(),
+                          _buildStatItem('Postingan', '$postCount'),
+                          _buildDivider(),
+                          _buildStatItem('Kategori', 'Bisnis'),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: isLoadingStatus
+                                  ? null
+                                  : _handleJoinToggle,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isJoined
+                                    ? Colors.grey[200]
+                                    : const Color(0xFF5D4037),
+                                foregroundColor: isJoined
+                                    ? Colors.black87
+                                    : Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: isLoadingStatus
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      isJoined
+                                          ? 'Telah Bergabung'
+                                          : 'Gabung Grup',
+                                    ),
+                            ),
+                          ),
+                          // Opsional: Tombol "Buat Post" di sini bisa dihapus kalau sudah ada FAB,
+                          // tapi saya biarkan agar user punya 2 opsi.
+                        ],
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _handleJoinGroup,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isJoined 
-                                ? Colors.grey[200] 
-                                : const Color(0xFF5D4037),
-                            foregroundColor: isJoined 
-                                ? Colors.black87 
-                                : Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(isJoined ? 'Telah Bergabung' : 'Gabung Grup'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _showCreateGroupPostModal,
-                          icon: const Icon(LucideIcons.penTool, size: 16),
-                          label: const Text('Buat Post'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF5D4037),
-                            side: const BorderSide(color: Color(0xFF5D4037)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
 
@@ -266,7 +304,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
             ),
           ),
 
-          // 4. LIST POSTINGAN (FILTERED BY GROUP ID)
+          // 4. LIST POSTINGAN
           StreamBuilder<List<Post>>(
             stream: _firebaseService.getPosts(),
             builder: (context, snapshot) {
@@ -275,14 +313,10 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
-              if (snapshot.hasError) {
-                return SliverToBoxAdapter(child: Text("Error: ${snapshot.error}"));
-              }
-
               final allPosts = snapshot.data ?? [];
-              
-              // Filter postingan hanya untuk grup ini
-              final groupPosts = allPosts.where((p) => p.groupId == widget.group.id).toList();
+              final groupPosts = allPosts
+                  .where((p) => p.groupId == widget.group.id)
+                  .toList();
 
               if (groupPosts.isEmpty) {
                 return const SliverFillRemaining(
@@ -291,10 +325,16 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(LucideIcons.messagesSquare, size: 48, color: Colors.grey),
+                        Icon(
+                          LucideIcons.messagesSquare,
+                          size: 48,
+                          color: Colors.grey,
+                        ),
                         SizedBox(height: 16),
-                        Text("Belum ada diskusi di grup ini.", style: TextStyle(color: Colors.grey)),
-                        Text("Jadilah yang pertama memposting!", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        Text(
+                          "Belum ada diskusi di grup ini.",
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ],
                     ),
                   ),
@@ -302,28 +342,36 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               }
 
               return SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final post = groupPosts[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: PostCard(
-                        post: post,
-                        onLike: () => _handleLike(post),
-                        onComment: () => _handleComment(post),
-                        onShare: () => _handleShare(post.author.name),
-                        onBookmark: _handleBookmark,
-                      ),
-                    );
-                  },
-                  childCount: groupPosts.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final post = groupPosts[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: PostCard(
+                      post: post,
+                      onLike: () => _handleLike(post),
+                      onComment: () => _handleComment(post),
+                      onShare: () => _handleShare(post.author.name),
+                      onBookmark: _handleBookmark,
+                    ),
+                  );
+                }, childCount: groupPosts.length),
               );
             },
           ),
-          
-          const SliverToBoxAdapter(child: SizedBox(height: 40)),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 120),
+          ), // Padding extra untuk scroll
         ],
+      ),
+
+      // --- FAB BARU DENGAN PADDING BOTTOM 100 ---
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 100.0),
+        child: FloatingActionButton(
+          onPressed: _showCreateGroupPostModal,
+          backgroundColor: const Color(0xFF5D4037),
+          child: const Icon(LucideIcons.penTool, color: Colors.white),
+        ),
       ),
     );
   }
@@ -334,36 +382,20 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         children: [
           Text(
             value,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12,
-            ),
-          ),
+          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
         ],
       ),
     );
   }
 
   Widget _buildDivider() {
-    return Container(
-      height: 24,
-      width: 1,
-      color: Colors.grey[300],
-    );
+    return Container(height: 24, width: 1, color: Colors.grey[300]);
   }
 }
 
-// =========================================================
-// WIDGET KHUSUS UNTUK MEMBUAT POSTINGAN DI DALAM GRUP
-// =========================================================
-
+// Widget Create Post Sheet (Sama seperti sebelumnya)
 class GroupCreatePostSheet extends StatefulWidget {
   final FirebaseStorageService firebaseService;
   final CommunityGroup group;
@@ -394,22 +426,41 @@ class _GroupCreatePostSheetState extends State<GroupCreatePostSheet> {
   }
 
   Future<void> _submit() async {
-    if (_contentController.text.trim().isEmpty) return;
-    
+    if (_contentController.text.trim().isEmpty && _imageFile == null) return;
+
     setState(() => _isUploading = true);
 
-    // ERROR FIX HERE:
-    // Kirim _imageFile langsung (XFile?), jangan dibungkus File().
-    // Service kita sudah diupdate untuk menerima XFile? agar kompatibel Web & Mobile.
+    // --- LOGIKA PENENTUAN NAMA (ROBUST) ---
+    User user = widget.currentUser;
+    String finalName = user.displayName ?? '';
+
+    // Jika Display Name masih kosong, ambil dari Email
+    if (finalName.isEmpty && user.email != null) {
+      finalName = user.email!.split('@')[0];
+
+      // Update permanen ke Firebase Auth
+      try {
+        await user.updateDisplayName(finalName);
+        await user.reload();
+      } catch (e) {
+        print("Gagal update profil: $e");
+      }
+    }
+
+    if (finalName.isEmpty) {
+      finalName = 'Anggota Grup';
+    }
+    // ---------------------------------------
+
     await widget.firebaseService.uploadImageAndSavePost(
-      imageFile: _imageFile, 
-      userId: widget.currentUser.uid,
-      userName: widget.currentUser.displayName ?? 'Pengguna',
-      userAvatar: widget.currentUser.photoURL ?? '',
-      businessName: 'UMKM Member',
+      imageFile: _imageFile,
+      userId: user.uid,
+      userName: finalName, // Pastikan pakai finalName
+      userAvatar: user.photoURL ?? '',
+      businessName: 'Anggota Grup',
       content: _contentController.text,
-      category: 'Grup', 
-      groupId: widget.group.id,   
+      category: 'Grup',
+      groupId: widget.group.id,
       groupName: widget.group.name,
       onProgress: (val) {},
     );
@@ -432,8 +483,20 @@ class _GroupCreatePostSheetState extends State<GroupCreatePostSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Post di ${widget.group.name}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(LucideIcons.x)),
+              Expanded(
+                child: Text(
+                  'Post di ${widget.group.name}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(LucideIcons.x),
+              ),
             ],
           ),
           const Divider(),
@@ -449,8 +512,6 @@ class _GroupCreatePostSheetState extends State<GroupCreatePostSheet> {
                       border: InputBorder.none,
                     ),
                   ),
-                  
-                  // PREVIEW IMAGE (WEB & MOBILE COMPATIBLE)
                   if (_imageFile != null)
                     Stack(
                       children: [
@@ -471,12 +532,18 @@ class _GroupCreatePostSheetState extends State<GroupCreatePostSheet> {
                                 ),
                         ),
                         Positioned(
-                          right: 8, top: 8,
+                          right: 8,
+                          top: 8,
                           child: InkWell(
                             onTap: () => setState(() => _imageFile = null),
                             child: const CircleAvatar(
-                              backgroundColor: Colors.red, radius: 12, 
-                              child: Icon(LucideIcons.x, size: 14, color: Colors.white)
+                              backgroundColor: Colors.red,
+                              radius: 12,
+                              child: Icon(
+                                LucideIcons.x,
+                                size: 14,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -488,14 +555,26 @@ class _GroupCreatePostSheetState extends State<GroupCreatePostSheet> {
           ),
           Row(
             children: [
-              IconButton(onPressed: _pickImage, icon: const Icon(LucideIcons.image, color: Colors.green)),
+              IconButton(
+                onPressed: _pickImage,
+                icon: const Icon(LucideIcons.image, color: Colors.green),
+              ),
               const Spacer(),
               ElevatedButton(
                 onPressed: _isUploading ? null : _submit,
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5D4037)),
-                child: _isUploading 
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) 
-                  : const Text("Posting", style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF5D4037),
+                ),
+                child: _isUploading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
+                    : const Text(
+                        "Posting",
+                        style: TextStyle(color: Colors.white),
+                      ),
               ),
             ],
           ),

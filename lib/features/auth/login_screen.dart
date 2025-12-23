@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
+import 'register_screen.dart'; // Tambahkan Import ini
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -283,27 +284,33 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 32),
 
               // Register Link
+              // Register Link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    "Belum punya akun? ",
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                  const Text("Belum punya akun? ",
+                      style: TextStyle(color: Colors.grey)),
                   GestureDetector(
                     onTap: () {
-                      // Navigate to Register Screen
+                      // --- NAVIGASI KE REGISTER SCREEN ---
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RegisterScreen(),
+                        ),
+                      );
                     },
                     child: const Text(
                       "Daftar Sekarang",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.deepOrange,
+                        color: Colors.deepOrange, // Atau Theme.of(context).primaryColor
                       ),
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 24), // Tambahan margin bawah
             ],
           ),
         ),

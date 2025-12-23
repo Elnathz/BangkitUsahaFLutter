@@ -95,21 +95,28 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     // Create mock post object
     final newPost = Post(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      author: Author(
+      // 1. Tambahkan userId (Wajib di model baru)
+      userId: 'local_temp_id',
+
+      // 2. Ganti 'Author' menjadi 'PostAuthor' dan tambahkan id
+      author: PostAuthor(
+        id: 'local_temp_id',
         name: 'Anda',
         avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Anda',
         businessName: 'Usaha Anda',
         verified: false,
       ),
+
       content: content,
-      image: pickedImageFile?.path, // Local path for preview
+      image: pickedImageFile?.path,
       category: newPostCategory,
       likes: 0,
       comments: 0,
       shares: 0,
       timestamp: 'Baru saja',
       isLiked: false,
-      isBookmarked: false,
+
+      // 3. Hapus 'isBookmarked' (Sudah tidak ada di model baru)
     );
 
     // Callback
@@ -250,9 +257,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                       return Container(
                         height: 200,
                         color: Colors.red[100],
-                        child: const Center(
-                          child: Text('Error loading image'),
-                        ),
+                        child: const Center(child: Text('Error loading image')),
                       );
                     },
                   )
