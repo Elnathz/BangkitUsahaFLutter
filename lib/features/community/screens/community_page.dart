@@ -5,9 +5,12 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/group.dart';
 import '../services/firebase_storage_service.dart';
+// Tambahkan ini di paling atas file community_page.dart
+import '../../home/main_wrapper.dart';
 
 // Import Tabs
 import './tabs/community_feed_tab.dart';
@@ -173,12 +176,29 @@ class _CommunityPageState extends State<CommunityPage>
         children: [
           Row(
             children: [
-              IconButton(
-                icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
-                onPressed: widget.onClose,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              // --- UPDATE TOMBOL KEMBALI DI SINI ---
+              // GANTI IconButton LAMA DENGAN INI:
+              InkWell(
+                onTap: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MainWrapper()),
+                    (route) => false,
+                  );
+                },
+                borderRadius: BorderRadius.circular(8), // Radius untuk efek riak air (splash)
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2), // Background transparan
+                    borderRadius: BorderRadius.circular(8), // Radius kotak
+                  ),
+                  child: const Icon(LucideIcons.arrowLeft,
+                      color: Colors.white, size: 20),
+                ),
               ),
+
+              // -------------------------------------
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
@@ -196,6 +216,7 @@ class _CommunityPageState extends State<CommunityPage>
             ],
           ),
           const SizedBox(height: 16),
+          // Search Bar
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -298,39 +319,45 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
 
     setState(() => _isUploading = true);
 
-    // --- LOGIKA PENENTUAN NAMA (ROBUST) ---
-    User user = widget.currentUser;
-    String finalName = user.displayName ?? '';
+    String finalName = '';
+    String businessName = 'UMKM Member';
 
-    // Jika Display Name masih kosong, ambil dari Email
-    if (finalName.isEmpty && user.email != null) {
-      finalName = user.email!.split(
-        '@',
-      )[0]; // Ambil 'budi' dari 'budi@gmail.com'
+    try {
+      // 1. AMBIL DATA DARI FIRESTORE
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.currentUser.uid)
+          .get();
 
-      // OPTIONAL: Update permanen ke Firebase Auth agar besok tidak null lagi
-      try {
-        await user.updateDisplayName(finalName);
-        await user.reload(); // Refresh data user lokal
-      } catch (e) {
-        print("Gagal update profil: $e");
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+
+        // --- PERBAIKAN: HANYA AMBIL OWNERNAME ---
+        finalName = data['ownerName'] ?? '';
+      }
+    } catch (e) {
+      print("Gagal ambil data user: $e");
+    }
+
+    // 2. FALLBACK (Jaga-jaga jika ownerName di database kosong)
+    if (finalName.isEmpty) {
+      finalName = widget.currentUser.displayName ?? '';
+      if (finalName.isEmpty && widget.currentUser.email != null) {
+        finalName = widget.currentUser.email!.split('@')[0];
       }
     }
 
-    // Jika masih kosong juga (kasus langka), pakai default
     if (finalName.isEmpty) {
-      finalName = 'Tanpa Nama';
+      finalName = 'Pengguna Tanpa Nama';
     }
 
-    print("Memposting dengan nama: $finalName"); // Cek di Debug Console
-    // ---------------------------------------
-
+    // 3. UPLOAD
     await widget.firebaseService.uploadImageAndSavePost(
       imageFile: _imageFile,
-      userId: user.uid,
-      userName: finalName, // Pastikan variabel ini yang dipakai!
-      userAvatar: user.photoURL ?? '',
-      businessName: 'UMKM Member',
+      userId: widget.currentUser.uid,
+      userName: finalName, // Sekarang menggunakan ownerName
+      userAvatar: widget.currentUser.photoURL ?? '',
+      businessName: businessName,
       content: _contentController.text,
       category: _category,
       onProgress: (val) {},

@@ -6,6 +6,8 @@ import 'package:toastification/toastification.dart';
 import '../models/transaction_model.dart';
 import '../services/finance_service.dart';
 import 'finance_log_page.dart';
+// Tambahkan ini di paling atas file community_page.dart
+import '../../home/main_wrapper.dart';
 
 // Import Chat & Notification
 import '../../chat/chat_screen.dart';
@@ -96,7 +98,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -115,7 +119,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => FinanceLogPage(
-                                          transactions: transactions),
+                                        transactions: transactions,
+                                      ),
                                     ),
                                   );
                                 },
@@ -132,16 +137,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(LucideIcons.clipboardList,
-                                  size: 48, color: Colors.grey),
+                              Icon(
+                                LucideIcons.clipboardList,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
                               SizedBox(height: 16),
-                              Text("Belum ada transaksi",
-                                  style: TextStyle(color: Colors.grey)),
+                              Text(
+                                "Belum ada transaksi",
+                                style: TextStyle(color: Colors.grey),
+                              ),
                               SizedBox(height: 8),
                               Text(
                                 "Penjualan toko akan muncul otomatis di sini",
                                 style: TextStyle(
-                                    color: Colors.grey, fontSize: 12),
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ),
@@ -167,7 +179,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
         ],
       ),
-      
+
       // FAB BARU: CATAT TRANSAKSI
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 100.0),
@@ -175,8 +187,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           onPressed: () => _showAddTransactionDialog(context),
           backgroundColor: const Color(0xFF5D4037),
           icon: const Icon(LucideIcons.penTool, color: Colors.white),
-          label: const Text("Catat Transaksi",
-              style: TextStyle(color: Colors.white)),
+          label: const Text(
+            "Catat Transaksi",
+            style: TextStyle(color: Colors.white),
+          ),
         ),
       ),
     );
@@ -186,17 +200,25 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   void _showAddTransactionDialog(BuildContext context) {
     final titleController = TextEditingController();
     final amountController = TextEditingController();
-    
+
     // State lokal untuk dialog
     bool isIncome = false; // Default Pengeluaran
     String selectedCategory = 'Operasional';
 
     // List Kategori sesuai tipe
     final List<String> expenseCategories = [
-      'Operasional', 'Bahan Baku', 'Gaji', 'Listrik/Air', 'Sewa', 'Lainnya'
+      'Operasional',
+      'Bahan Baku',
+      'Gaji',
+      'Listrik/Air',
+      'Sewa',
+      'Lainnya',
     ];
     final List<String> incomeCategories = [
-      'Penjualan Offline', 'Investasi', 'Modal Tambahan', 'Lainnya'
+      'Penjualan Offline',
+      'Investasi',
+      'Modal Tambahan',
+      'Lainnya',
     ];
 
     showDialog(
@@ -204,7 +226,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: const Text('Catat Transaksi Baru'),
             content: SingleChildScrollView(
               child: Column(
@@ -232,7 +256,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               decoration: BoxDecoration(
                                 color: !isIncome ? Colors.red[50] : null,
                                 borderRadius: BorderRadius.circular(8),
-                                border: !isIncome ? Border.all(color: Colors.red.withOpacity(0.3)) : null,
+                                border: !isIncome
+                                    ? Border.all(
+                                        color: Colors.red.withOpacity(0.3),
+                                      )
+                                    : null,
                               ),
                               child: Center(
                                 child: Text(
@@ -259,14 +287,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               decoration: BoxDecoration(
                                 color: isIncome ? Colors.green[50] : null,
                                 borderRadius: BorderRadius.circular(8),
-                                border: isIncome ? Border.all(color: Colors.green.withOpacity(0.3)) : null,
+                                border: isIncome
+                                    ? Border.all(
+                                        color: Colors.green.withOpacity(0.3),
+                                      )
+                                    : null,
                               ),
                               child: Center(
                                 child: Text(
                                   "Pemasukan",
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: isIncome ? Colors.green : Colors.grey,
+                                    color: isIncome
+                                        ? Colors.green
+                                        : Colors.grey,
                                   ),
                                 ),
                               ),
@@ -283,30 +317,43 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     controller: titleController,
                     decoration: InputDecoration(
                       labelText: 'Keterangan',
-                      hintText: isIncome ? 'Mis: Jual Kardus Bekas' : 'Mis: Beli Tepung',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      hintText: isIncome
+                          ? 'Mis: Jual Kardus Bekas'
+                          : 'Mis: Beli Tepung',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // INPUT NOMINAL (HANYA ANGKA)
                   TextField(
                     controller: amountController,
                     keyboardType: TextInputType.number, // Keyboard angka
                     inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly // Hanya menerima digit 0-9
+                      FilteringTextInputFormatter
+                          .digitsOnly, // Hanya menerima digit 0-9
                     ],
                     decoration: InputDecoration(
                       labelText: 'Nominal (Rp)',
                       hintText: '0',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 12),
-                  
+
                   // 3. DROPDOWN KATEGORI
                   DropdownButtonFormField<String>(
                     value: selectedCategory,
@@ -316,8 +363,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     onChanged: (val) => setState(() => selectedCategory = val!),
                     decoration: InputDecoration(
                       labelText: 'Kategori',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -332,9 +384,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 onPressed: () {
                   if (titleController.text.isNotEmpty &&
                       amountController.text.isNotEmpty) {
-                    
                     final amount = double.tryParse(amountController.text) ?? 0;
-                    
+
                     if (isIncome) {
                       _financeService.addManualIncome(
                         title: titleController.text,
@@ -350,21 +401,30 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         date: DateTime.now(),
                       );
                     }
-                    
+
                     Navigator.pop(ctx);
                     toastification.show(
                       context: context,
-                      title: Text('${isIncome ? "Pemasukan" : "Pengeluaran"} berhasil dicatat'),
+                      title: Text(
+                        '${isIncome ? "Pemasukan" : "Pengeluaran"} berhasil dicatat',
+                      ),
                       type: ToastificationType.success,
                       autoCloseDuration: const Duration(seconds: 2),
                     );
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isIncome ? Colors.green : const Color(0xFF5D4037),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: isIncome
+                      ? Colors.green
+                      : const Color(0xFF5D4037),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Simpan',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           );
@@ -391,7 +451,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           Row(
             children: [
               InkWell(
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    // Gunakan MainWrapper() karena itu adalah halaman utama aplikasi Anda
+                    MaterialPageRoute(builder: (context) => const MainWrapper()),
+                    (route) => false,
+                  );
+                },
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
                   padding: const EdgeInsets.all(8),
@@ -416,9 +483,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
           Row(
             children: [
-              _buildHeaderIcon(context, LucideIcons.messageCircle, const ChatScreen()),
+              _buildHeaderIcon(
+                context,
+                LucideIcons.messageCircle,
+                const ChatScreen(),
+              ),
               const SizedBox(width: 8),
-              _buildHeaderIcon(context, LucideIcons.bell, const NotificationScreen()),
+              _buildHeaderIcon(
+                context,
+                LucideIcons.bell,
+                const NotificationScreen(),
+              ),
             ],
           ),
         ],
@@ -426,10 +501,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  Widget _buildHeaderIcon(BuildContext context, IconData icon, Widget destination) {
+  Widget _buildHeaderIcon(
+    BuildContext context,
+    IconData icon,
+    Widget destination,
+  ) {
     return InkWell(
       onTap: () => Navigator.push(
-          context, MaterialPageRoute(builder: (_) => destination)),
+        context,
+        MaterialPageRoute(builder: (_) => destination),
+      ),
       borderRadius: BorderRadius.circular(8),
       child: Container(
         width: 40,
@@ -465,23 +546,35 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Total Saldo',
-              style: TextStyle(color: Colors.white70, fontSize: 14)),
+          const Text(
+            'Total Saldo',
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+          ),
           const SizedBox(height: 8),
           Text(
             _currencyFormat.format(balance),
             style: const TextStyle(
-                color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 20),
           Row(
             children: [
-              const Icon(LucideIcons.checkCircle,
-                  color: Colors.white70, size: 16),
+              const Icon(
+                LucideIcons.checkCircle,
+                color: Colors.white70,
+                size: 16,
+              ),
               const SizedBox(width: 8),
-              Text('Terintegrasi dengan History Toko',
-                  style: TextStyle(
-                      color: Colors.white.withOpacity(0.7), fontSize: 12)),
+              Text(
+                'Terintegrasi dengan History Toko',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
         ],
@@ -490,7 +583,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   Widget _buildStatCard(
-      String title, double amount, Color color, IconData icon) {
+    String title,
+    double amount,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -505,17 +602,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             children: [
               Icon(icon, color: color, size: 20),
               const SizedBox(width: 8),
-              Text(title,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+              Text(
+                title,
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             _currencyFormat.format(amount),
             style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 15,
-                fontWeight: FontWeight.bold),
+              color: Colors.black87,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -562,8 +662,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(4),
@@ -574,8 +676,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(dateStr,
-                    style: TextStyle(color: Colors.grey[400], fontSize: 10)),
+                Text(
+                  dateStr,
+                  style: TextStyle(color: Colors.grey[400], fontSize: 10),
+                ),
               ],
             ),
           ],

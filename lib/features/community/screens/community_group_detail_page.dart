@@ -430,33 +430,41 @@ class _GroupCreatePostSheetState extends State<GroupCreatePostSheet> {
 
     setState(() => _isUploading = true);
 
-    // --- LOGIKA PENENTUAN NAMA (ROBUST) ---
-    User user = widget.currentUser;
-    String finalName = user.displayName ?? '';
+    String finalName = '';
 
-    // Jika Display Name masih kosong, ambil dari Email
-    if (finalName.isEmpty && user.email != null) {
-      finalName = user.email!.split('@')[0];
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.currentUser.uid)
+          .get();
 
-      // Update permanen ke Firebase Auth
-      try {
-        await user.updateDisplayName(finalName);
-        await user.reload();
-      } catch (e) {
-        print("Gagal update profil: $e");
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+
+        // --- PERBAIKAN: HANYA AMBIL OWNERNAME ---
+        finalName = data['ownerName'] ?? '';
+      }
+    } catch (e) {
+      print("Gagal ambil data user: $e");
+    }
+
+    // Fallback logic
+    if (finalName.isEmpty) {
+      finalName = widget.currentUser.displayName ?? '';
+      if (finalName.isEmpty && widget.currentUser.email != null) {
+        finalName = widget.currentUser.email!.split('@')[0];
       }
     }
 
     if (finalName.isEmpty) {
       finalName = 'Anggota Grup';
     }
-    // ---------------------------------------
 
     await widget.firebaseService.uploadImageAndSavePost(
       imageFile: _imageFile,
-      userId: user.uid,
-      userName: finalName, // Pastikan pakai finalName
-      userAvatar: user.photoURL ?? '',
+      userId: widget.currentUser.uid,
+      userName: finalName, // Menggunakan ownerName
+      userAvatar: widget.currentUser.photoURL ?? '',
       businessName: 'Anggota Grup',
       content: _contentController.text,
       category: 'Grup',
