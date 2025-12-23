@@ -10,54 +10,35 @@ class PostCard extends StatelessWidget {
   final VoidCallback onBookmark;
 
   const PostCard({
-    Key? key,
+    super.key,
     required this.post,
     required this.onLike,
     required this.onComment,
     required this.onShare,
     required this.onBookmark,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Definisi warna tema lokal untuk card ini
-    final primaryBrown = const Color(0xFF5D4037);
-    final accentGold = const Color(0xFF8D6E63);
-
     return Container(
-      margin: const EdgeInsets.only(bottom: 8), // Jarak antar post ala FB
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey[200]!,
-            width: 4,
-          ), // Separator tebal
-        ),
-      ),
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header (Avatar + Nama + Opsi)
+          // Header: User Info
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: accentGold,
-                  backgroundImage: post.author.avatar != null
+                  backgroundColor: Colors.grey[200],
+                  backgroundImage: (post.author.avatar != null && post.author.avatar!.isNotEmpty)
                       ? NetworkImage(post.author.avatar!)
                       : null,
-                  child: post.author.avatar == null
-                      ? Text(
-                          post.author.name[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
+                  child: (post.author.avatar == null || post.author.avatar!.isEmpty)
+                      ? const Icon(LucideIcons.user, color: Colors.grey)
                       : null,
                 ),
                 const SizedBox(width: 12),
@@ -71,177 +52,110 @@ class PostCard extends StatelessWidget {
                             post.author.name,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: Colors.black87,
+                              fontSize: 14,
                             ),
                           ),
                           if (post.author.verified) ...[
                             const SizedBox(width: 4),
-                            const Icon(
-                              LucideIcons.checkCircle,
-                              size: 14,
-                              color: Colors.blue, // Verified tetap biru umum
-                            ),
+                            const Icon(Icons.verified,
+                                color: Colors.blue, size: 14),
                           ],
                         ],
                       ),
-                      Row(
-                        children: [
-                          Text(
-                            '${post.author.businessName} • ${post.timestamp}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          if (post.category.isNotEmpty) ...[
-                            const SizedBox(width: 4),
-                            const Text(
-                              "•",
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.brown[50],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                post.category,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: primaryBrown,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
+                      Text(
+                        '${post.author.businessName} • ${post.timestamp}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(
-                    LucideIcons.moreHorizontal,
-                    size: 20,
-                    color: Colors.grey,
-                  ),
+                  icon: const Icon(LucideIcons.moreHorizontal, color: Colors.grey),
                   onPressed: () {},
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
                 ),
               ],
             ),
           ),
 
           // Content Text
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Text(
-              post.content,
-              style: const TextStyle(
-                fontSize: 15,
-                color: Color(0xFF1F2937),
-                height: 1.4,
+          if (post.content.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Text(
+                post.content,
+                style: const TextStyle(fontSize: 14, height: 1.5),
               ),
             ),
-          ),
 
-          // Image (Full Width ala Facebook)
-          if (post.image != null)
-            Image.network(
-              post.image!,
+          // Content Image
+          if (post.image != null && post.image!.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
               width: double.infinity,
-              fit: BoxFit.cover,
+              constraints: const BoxConstraints(maxHeight: 400),
+              child: Image.network(
+                post.image!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  color: Colors.grey[200],
+                  child: const Center(child: Icon(LucideIcons.imageOff, color: Colors.grey)),
+                ),
+              ),
             ),
 
-          // Stats (Like count etc)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF5D4037), // Coklat icon like
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        LucideIcons.thumbsUp,
-                        size: 10,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${post.likes}',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                    ),
-                  ],
+          // Category & Group Tag (Optional)
+          if (post.category.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.brown[50],
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                Row(
-                  children: [
-                    Text(
-                      '${post.comments} komentar',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      '${post.shares} dibagikan',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                    ),
-                  ],
+                child: Text(
+                  post.category,
+                  style: TextStyle(
+                    color: Colors.brown[700],
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+
+          // Action Buttons
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _ActionButton(
+                  icon: post.isLiked ? Icons.favorite : LucideIcons.heart,
+                  label: '${post.likes} Suka',
+                  color: post.isLiked ? Colors.red : Colors.grey[600],
+                  onTap: onLike,
+                ),
+                _ActionButton(
+                  icon: LucideIcons.messageCircle,
+                  label: '${post.comments} Komen',
+                  onTap: onComment,
+                ),
+                _ActionButton(
+                  icon: LucideIcons.share2,
+                  label: 'Bagikan',
+                  onTap: onShare,
                 ),
               ],
             ),
           ),
-
-          const Divider(height: 1, thickness: 1),
-
-          // Action Buttons (Like, Comment, Share)
-          Row(
-            children: [
-              Expanded(
-                child: _ActionButton(
-                  icon: post.isLiked
-                      ? LucideIcons.thumbsUp
-                      : LucideIcons.thumbsUp,
-                  label: 'Suka',
-                  color: post.isLiked ? primaryBrown : Colors.grey[600]!,
-                  onTap: onLike,
-                  isActive: post.isLiked,
-                ),
-              ),
-              Expanded(
-                child: _ActionButton(
-                  icon: LucideIcons.messageCircle,
-                  label: 'Komentar',
-                  color: Colors.grey[600]!,
-                  onTap: onComment,
-                ),
-              ),
-              Expanded(
-                child: _ActionButton(
-                  icon: LucideIcons.share2,
-                  label: 'Bagikan',
-                  color: Colors.grey[600]!,
-                  onTap: onShare,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
         ],
       ),
     );
@@ -251,36 +165,33 @@ class PostCard extends StatelessWidget {
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
   final VoidCallback onTap;
-  final bool isActive;
+  final Color? color;
 
   const _ActionButton({
-    Key? key,
     required this.icon,
     required this.label,
-    required this.color,
     required this.onTap,
-    this.isActive = false,
-  }) : super(key: key);
+    this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 20, color: color),
+            Icon(icon, size: 20, color: color ?? Colors.grey[600]),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                color: color,
+                color: color ?? Colors.grey[600],
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],

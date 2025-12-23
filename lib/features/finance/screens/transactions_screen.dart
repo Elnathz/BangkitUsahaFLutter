@@ -170,7 +170,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       
       // FAB BARU: CATAT TRANSAKSI
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 85.0),
+        padding: const EdgeInsets.only(bottom: 100.0),
         child: FloatingActionButton.extended(
           onPressed: () => _showAddTransactionDialog(context),
           backgroundColor: const Color(0xFF5D4037),

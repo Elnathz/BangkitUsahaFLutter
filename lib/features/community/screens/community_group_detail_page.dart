@@ -1,42 +1,24 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart'; // Tambahan untuk kIsWeb
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/post.dart';
-import '../models/comment.dart';
+import 'package:image_picker/image_picker.dart';
+
 import '../models/group.dart';
+import '../models/post.dart';
+import '../services/firebase_storage_service.dart';
 import '../widgets/post_card.dart';
 import '../widgets/comments_dialog.dart';
-import '../services/firebase_storage_service.dart';
 
-/// Community Group Detail Page - PRODUCTION VERSION
-/// Clean UI with Firebase Storage integration
 class CommunityGroupDetailPage extends StatefulWidget {
   final CommunityGroup group;
-  final List<Post> posts;
-  final Function(String) onLikePost;
-  final Function(String) onBookmarkPost;
-  final Function(String, String) onSharePost;
-  final Function(Post) onCommentClick;
-  final bool isJoined;
-  final Function(String, String)? onJoinGroup;
-  final Function(Post)? onCreatePost;
 
   const CommunityGroupDetailPage({
-    Key? key,
+    super.key,
     required this.group,
-    required this.posts,
-    required this.onLikePost,
-    required this.onBookmarkPost,
-    required this.onSharePost,
-    required this.onCommentClick,
-    this.isJoined = false,
-    this.onJoinGroup,
-    this.onCreatePost,
-  }) : super(key: key);
+  });
 
   @override
   State<CommunityGroupDetailPage> createState() =>
@@ -44,431 +26,324 @@ class CommunityGroupDetailPage extends StatefulWidget {
 }
 
 class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
-  bool isCommentDialogOpen = false;
-  bool isCreatePostDialogOpen = false;
-  Post? selectedPost;
-  String newComment = '';
-
-  // Create Post State
-  String newPostContent = '';
-  String newPostCategory = 'Tips Bisnis';
-  XFile? pickedImageFile;
-  final ImagePicker _picker = ImagePicker();
-  final TextEditingController _postController = TextEditingController();
-
-  // Firebase Service
   final FirebaseStorageService _firebaseService = FirebaseStorageService();
-
-  // Upload State
-  bool isUploading = false;
-  double uploadProgress = 0.0;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  
+  bool isJoined = false;
 
   @override
-  void dispose() {
-    _postController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    isJoined = false; 
   }
 
-  // Mock existing comments
-  final List<Comment> mockComments = [
-    Comment(
-      id: '1',
-      author: 'Budi Santoso',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Budi',
-      content:
-          'Setuju banget! Strategi ini sangat membantu untuk UMKM seperti kita.',
-      timestamp: '2 jam yang lalu',
-      likes: 5,
-    ),
-    Comment(
-      id: '2',
-      author: 'Rina Wijaya',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rina',
-      content:
-          'Terima kasih sharingnya! Saya sudah coba terapkan dan hasilnya bagus 👍',
-      timestamp: '5 jam yang lalu',
-      likes: 3,
-    ),
-  ];
+  // --- ACTIONS ---
 
-  List<Post> get groupPosts => widget.posts.take(3).toList();
-
-  void handleCommentClick(Post post) {
+  void _handleJoinGroup() {
     setState(() {
-      selectedPost = post;
-      isCommentDialogOpen = true;
+      isJoined = !isJoined;
     });
-    _showCommentsDialog();
-  }
-
-  void handleSubmitComment() {
-    if (newComment.trim().isNotEmpty) {
-      toastification.show(
-        context: context,
-        type: ToastificationType.success,
-        title: const Text('Komentar berhasil ditambahkan! 💬'),
-        autoCloseDuration: const Duration(seconds: 2),
-        alignment: Alignment.topCenter,
-      );
-      setState(() {
-        newComment = '';
-        isCommentDialogOpen = false;
-      });
-    }
-  }
-
-  void handleJoinGroupClick() {
-    if (widget.onJoinGroup != null) {
-      widget.onJoinGroup!(widget.group.id, widget.group.name);
-    }
-  }
-
-  void _showCommentsDialog() {
-    if (selectedPost == null) return;
-    showDialog(
+    
+    final msg = isJoined 
+        ? 'Berhasil bergabung ke grup ${widget.group.name}'
+        : 'Anda keluar dari grup ${widget.group.name}';
+        
+    toastification.show(
       context: context,
-      builder: (context) => CommentsDialog(
-        post: selectedPost!,
-        comments: mockComments,
-        onAddComment: (comment) {
+      type: isJoined ? ToastificationType.success : ToastificationType.info,
+      title: Text(msg),
+      autoCloseDuration: const Duration(seconds: 2),
+    );
+  }
+
+  void _handleLike(Post post) {
+    if (_auth.currentUser == null) {
+      _showLoginError();
+      return;
+    }
+    _firebaseService.toggleLike(post.id, post.isLiked);
+  }
+
+  void _handleComment(Post post) {
+    if (_auth.currentUser == null) {
+      _showLoginError();
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CommentsDialog(post: post),
+    );
+  }
+
+  void _handleShare(String authorName) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.success,
+      title: Text('Tautan post dari $authorName disalin!'),
+      autoCloseDuration: const Duration(seconds: 2),
+    );
+  }
+
+  void _handleBookmark() {
+    toastification.show(
+      context: context,
+      type: ToastificationType.success,
+      title: const Text('Post disimpan!'),
+      autoCloseDuration: const Duration(seconds: 2),
+    );
+  }
+
+  void _showLoginError() {
+    toastification.show(
+      context: context,
+      type: ToastificationType.error,
+      title: const Text('Silakan login terlebih dahulu'),
+      autoCloseDuration: const Duration(seconds: 2),
+    );
+  }
+
+  void _showCreateGroupPostModal() {
+    if (_auth.currentUser == null) {
+      _showLoginError();
+      return;
+    }
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => GroupCreatePostSheet(
+        firebaseService: _firebaseService,
+        group: widget.group,
+        currentUser: _auth.currentUser!,
+        onSuccess: () {
           toastification.show(
             context: context,
             type: ToastificationType.success,
-            title: const Text('Komentar berhasil ditambahkan! 💬'),
+            title: const Text('Postingan grup berhasil dibuat!'),
             autoCloseDuration: const Duration(seconds: 2),
-            alignment: Alignment.topCenter,
           );
         },
       ),
     );
-  }
-
-  // Pick Image from Gallery
-  Future<void> _handlePickImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 85,
-      );
-
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-        final sizeInMB = bytes.length / (1024 * 1024);
-
-        if (sizeInMB > 5) {
-          toastification.show(
-            context: context,
-            type: ToastificationType.error,
-            title: Text(
-                'Ukuran file terlalu besar! Maksimal 5MB (${sizeInMB.toStringAsFixed(2)} MB)'),
-            autoCloseDuration: const Duration(seconds: 3),
-          );
-          return;
-        }
-
-        setState(() {
-          pickedImageFile = image;
-        });
-
-        toastification.show(
-          context: context,
-          type: ToastificationType.success,
-          title: const Text('Gambar berhasil dipilih! 📷'),
-          autoCloseDuration: const Duration(seconds: 2),
-        );
-      }
-    } catch (e) {
-      toastification.show(
-        context: context,
-        type: ToastificationType.error,
-        title: Text('Gagal memilih gambar: $e'),
-        autoCloseDuration: const Duration(seconds: 3),
-      );
-    }
-  }
-
-  // Create Post and Upload to Firebase
-  Future<void> _handleCreatePost() async {
-    if (newPostContent.trim().isEmpty) {
-      toastification.show(
-        context: context,
-        type: ToastificationType.error,
-        title: const Text('Konten post tidak boleh kosong!'),
-        autoCloseDuration: const Duration(seconds: 2),
-      );
-      return;
-    }
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      toastification.show(
-        context: context,
-        type: ToastificationType.error,
-        title: const Text('Anda harus login terlebih dahulu!'),
-        autoCloseDuration: const Duration(seconds: 2),
-      );
-      return;
-    }
-
-    setState(() {
-      isUploading = true;
-      uploadProgress = 0.0;
-    });
-
-    try {
-      String? postId;
-
-      if (pickedImageFile != null) {
-        // Upload dengan gambar
-        postId = await _firebaseService.uploadImageAndSavePost(
-          imageFile: pickedImageFile!,
-          userId: user.uid,
-          userName: user.displayName ?? 'User',
-          userAvatar: user.photoURL ??
-              'https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}',
-          businessName: 'Toko Saya',
-          content: newPostContent,
-          category: newPostCategory,
-          groupId: widget.group.id,
-          groupName: widget.group.name,
-          onProgress: (progress) {
-            setState(() {
-              uploadProgress = progress;
-            });
-          },
-        );
-      } else {
-        // Upload tanpa gambar
-        postId = await _firebaseService.savePost(
-          userId: user.uid,
-          userName: user.displayName ?? 'User',
-          userAvatar: user.photoURL ??
-              'https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}',
-          businessName: 'Toko Saya',
-          content: newPostContent,
-          category: newPostCategory,
-          groupId: widget.group.id,
-          groupName: widget.group.name,
-        );
-      }
-
-      if (postId != null) {
-        toastification.show(
-          context: context,
-          type: ToastificationType.success,
-          title: const Text('Post berhasil dibuat! 🎉'),
-          autoCloseDuration: const Duration(seconds: 2),
-        );
-
-        // Reset form
-        setState(() {
-          newPostContent = '';
-          pickedImageFile = null;
-          isCreatePostDialogOpen = false;
-          isUploading = false;
-          uploadProgress = 0.0;
-        });
-        _postController.clear();
-      } else {
-        throw Exception('Gagal menyimpan post');
-      }
-    } catch (e) {
-      toastification.show(
-        context: context,
-        type: ToastificationType.error,
-        title: Text('Gagal membuat post: $e'),
-        autoCloseDuration: const Duration(seconds: 3),
-      );
-
-      setState(() {
-        isUploading = false;
-        uploadProgress = 0.0;
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF5D4037),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(widget.group.name),
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.search),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(LucideIcons.moreVertical),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Group Header
-            _buildGroupHeader(),
-
-            const SizedBox(height: 16),
-
-            // About Section
-            _buildAboutSection(),
-
-            const SizedBox(height: 16),
-
-            // Posts Section
-            _buildPostsSection(),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            isCreatePostDialogOpen = true;
-          });
-        },
-        backgroundColor: const Color(0xFF5D4037),
-        child: const Icon(LucideIcons.plus, color: Colors.white),
-      ),
-      bottomSheet: isCreatePostDialogOpen ? _buildCreatePostDialog() : null,
-    );
-  }
-
-  Widget _buildGroupHeader() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              // Group Image
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  widget.group.image,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 80,
-                      height: 80,
-                      color: const Color(0xFFE5E7EB),
-                      child: const Icon(LucideIcons.users, size: 32),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(width: 16),
-
-              // Group Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.group.name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: CustomScrollView(
+        slivers: [
+          // 1. HEADER GRUP
+          SliverAppBar(
+            expandedHeight: 200,
+            pinned: true,
+            backgroundColor: const Color(0xFF5D4037),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(
+                    widget.group.image,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(color: Colors.grey),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(LucideIcons.users,
-                            size: 14, color: Color(0xFF6B7280)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${widget.group.members} anggota',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF6B7280),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Icon(LucideIcons.fileText,
-                            size: 14, color: Color(0xFF6B7280)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${widget.group.posts} post',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF6B7280),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
+                ],
+              ),
+              title: Text(
+                widget.group.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
+              ),
+              centerTitle: false,
+              titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+            ),
+            leading: IconButton(
+              icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(LucideIcons.share2, color: Colors.white),
+                onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(LucideIcons.moreVertical, color: Colors.white),
+                onPressed: () {},
               ),
             ],
           ),
 
-          const SizedBox(height: 16),
-
-          // Join/Joined Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: widget.isJoined ? null : handleJoinGroupClick,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: widget.isJoined
-                    ? const Color(0xFFE5E7EB)
-                    : const Color(0xFF5D4037),
-                foregroundColor:
-                    widget.isJoined ? const Color(0xFF6B7280) : Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+          // 2. INFO GRUP & TOMBOL ACTIONS
+          SliverToBoxAdapter(
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 8),
+              child: Column(
                 children: [
-                  Icon(
-                    widget.isJoined ? LucideIcons.check : LucideIcons.plus,
-                    size: 18,
+                  Row(
+                    children: [
+                      _buildStatItem('Anggota', '${widget.group.members}'),
+                      _buildDivider(),
+                      _buildStatItem('Postingan', '${widget.group.posts}'),
+                      _buildDivider(),
+                      _buildStatItem('Kategori', 'Bisnis'),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(widget.isJoined ? 'Sudah Bergabung' : 'Bergabung'),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _handleJoinGroup,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isJoined 
+                                ? Colors.grey[200] 
+                                : const Color(0xFF5D4037),
+                            foregroundColor: isJoined 
+                                ? Colors.black87 
+                                : Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(isJoined ? 'Telah Bergabung' : 'Gabung Grup'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _showCreateGroupPostModal,
+                          icon: const Icon(LucideIcons.penTool, size: 16),
+                          label: const Text('Buat Post'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF5D4037),
+                            side: const BorderSide(color: Color(0xFF5D4037)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
+
+          // 3. TITLE FEED
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                "Diskusi Grup",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+
+          // 4. LIST POSTINGAN (FILTERED BY GROUP ID)
+          StreamBuilder<List<Post>>(
+            stream: _firebaseService.getPosts(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (snapshot.hasError) {
+                return SliverToBoxAdapter(child: Text("Error: ${snapshot.error}"));
+              }
+
+              final allPosts = snapshot.data ?? [];
+              
+              // Filter postingan hanya untuk grup ini
+              final groupPosts = allPosts.where((p) => p.groupId == widget.group.id).toList();
+
+              if (groupPosts.isEmpty) {
+                return const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(LucideIcons.messagesSquare, size: 48, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text("Belum ada diskusi di grup ini.", style: TextStyle(color: Colors.grey)),
+                        Text("Jadilah yang pertama memposting!", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final post = groupPosts[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: PostCard(
+                        post: post,
+                        onLike: () => _handleLike(post),
+                        onComment: () => _handleComment(post),
+                        onShare: () => _handleShare(post.author.name),
+                        onBookmark: _handleBookmark,
+                      ),
+                    );
+                  },
+                  childCount: groupPosts.length,
+                ),
+              );
+            },
+          ),
+          
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
     );
   }
 
-  Widget _buildAboutSection() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
+  Widget _buildStatItem(String label, String value) {
+    return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Tentang Grup',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
           Text(
-            'Komunitas untuk pelaku UMKM di bidang ${widget.group.name}. Mari berbagi tips, pengalaman, dan saling mendukung untuk berkembang bersama! 🚀',
+            value,
             style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF6B7280),
-              height: 1.5,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 12,
             ),
           ),
         ],
@@ -476,272 +351,153 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     );
   }
 
-  Widget _buildPostsSection() {
+  Widget _buildDivider() {
     return Container(
-      color: Colors.white,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Postingan Terbaru',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-          ...groupPosts.map((post) {
-            return PostCard(
-              post: post,
-              onLike: () => widget.onLikePost(post.id),
-              onComment: () => handleCommentClick(post),
-              onShare: () => widget.onSharePost(post.id, post.author.name),
-              onBookmark: () => widget.onBookmarkPost(post.id),
-            );
-          }).toList(),
-        ],
-      ),
+      height: 24,
+      width: 1,
+      color: Colors.grey[300],
     );
   }
+}
 
-  Widget _buildCreatePostDialog() {
+// =========================================================
+// WIDGET KHUSUS UNTUK MEMBUAT POSTINGAN DI DALAM GRUP
+// =========================================================
+
+class GroupCreatePostSheet extends StatefulWidget {
+  final FirebaseStorageService firebaseService;
+  final CommunityGroup group;
+  final User currentUser;
+  final VoidCallback onSuccess;
+
+  const GroupCreatePostSheet({
+    super.key,
+    required this.firebaseService,
+    required this.group,
+    required this.currentUser,
+    required this.onSuccess,
+  });
+
+  @override
+  State<GroupCreatePostSheet> createState() => _GroupCreatePostSheetState();
+}
+
+class _GroupCreatePostSheetState extends State<GroupCreatePostSheet> {
+  final TextEditingController _contentController = TextEditingController();
+  XFile? _imageFile;
+  final ImagePicker _picker = ImagePicker();
+  bool _isUploading = false;
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) setState(() => _imageFile = image);
+  }
+
+  Future<void> _submit() async {
+    if (_contentController.text.trim().isEmpty) return;
+    
+    setState(() => _isUploading = true);
+
+    // ERROR FIX HERE:
+    // Kirim _imageFile langsung (XFile?), jangan dibungkus File().
+    // Service kita sudah diupdate untuk menerima XFile? agar kompatibel Web & Mobile.
+    await widget.firebaseService.uploadImageAndSavePost(
+      imageFile: _imageFile, 
+      userId: widget.currentUser.uid,
+      userName: widget.currentUser.displayName ?? 'Pengguna',
+      userAvatar: widget.currentUser.photoURL ?? '',
+      businessName: 'UMKM Member',
+      content: _contentController.text,
+      category: 'Grup', 
+      groupId: widget.group.id,   
+      groupName: widget.group.name,
+      onProgress: (val) {},
+    );
+
+    widget.onSuccess();
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
+      height: MediaQuery.of(context).size.height * 0.9,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Color(0xFFE5E7EB)),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Buat Post Baru',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(LucideIcons.x),
-                  onPressed: isUploading
-                      ? null
-                      : () {
-                          setState(() {
-                            isCreatePostDialogOpen = false;
-                            pickedImageFile = null;
-                            newPostContent = '';
-                            _postController.clear();
-                          });
-                        },
-                ),
-              ],
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Post di ${widget.group.name}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(LucideIcons.x)),
+            ],
           ),
-
-          // Content
+          const Divider(),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Text Field
                   TextField(
-                    controller: _postController,
+                    controller: _contentController,
                     maxLines: 5,
-                    enabled: !isUploading,
                     decoration: const InputDecoration(
-                      hintText: 'Apa yang ingin Anda bagikan?',
-                      border: OutlineInputBorder(),
+                      hintText: 'Bagikan sesuatu ke grup ini...',
+                      border: InputBorder.none,
                     ),
-                    onChanged: (value) {
-                      setState(() {
-                        newPostContent = value;
-                      });
-                    },
                   ),
-
-                  const SizedBox(height: 16),
-
-                  // Category Dropdown
-                  DropdownButtonFormField<String>(
-                    value: newPostCategory,
-                    decoration: const InputDecoration(
-                      labelText: 'Kategori',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'Tips Bisnis', child: Text('Tips Bisnis')),
-                      DropdownMenuItem(
-                          value: 'Pertanyaan', child: Text('Pertanyaan')),
-                      DropdownMenuItem(
-                          value: 'Pengalaman', child: Text('Pengalaman')),
-                      DropdownMenuItem(
-                          value: 'Promosi', child: Text('Promosi')),
-                    ],
-                    onChanged: isUploading
-                        ? null
-                        : (value) {
-                            if (value != null) {
-                              setState(() {
-                                newPostCategory = value;
-                              });
-                            }
-                          },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Image Upload Section
-                  if (pickedImageFile == null)
-                    GestureDetector(
-                      onTap: isUploading ? null : _handlePickImage,
-                      child: Container(
-                        height: 150,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: const Color(0xFFD1D5DB),
-                            width: 2,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(LucideIcons.image,
-                                  size: 48, color: Color(0xFF9CA3AF)),
-                              SizedBox(height: 8),
-                              Text(
-                                'Klik untuk upload gambar',
-                                style: TextStyle(color: Color(0xFF6B7280)),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Maksimal 5MB',
-                                style: TextStyle(
-                                    color: Color(0xFF9CA3AF), fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    )
-                  else
+                  
+                  // PREVIEW IMAGE (WEB & MOBILE COMPATIBLE)
+                  if (_imageFile != null)
                     Stack(
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           child: kIsWeb
                               ? Image.network(
-                                  pickedImageFile!.path,
-                                  width: double.infinity,
+                                  _imageFile!.path,
                                   height: 200,
+                                  width: double.infinity,
                                   fit: BoxFit.cover,
                                 )
                               : Image.file(
-                                  File(pickedImageFile!.path),
-                                  width: double.infinity,
+                                  File(_imageFile!.path),
                                   height: 200,
+                                  width: double.infinity,
                                   fit: BoxFit.cover,
                                 ),
                         ),
-                        if (!isUploading)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  pickedImageFile = null;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  LucideIcons.x,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                              ),
+                        Positioned(
+                          right: 8, top: 8,
+                          child: InkWell(
+                            onTap: () => setState(() => _imageFile = null),
+                            child: const CircleAvatar(
+                              backgroundColor: Colors.red, radius: 12, 
+                              child: Icon(LucideIcons.x, size: 14, color: Colors.white)
                             ),
                           ),
+                        ),
                       ],
-                    ),
-
-                  // Upload Progress
-                  if (isUploading && uploadProgress > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Uploading: ${(uploadProgress * 100).toStringAsFixed(1)}%',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          LinearProgressIndicator(value: uploadProgress),
-                        ],
-                      ),
                     ),
                 ],
               ),
             ),
           ),
-
-          // Footer
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              border: Border(
-                top: BorderSide(color: Color(0xFFE5E7EB)),
+          Row(
+            children: [
+              IconButton(onPressed: _pickImage, icon: const Icon(LucideIcons.image, color: Colors.green)),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: _isUploading ? null : _submit,
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5D4037)),
+                child: _isUploading 
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) 
+                  : const Text("Posting", style: TextStyle(color: Colors.white)),
               ),
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed:
-                    (newPostContent.trim().isEmpty || isUploading)
-                        ? null
-                        : _handleCreatePost,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5D4037),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: isUploading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Kirim Post',
-                        style: TextStyle(fontSize: 16),
-                      ),
-              ),
-            ),
+            ],
           ),
         ],
       ),

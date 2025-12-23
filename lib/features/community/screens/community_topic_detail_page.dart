@@ -3,7 +3,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/post.dart';
-import '../models/comment.dart';
 import '../models/trending_topic.dart';
 import '../widgets/post_card.dart';
 import '../widgets/comments_dialog.dart';
@@ -26,19 +25,6 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
   final FirebaseStorageService _firebaseService = FirebaseStorageService();
   final user = FirebaseAuth.instance.currentUser;
 
-  // Mock Comment Data (Sementara)
-  final List<Comment> mockComments = [
-    Comment(
-      id: '1',
-      author: 'Budi Santoso',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Budi',
-      content:
-          'Setuju banget! Strategi ini sangat membantu untuk UMKM seperti kita.',
-      timestamp: '2 jam yang lalu',
-      likes: 5,
-    ),
-  ];
-
   // --- ACTIONS ---
 
   void _handleLike(Post post) {
@@ -50,20 +36,17 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
   }
 
   void _handleComment(Post post) {
-    showDialog(
+    if (user == null) {
+      _showLoginToast();
+      return;
+    }
+    
+    // PERBAIKAN: Menggunakan showModalBottomSheet dan menghapus parameter dummy
+    showModalBottomSheet(
       context: context,
-      builder: (context) => CommentsDialog(
-        post: post,
-        comments: mockComments,
-        onAddComment: (comment) {
-          toastification.show(
-            context: context,
-            type: ToastificationType.info,
-            title: const Text('Fitur komentar database akan segera hadir!'),
-            autoCloseDuration: const Duration(seconds: 2),
-          );
-        },
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CommentsDialog(post: post),
     );
   }
 
@@ -146,12 +129,15 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
                       _buildEmptyState()
                     else
                       ...relatedPosts.map((post) {
-                        return PostCard(
-                          post: post,
-                          onLike: () => _handleLike(post),
-                          onComment: () => _handleComment(post),
-                          onShare: () => _handleShare(post.id, post.author.name),
-                          onBookmark: () => _handleBookmark(post.id),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: PostCard(
+                            post: post,
+                            onLike: () => _handleLike(post),
+                            onComment: () => _handleComment(post),
+                            onShare: () => _handleShare(post.id, post.author.name),
+                            onBookmark: () => _handleBookmark(post.id),
+                          ),
                         );
                       }).toList(),
                   ],
@@ -204,9 +190,9 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
+                const Text(
                   'Topik Hangat 🔥',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     color: Color(0xFFFEF3C7),
                   ),
@@ -223,9 +209,10 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
   // Topic Info Card
   Widget _buildTopicInfoCard(int postCount) {
     return Card(
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFFED7AA), width: 2),
+        side: const BorderSide(color: Color(0xFFFED7AA), width: 1),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -258,7 +245,7 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${widget.topic.title}',
+                    widget.topic.title,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
