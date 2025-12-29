@@ -1,44 +1,40 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart'; // Untuk kIsWeb
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:toastification/toastification.dart';
 import 'package:image_picker/image_picker.dart';
-import '../models/post.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firebase_storage_service.dart';
 
-/// Create Post Dialog - Backward Compatible Version
-/// Supports both old callback style and new Firebase integration
-class CreatePostDialog extends StatefulWidget {
-  final Function(Post)? onCreatePost;
-  final String? groupId;
-  final String? groupName;
+class CreatePostSheet extends StatefulWidget {
+  final FirebaseStorageService firebaseService;
+  final User currentUser;
+  final VoidCallback onSuccess;
 
-  const CreatePostDialog({
-    Key? key,
-    this.onCreatePost,
-    this.groupId,
-    this.groupName,
-  }) : super(key: key);
+  const CreatePostSheet({
+    super.key,
+    required this.firebaseService,
+    required this.currentUser,
+    required this.onSuccess,
+  });
 
   @override
-  State<CreatePostDialog> createState() => _CreatePostDialogState();
+  State<CreatePostSheet> createState() => _CreatePostSheetState();
 }
 
-class _CreatePostDialogState extends State<CreatePostDialog> {
+class _CreatePostSheetState extends State<CreatePostSheet> {
   final TextEditingController _contentController = TextEditingController();
+  String _category = 'Tips Bisnis';
+  XFile? _imageFile;
   final ImagePicker _picker = ImagePicker();
-
-  String newPostCategory = 'Tips Bisnis';
-  XFile? pickedImageFile;
-  bool isUploading = false;
-  String? errorMessage;
+  bool _isUploading = false;
 
   final List<String> categories = [
     'Tips Bisnis',
-    'Pertanyaan',
-    'Pengalaman',
+    'Tanya Jawab',
+    'Sharing Pengalaman',
     'Promosi',
-    'Diskusi',
     'Lainnya',
   ];
 
@@ -48,341 +44,230 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     super.dispose();
   }
 
-  Future<void> _handlePickImage() async {
+  Future<void> _pickImage() async {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 85,
+        imageQuality: 70, // Kompresi gambar
       );
-
       if (image != null) {
-        // Validate file size
-        final bytes = await image.readAsBytes();
-        final sizeInMB = bytes.length / (1024 * 1024);
-
-        if (sizeInMB > 5) {
-          _showToast(
-            'Ukuran file terlalu besar! Maksimal 5MB\nUkuran: ${sizeInMB.toStringAsFixed(2)} MB',
-            ToastificationType.error,
-          );
-          return;
-        }
-
-        setState(() {
-          pickedImageFile = image;
-          errorMessage = null;
-        });
-
-        _showToast('Gambar siap diupload! 📷', ToastificationType.success);
+        setState(() => _imageFile = image);
       }
     } catch (e) {
-      _showToast('Gagal memilih gambar: $e', ToastificationType.error);
+      debugPrint("Gagal ambil gambar: $e");
     }
   }
 
-  void _handleCreatePost() {
-    final content = _contentController.text.trim();
+  Future<void> _submit() async {
+    if (_contentController.text.trim().isEmpty && _imageFile == null) return;
 
-    if (content.isEmpty) {
-      setState(() {
-        errorMessage = 'Konten post tidak boleh kosong!';
-      });
-      return;
+    setState(() => _isUploading = true);
+
+    String finalName = '';
+    String businessName = 'UMKM Member';
+
+    try {
+      // 1. Ambil Nama Lengkap/Toko dari Firestore
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.currentUser.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        // Prioritaskan Nama Toko/Owner
+        finalName =
+            data['storeName'] ?? data['ownerName'] ?? data['userName'] ?? '';
+      }
+    } catch (e) {
+      debugPrint("Gagal ambil data user: $e");
     }
 
-    // Create mock post object
-    final newPost = Post(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      // 1. Tambahkan userId (Wajib di model baru)
-      userId: 'local_temp_id',
-
-      // 2. Ganti 'Author' menjadi 'PostAuthor' dan tambahkan id
-      author: PostAuthor(
-        id: 'local_temp_id',
-        name: 'Anda',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Anda',
-        businessName: 'Usaha Anda',
-        verified: false,
-      ),
-
-      content: content,
-      image: pickedImageFile?.path,
-      category: newPostCategory,
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      timestamp: 'Baru saja',
-      isLiked: false,
-
-      // 3. Hapus 'isBookmarked' (Sudah tidak ada di model baru)
-    );
-
-    // Callback
-    if (widget.onCreatePost != null) {
-      widget.onCreatePost!(newPost);
+    // Fallback nama jika kosong
+    if (finalName.isEmpty) {
+      finalName = widget.currentUser.displayName ?? 'Pengguna';
     }
 
-    // Close dialog
-    Navigator.of(context).pop();
-  }
-
-  void _showToast(String message, ToastificationType type) {
-    toastification.show(
-      context: context,
-      type: type,
-      title: Text(message),
-      autoCloseDuration: const Duration(seconds: 3),
-      alignment: Alignment.topCenter,
+    // 2. Upload & Simpan Post
+    await widget.firebaseService.uploadImageAndSavePost(
+      imageFile: _imageFile,
+      userId: widget.currentUser.uid,
+      userName: finalName,
+      userAvatar: widget.currentUser.photoURL ?? '',
+      businessName: businessName,
+      content: _contentController.text,
+      category: _category,
+      onProgress: (val) {},
     );
+
+    widget.onSuccess();
+    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    // Agar dialog tidak tertutup keyboard
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+        // Tinggi dinamis maksimal 90% layar
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min, // Penting agar tidak full height
           children: [
-            // Header
-            _buildHeader(),
+            // HEADER
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Buat Post Baru',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(LucideIcons.x),
+                ),
+              ],
+            ),
+            const Divider(),
 
-            // Content
-            Expanded(
+            // SCROLLABLE CONTENT
+            Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Content TextField
+                    // Input Text
                     TextField(
                       controller: _contentController,
                       maxLines: 5,
-                      enabled: !isUploading,
-                      decoration: InputDecoration(
-                        hintText: 'Tulis post Anda...',
-                        border: const OutlineInputBorder(),
-                        errorText: errorMessage,
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Category Dropdown
-                    DropdownButtonFormField<String>(
-                      value: newPostCategory,
+                      minLines: 3,
                       decoration: const InputDecoration(
-                        labelText: 'Kategori',
-                        border: OutlineInputBorder(),
+                        hintText:
+                            'Apa yang ingin Anda bagikan kepada komunitas?',
+                        border: InputBorder.none,
                       ),
-                      items: categories.map((category) {
-                        return DropdownMenuItem(
-                          value: category,
-                          child: Text(category),
-                        );
-                      }).toList(),
-                      onChanged: isUploading
-                          ? null
-                          : (value) {
-                              if (value != null) {
-                                setState(() {
-                                  newPostCategory = value;
-                                });
-                              }
-                            },
                     ),
 
-                    const SizedBox(height: 16),
-
-                    // Image Upload Section
-                    _buildImageSection(),
-
-                    // Error Message
-                    if (errorMessage != null && !isUploading)
-                      _buildErrorMessage(),
+                    // Image Preview
+                    if (_imageFile != null)
+                      Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: kIsWeb
+                                ? Image.network(
+                                    _imageFile!.path,
+                                    height: 200,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.file(
+                                    File(_imageFile!.path),
+                                    height: 200,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
+                          Positioned(
+                            right: 8,
+                            top: 8,
+                            child: InkWell(
+                              onTap: () => setState(() => _imageFile = null),
+                              child: const CircleAvatar(
+                                backgroundColor: Colors.red,
+                                radius: 12,
+                                child: Icon(
+                                  LucideIcons.x,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
             ),
 
-            // Footer
-            _buildFooter(),
-          ],
-        ),
-      ),
-    );
-  }
+            const SizedBox(height: 10),
+            const Divider(),
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Text(
-              'Buat Post Baru',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-          ),
-          if (!isUploading)
-            IconButton(
-              icon: const Icon(LucideIcons.x),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImageSection() {
-    if (pickedImageFile != null) {
-      // Show image preview
-      return Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: kIsWeb
-                ? Image.network(
-                    pickedImageFile!.path,
-                    width: double.infinity,
-                    height: 200,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 200,
-                        color: Colors.red[100],
-                        child: const Center(child: Text('Error loading image')),
-                      );
-                    },
-                  )
-                : Image.file(
-                    File(pickedImageFile!.path),
-                    width: double.infinity,
-                    height: 200,
-                    fit: BoxFit.cover,
-                  ),
-          ),
-          if (!isUploading)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    pickedImageFile = null;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    LucideIcons.x,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      );
-    } else {
-      // Show upload area
-      return GestureDetector(
-        onTap: isUploading ? null : _handlePickImage,
-        child: Container(
-          height: 150,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: const Color(0xFFD1D5DB),
-              width: 2,
-              style: BorderStyle.solid,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            // FOOTER ACTIONS
+            Row(
               children: [
-                Icon(LucideIcons.image, size: 48, color: Color(0xFF9CA3AF)),
-                SizedBox(height: 8),
-                Text(
-                  'Klik untuk upload gambar',
-                  style: TextStyle(color: Color(0xFF6B7280)),
+                // Tombol Upload Gambar
+                IconButton(
+                  onPressed: _pickImage,
+                  icon: const Icon(LucideIcons.image, color: Colors.green),
+                  tooltip: "Tambah Foto",
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'Maksimal 5MB',
-                  style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+
+                // Dropdown Kategori
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _category,
+                    isExpanded: true, // Agar teks tidak overflow
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    items: categories
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(
+                              e,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (val) => setState(() => _category = val!),
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // Tombol Kirim
+                ElevatedButton(
+                  onPressed: _isUploading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5D4037),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: _isUploading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Posting",
+                          style: TextStyle(color: Colors.white),
+                        ),
                 ),
               ],
             ),
-          ),
+          ],
         ),
-      );
-    }
-  }
-
-  Widget _buildErrorMessage() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.red[50],
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.red),
-        ),
-        child: Text(
-          'Error: $errorMessage',
-          style: const TextStyle(color: Colors.red, fontSize: 12),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          if (!isUploading)
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Batal'),
-            ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: (_contentController.text.trim().isEmpty || isUploading)
-                ? null
-                : _handleCreatePost,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-            ),
-            child: isUploading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Kirim Post'),
-          ),
-        ],
       ),
     );
   }

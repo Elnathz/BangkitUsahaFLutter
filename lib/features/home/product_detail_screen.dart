@@ -2,17 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../../services/market_service.dart'; // Import Service Logic
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:toastification/toastification.dart';
+import '../inventory/checkout_screen.dart'; // Pastikan path relatifnya benar sesuai struktur folder
+// ATAU gunakan path absolut jika bingung:
+// import 'package:bangkit_usaha/features/inventory/checkout_screen.dart';
+import '../../services/market_service.dart';
 import '../chat/chat_detail_screen.dart';
 import 'product_reviews_screen.dart';
 import '../shop/shop_profile_screen.dart';
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// --- IMPORT CHECKOUT SCREEN ---
+import '../inventory/checkout_screen.dart';
 
-// ... kode selanjutnya ...
-
-class ProductDetailScreen extends StatelessWidget {
+class ProductDetailScreen extends StatefulWidget {
   final Map<String, dynamic> initialData;
   final String productId;
 
@@ -22,21 +24,113 @@ class ProductDetailScreen extends StatelessWidget {
     required this.productId,
   }) : initialData = productData;
 
-  Map<String, dynamic> get productData => initialData;
+  @override
+  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
+}
 
+class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  // --- STATE ADMIN & USER ---
+  final User? currentUser = FirebaseAuth.instance.currentUser;
+  bool _isAdmin = false;
+  bool _isDeleting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminStatus();
+  }
+
+  // 1. CEK APAKAH USER ADALAH ADMIN
+  Future<void> _checkAdminStatus() async {
+    if (currentUser == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser!.uid)
+          .get();
+      if (doc.exists && doc.data()?['role'] == 'admin') {
+        if (mounted) setState(() => _isAdmin = true);
+      }
+    } catch (e) {
+      debugPrint("Gagal cek admin: $e");
+    }
+  }
+
+  // 2. FUNGSI HAPUS PRODUK
+  Future<void> _deleteProduct() async {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Hapus Produk Ini?"),
+        content: const Text(
+          "Produk akan dihapus permanen oleh Admin. Lanjutkan?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              setState(() => _isDeleting = true);
+              try {
+                // Hapus Produk
+                await FirebaseFirestore.instance
+                    .collection('products')
+                    .doc(widget.productId)
+                    .delete();
+
+                // Hapus Review Terkait
+                var reviews = await FirebaseFirestore.instance
+                    .collection('reviews')
+                    .where('productId', isEqualTo: widget.productId)
+                    .get();
+                for (var doc in reviews.docs) {
+                  await doc.reference.delete();
+                }
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Produk berhasil dihapus (Admin)"),
+                    ),
+                  );
+                  Navigator.pop(context); // Kembali ke dashboard
+                }
+              } catch (e) {
+                setState(() => _isDeleting = false);
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text("Gagal hapus: $e")));
+              }
+            },
+            child: const Text("Hapus Permanen"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- UI UTAMA ---
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('products')
-          .doc(productId)
+          .doc(widget.productId)
           .snapshots(),
       builder: (context, snapshot) {
         Map<String, dynamic> data;
         if (snapshot.hasData && snapshot.data!.exists) {
           data = snapshot.data!.data() as Map<String, dynamic>;
         } else {
-          data = initialData;
+          if (snapshot.connectionState == ConnectionState.active &&
+              !snapshot.hasData) {
+            return const SizedBox();
+          }
+          data = widget.initialData;
         }
         return _buildContent(context, data);
       },
@@ -55,545 +149,580 @@ class ProductDetailScreen extends StatelessWidget {
       decimalDigits: 0,
     );
 
-    // Ambil UID Pemilik Toko
     String ownerUid = productData['uid'] ?? "";
-
     num rawPrice = productData['price'] ?? 0;
     int price = rawPrice.toInt();
     double rating = (productData['rating'] ?? 0).toDouble();
     int totalReviews = productData['totalReviews'] ?? 0;
 
+    bool isOwner = ownerUid == currentUser?.uid;
+    bool canDelete = _isAdmin || isOwner;
+
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.grey[100],
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. GAMBAR PRODUK
-                Stack(
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      height: 350,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        image:
-                            (productData['image'] != null &&
-                                productData['image'] != "")
-                            ? DecorationImage(
-                                image: NetworkImage(productData['image']),
-                                fit: BoxFit.cover,
-                                onError: (exception, stackTrace) {},
-                              )
-                            : null,
-                      ),
-                      child:
-                          (productData['image'] == null ||
-                              productData['image'] == "")
-                          ? Icon(
-                              LucideIcons.image,
-                              size: 64,
-                              color: Colors.grey[400],
+      // SAFE AREA DI BODY AGAR HEADER TIDAK TERTUTUP STATUS BAR
+      body: SafeArea(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- 1. HEADER MANUAL (IKUT SCROLL) ---
+                  Container(
+                    color: isDark ? Colors.black : Colors.grey[100],
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        // Tombol Back
+                        IconButton(
+                          icon: Icon(LucideIcons.arrowLeft, color: textColor),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const SizedBox(width: 8),
+                        // Judul
+                        Expanded(
+                          child: Text(
+                            "Detail Produk",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                        ),
+                        // Tombol Delete
+                        if (canDelete)
+                          IconButton(
+                            icon: _isDeleting
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(
+                                    LucideIcons.trash2,
+                                    color: Colors.red,
+                                  ),
+                            tooltip: _isAdmin
+                                ? "Hapus sbg Admin"
+                                : "Hapus Produk",
+                            onPressed: _isDeleting ? null : _deleteProduct,
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  // --- 2. GAMBAR PRODUK ---
+                  Container(
+                    width: double.infinity,
+                    height: 350,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      image:
+                          (productData['image'] != null &&
+                              productData['image'] != "")
+                          ? DecorationImage(
+                              image: NetworkImage(productData['image']),
+                              fit: BoxFit.cover,
+                              onError: (exception, stackTrace) {},
                             )
                           : null,
                     ),
-                    Positioned(
-                      top: 40,
-                      left: 16,
-                      child: CircleAvatar(
-                        backgroundColor: Colors.black26,
-                        child: IconButton(
-                          icon: const Icon(
-                            LucideIcons.arrowLeft,
-                            color: Colors.white,
+                    child:
+                        (productData['image'] == null ||
+                            productData['image'] == "")
+                        ? Icon(
+                            LucideIcons.image,
+                            size: 64,
+                            color: Colors.grey[400],
+                          )
+                        : null,
+                  ),
+
+                  // --- 3. INFO HARGA & RATING ---
+                  Container(
+                    color: cardColor,
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currencyFormat.format(price),
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
                           ),
-                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          productData['name'] ?? "Tanpa Nama",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: textColor,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Icon(
+                              LucideIcons.star,
+                              size: 16,
+                              color: Colors.orange,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              "$rating",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "|",
+                              style: TextStyle(color: Colors.grey[400]),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "($totalReviews Ulasan)",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "|",
+                              style: TextStyle(color: Colors.grey[400]),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Stok: ${productData['stock'] ?? 0}",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // --- 4. INFO TOKO ---
+                  FutureBuilder<DocumentSnapshot>(
+                    future: ownerUid.isNotEmpty
+                        ? FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(ownerUid)
+                              .get()
+                        : null,
+                    builder: (context, snapshot) {
+                      String shopName = "Memuat...";
+                      String? shopImage;
+                      bool isOnline = false;
+
+                      if (ownerUid.isEmpty) {
+                        shopName = "Info Toko Tidak Tersedia";
+                      } else if (snapshot.connectionState ==
+                          ConnectionState.done) {
+                        if (snapshot.hasData && snapshot.data!.exists) {
+                          final data =
+                              snapshot.data!.data() as Map<String, dynamic>?;
+                          if (data != null) {
+                            shopName =
+                                data['storeName'] ??
+                                data['name'] ??
+                                "Toko Mitra";
+                            shopImage = data['image'];
+                            isOnline = true;
+                          }
+                        } else {
+                          shopName = "Toko Tidak Dikenal";
+                        }
+                      }
+
+                      return Container(
+                        color: cardColor,
+                        padding: const EdgeInsets.all(16),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundColor: Colors.grey[200],
+                              backgroundImage:
+                                  (shopImage != null && shopImage != "")
+                                  ? NetworkImage(shopImage!)
+                                  : null,
+                              child: (shopImage == null || shopImage == "")
+                                  ? Text(
+                                      shopName.isNotEmpty &&
+                                              shopName != "Memuat..."
+                                          ? shopName[0]
+                                          : "?",
+                                      style: TextStyle(color: primaryColor),
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    shopName,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  Text(
+                                    isOnline
+                                        ? "Aktif"
+                                        : (ownerUid.isEmpty ? "-" : "..."),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isOnline
+                                          ? Colors.green
+                                          : Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            OutlinedButton(
+                              onPressed: () {
+                                if (ownerUid.isNotEmpty) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          ShopProfileScreen(shopId: ownerUid),
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "Data toko tidak tersedia untuk produk ini",
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: primaryColor),
+                                foregroundColor: primaryColor,
+                              ),
+                              child: const Text("Kunjungi"),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                  // --- 5. DESKRIPSI ---
+                  Container(
+                    color: cardColor,
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    width: double.infinity,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Deskripsi Produk",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          productData['description'] ?? "Tidak ada deskripsi.",
+                          style: TextStyle(
+                            height: 1.5,
+                            color: isDark ? Colors.grey[300] : Colors.grey[800],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // --- 6. ULASAN ---
+                  Container(
+                    color: cardColor,
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Penilaian Produk",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: textColor,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProductReviewsScreen(
+                                      productId: widget.productId,
+                                      productData: productData,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                "Lihat Semua",
+                                style: TextStyle(
+                                  color: primaryColor,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('reviews')
+                              .where('productId', isEqualTo: widget.productId)
+                              .orderBy('createdAt', descending: true)
+                              .limit(2)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData ||
+                                snapshot.data!.docs.isEmpty) {
+                              return Text(
+                                "Belum ada ulasan.",
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              );
+                            }
+                            return Column(
+                              children: snapshot.data!.docs.map<Widget>((doc) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                return _buildReviewItem(
+                                  data['userName'] ?? "User",
+                                  data['comment'] ?? "",
+                                  (data['rating'] as num).toInt(),
+                                  isDark,
+                                  textColor,
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // --- BOTTOM BAR (TETAP DI POSISI FIXED) ---
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Column(
+                        children: [
+                          Icon(
+                            LucideIcons.messageCircle,
+                            size: 20,
+                            color: primaryColor,
+                          ),
+                          const Text("Chat", style: TextStyle(fontSize: 9)),
+                        ],
+                      ),
+                      onPressed: () async {
+                        if (ownerUid.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Error: Data penjual tidak valid"),
+                            ),
+                          );
+                          return;
+                        }
+                        if (currentUser != null &&
+                            ownerUid == currentUser!.uid) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Ini produk Anda sendiri"),
+                            ),
+                          );
+                          return;
+                        }
+                        // Fetch user logic inline...
+                        String targetName = "Toko";
+                        String targetImage = "";
+                        try {
+                          final userSnap = await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(ownerUid)
+                              .get();
+                          if (userSnap.exists) {
+                            final userData =
+                                userSnap.data() as Map<String, dynamic>;
+                            targetName =
+                                userData['storeName'] ??
+                                userData['name'] ??
+                                "Penjual";
+                            targetImage =
+                                userData['image'] ?? userData['imageUrl'] ?? "";
+                          }
+                        } catch (e) {
+                          // ignore error
+                        }
+                        if (targetImage.isEmpty) {
+                          targetImage = productData['ownerImage'] ?? "";
+                        }
+
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatDetailScreen(
+                                targetUid: ownerUid,
+                                targetName: targetName,
+                                targetImage: targetImage.isNotEmpty
+                                    ? targetImage
+                                    : 'https://via.placeholder.com/150',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 16),
+                    InkWell(
+                      onTap: () async {
+                        try {
+                          await MarketService().addToCart(
+                            widget.productId,
+                            productData['name'] ?? "Produk",
+                            price,
+                            productData['image'] ?? "",
+                          );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Berhasil masuk keranjang!"),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Gagal: $e")),
+                            );
+                          }
+                        }
+                      },
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            LucideIcons.shoppingCart,
+                            size: 20,
+                            color: primaryColor,
+                          ),
+                          const Text(
+                            "Keranjang",
+                            style: TextStyle(fontSize: 9),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // LOGIKA BARU: BUKA DIALOG, TAPI DATA LENGKAP
+                          _showBuyDialog(context, productData, price);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          "Beli Sekarang",
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
                   ],
                 ),
-
-                // 2. INFO HARGA & RATING
-                Container(
-                  color: cardColor,
-                  padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        currencyFormat.format(price),
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        productData['name'] ?? "Tanpa Nama",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: textColor,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          const Icon(
-                            LucideIcons.star,
-                            size: 16,
-                            color: Colors.orange,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "$rating",
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text("|", style: TextStyle(color: Colors.grey[400])),
-                          const SizedBox(width: 8),
-                          Text(
-                            "($totalReviews Ulasan)",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text("|", style: TextStyle(color: Colors.grey[400])),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Stok: ${productData['stock'] ?? 0}",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 3. INFO TOKO
-                FutureBuilder<DocumentSnapshot>(
-                  future: ownerUid.isNotEmpty
-                      ? FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(ownerUid)
-                            .get()
-                      : null,
-                  builder: (context, snapshot) {
-                    String shopName = "Memuat...";
-                    String? shopImage;
-                    bool isOnline = false;
-
-                    if (ownerUid.isEmpty) {
-                      shopName = "Info Toko Tidak Tersedia";
-                    } else if (snapshot.connectionState ==
-                        ConnectionState.done) {
-                      if (snapshot.hasData && snapshot.data!.exists) {
-                        final data =
-                            snapshot.data!.data() as Map<String, dynamic>?;
-                        if (data != null) {
-                          shopName = data['storeName'] ?? "Toko Mitra";
-                          shopImage = data['image'];
-                          isOnline = true;
-                        }
-                      } else {
-                        shopName = "Toko Tidak Dikenal";
-                      }
-                    }
-
-                    return Container(
-                      color: cardColor,
-                      padding: const EdgeInsets.all(16),
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundImage:
-                                (shopImage != null && shopImage != "")
-                                ? NetworkImage(shopImage!)
-                                : null,
-                            backgroundColor: Colors.grey[200],
-                            child: (shopImage == null || shopImage == "")
-                                ? Text(
-                                    shopName.isNotEmpty &&
-                                            shopName != "Memuat..."
-                                        ? shopName[0]
-                                        : "?",
-                                    style: TextStyle(color: primaryColor),
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  shopName,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: textColor,
-                                  ),
-                                ),
-                                Text(
-                                  isOnline
-                                      ? "Aktif"
-                                      : (ownerUid.isEmpty ? "-" : "..."),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isOnline
-                                        ? Colors.green
-                                        : Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          OutlinedButton(
-                            onPressed: () {
-                              if (ownerUid.isNotEmpty) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        ShopProfileScreen(shopId: ownerUid),
-                                  ),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      "Data toko tidak tersedia untuk produk ini",
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: primaryColor),
-                              foregroundColor: primaryColor,
-                            ),
-                            child: const Text("Kunjungi"),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-
-                // 4. DESKRIPSI
-                Container(
-                  color: cardColor,
-                  padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.only(bottom: 8),
-                  width: double.infinity,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Deskripsi Produk",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        productData['description'] ?? "Tidak ada deskripsi.",
-                        style: TextStyle(
-                          height: 1.5,
-                          color: isDark ? Colors.grey[300] : Colors.grey[800],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 5. ULASAN
-                Container(
-                  color: cardColor,
-                  padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Penilaian Produk",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: textColor,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ProductReviewsScreen(
-                                    productId: productId,
-                                    productData: productData,
-                                  ),
-                                ),
-                              );
-                            },
-                            child: Text(
-                              "Lihat Semua",
-                              style: TextStyle(
-                                color: primaryColor,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('reviews')
-                            .where('productId', isEqualTo: productId)
-                            .orderBy('createdAt', descending: true)
-                            .limit(2)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData ||
-                              snapshot.data!.docs.isEmpty) {
-                            return Text(
-                              "Belum ada ulasan.",
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontStyle: FontStyle.italic,
-                              ),
-                            );
-                          }
-                          return Column(
-                            children: snapshot.data!.docs.map<Widget>((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              return _buildReviewItem(
-                                data['userName'] ?? "User",
-                                data['comment'] ?? "",
-                                (data['rating'] as num).toInt(),
-                                isDark,
-                                textColor,
-                              );
-                            }).toList(),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // --- BOTTOM BAR (DIPERBARUI) ---
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: cardColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // TOMBOL CHAT (TETAP)
-                  IconButton(
-                    icon: Column(
-                      children: [
-                        Icon(
-                          LucideIcons.messageCircle,
-                          size: 20,
-                          color: primaryColor,
-                        ),
-                        const Text("Chat", style: TextStyle(fontSize: 9)),
-                      ],
-                    ),
-                    onPressed: () async {
-                      print("Tombol Chat Ditekan..."); // Cek di Terminal
-
-                      // 1. Cek apakah ownerUid valid
-                      if (ownerUid.isEmpty) {
-                        print("Error: Owner UID Kosong!");
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Error: Data penjual tidak valid"),
-                          ),
-                        );
-                        return;
-                      }
-
-                      // 2. Cek apakah chat diri sendiri
-                      final currentUser = FirebaseAuth.instance.currentUser;
-                      if (currentUser != null && ownerUid == currentUser.uid) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Ini produk Anda sendiri"),
-                          ),
-                        );
-                        return;
-                      }
-
-                      // 3. Ambil data target (Nama & Foto Toko)
-                      String targetName = "Toko";
-                      String targetImage = "";
-
-                      try {
-                        // Kita coba ambil data real-time penjual biar akurat
-                        final userSnap = await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(ownerUid)
-                            .get();
-
-                        if (userSnap.exists) {
-                          final userData =
-                              userSnap.data() as Map<String, dynamic>;
-                          targetName =
-                              userData['storeName'] ??
-                              userData['name'] ??
-                              "Penjual";
-                          targetImage =
-                              userData['image'] ?? userData['imageUrl'] ?? "";
-                        }
-                      } catch (e) {
-                        print("Gagal ambil data user: $e");
-                        // Lanjut saja pakai data default/yang ada di produk
-                      }
-
-                      // Jika data foto di user kosong, coba pakai data dari produk
-                      if (targetImage.isEmpty) {
-                        targetImage = productData['ownerImage'] ?? "";
-                      }
-
-                      print("Navigasi ke Chat dengan: $targetName ($ownerUid)");
-
-                      if (context.mounted) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ChatDetailScreen(
-                              targetUid: ownerUid,
-                              targetName: targetName,
-                              targetImage: targetImage.isNotEmpty
-                                  ? targetImage
-                                  : 'https://via.placeholder.com/150',
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                  const SizedBox(width: 16),
-
-                  // TOMBOL KERANJANG (DIBERIKAN FUNGSI)
-                  InkWell(
-                    onTap: () async {
-                      try {
-                        await MarketService().addToCart(
-                          productId,
-                          productData['name'] ?? "Produk",
-                          price,
-                          productData['image'] ?? "",
-                        );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Berhasil masuk keranjang!"),
-                          ),
-                        );
-                      } catch (e) {
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text("Gagal: $e")));
-                      }
-                    },
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          LucideIcons.shoppingCart,
-                          size: 20,
-                          color: primaryColor,
-                        ),
-                        const Text("Keranjang", style: TextStyle(fontSize: 9)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-
-                  // TOMBOL BELI SEKARANG (DIBERIKAN FUNGSI)
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // Tampilkan Dialog Konfirmasi
-                        _showBuyDialog(
-                          context,
-                          productData['name'] ?? "Produk",
-                          price,
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        "Beli Sekarang",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  // --- HELPER UNTUK DIALOG BELI ---
-  void _showBuyDialog(BuildContext context, String productName, int price) {
-    // Format rupiah helper
+  // --- HELPER DIALOG BELI (DIPERBARUI UNTUK KE CHECKOUT) ---
+  void _showBuyDialog(
+    BuildContext context,
+    Map<String, dynamic> productData,
+    int price,
+  ) {
     final currency = NumberFormat.currency(
       locale: 'id_ID',
       symbol: 'Rp ',
       decimalDigits: 0,
     );
+    final String productName = productData['name'] ?? "Produk";
 
     showDialog(
       context: context,
@@ -610,32 +739,30 @@ class ProductDetailScreen extends StatelessWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             child: const Text("Bayar"),
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(ctx); // Tutup dialog
 
-              // PANGGIL SERVICE TRANSAKSI
-              String result = await MarketService().processPayment(
-                productId,
-                1,
-              );
+              // 1. SIAPKAN DATA ITEM
+              final item = {
+                'productId': widget.productId,
+                'name': productName,
+                'price': price,
+                'qty': 1, // Default beli 1
+                'image': productData['image'] ?? '',
+              };
 
-              if (result == "SUCCESS") {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    backgroundColor: Colors.green,
-                    content: Text("Pembelian Berhasil! Barang akan dikirim."),
+              // 2. NAVIGASI KE CHECKOUT SCREEN
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CheckoutScreen(
+                    items: [item], // Masukkan barang dalam list
+                    totalPrice: price,
+                    sellerId: productData['uid'],
+                    sellerName: productData['sellerName'] ?? "Toko",
                   ),
-                );
-                // Opsional: Kembali ke halaman sebelumnya
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: Colors.red,
-                    content: Text("Gagal: $result"),
-                  ),
-                );
-              }
+                ),
+              );
             },
           ),
         ],

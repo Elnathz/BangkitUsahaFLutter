@@ -7,12 +7,11 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:toastification/toastification.dart';
 import 'package:intl/intl.dart';
+import '../../services/market_service.dart';
 
 // IMPORT HALAMAN LAIN
 import '../home/product_reviews_screen.dart';
 import '../shop/shop_profile_screen.dart';
-
-// --- IMPORT BARU AGAR BISA NAVIGASI KE CHAT & NOTIFIKASI ---
 import '../chat/chat_screen.dart';
 import '../notifications/notification_screen.dart';
 
@@ -35,30 +34,6 @@ class _ProductsScreenState extends State<ProductsScreen>
     decimalDigits: 0,
   );
 
-  final List<Map<String, dynamic>> orders = [
-    {
-      "id": "ORD-001",
-      "customer": "Budi Santoso",
-      "status": "Menunggu",
-      "items": [
-        {"name": "Keripik Singkong", "qty": 3, "price": 25000},
-        {"name": "Sambal Matah", "qty": 1, "price": 35000},
-      ],
-      "total": 110000,
-      "payment": "Transfer",
-    },
-    {
-      "id": "ORD-002",
-      "customer": "Siti Aminah",
-      "status": "Diproses",
-      "items": [
-        {"name": "Kue Lapis Legit", "qty": 1, "price": 150000},
-      ],
-      "total": 150000,
-      "payment": "COD",
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -68,30 +43,37 @@ class _ProductsScreenState extends State<ProductsScreen>
     });
   }
 
-  // --- LOGIC VALIDASI TOKO SEBELUM TAMBAH PRODUK ---
+  // --- LOGIC: CEK PROFIL TOKO ---
   Future<void> _checkStoreProfileBeforeAdd() async {
     if (user == null) return;
+    try {
+      final docSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .get();
 
-    final docSnap = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user!.uid)
-        .get();
+      if (!docSnap.exists) {
+        _showWarningDialog("Data user tidak ditemukan.");
+        return;
+      }
 
-    if (!docSnap.exists) {
-      _showWarningDialog("Data user tidak ditemukan.");
-      return;
-    }
+      final data = docSnap.data() as Map<String, dynamic>;
+      final String? storeName = data['storeName'];
+      final String? address = data['address'];
 
-    final data = docSnap.data() as Map<String, dynamic>;
-    final String? storeName = data['storeName'];
-
-    if (storeName == null || storeName.trim().isEmpty) {
-      _showWarningDialog(
-        "Anda belum melengkapi Informasi Bisnis (Nama Toko). \n\nSilakan lengkapi profil toko Anda agar pembeli dapat mengenali dan menghubungi Anda.",
-        showEditButton: true,
-      );
-    } else {
-      _showProductDialog();
+      if (storeName == null ||
+          storeName.trim().isEmpty ||
+          address == null ||
+          address.trim().isEmpty) {
+        _showWarningDialog(
+          "Profil Toko Belum Lengkap.\n\nAnda harus mengisi Nama Toko dan Alamat sebelum bisa menjual produk.",
+          showEditButton: true,
+        );
+      } else {
+        _showProductDialog();
+      }
+    } catch (e) {
+      debugPrint("Error check store: $e");
     }
   }
 
@@ -99,7 +81,7 @@ class _ProductsScreenState extends State<ProductsScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Profil Toko Belum Lengkap"),
+        title: const Text("Perhatian"),
         content: Text(message),
         actions: [
           TextButton(
@@ -130,8 +112,7 @@ class _ProductsScreenState extends State<ProductsScreen>
     );
   }
 
-  // --- LOGIC PRODUK (CRUD & REORDER) ---
-
+  // --- LOGIC PRODUK (CRUD) ---
   Future<void> _showProductDialog({DocumentSnapshot? product}) async {
     final isEdit = product != null;
     final nameCtrl = TextEditingController(text: isEdit ? product['name'] : '');
@@ -180,7 +161,6 @@ class _ProductsScreenState extends State<ProductsScreen>
                 });
               } catch (e) {
                 setStateSB(() => isUploading = false);
-                debugPrint("Upload Error: $e");
               }
             }
 
@@ -190,6 +170,7 @@ class _ProductsScreenState extends State<ProductsScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // INPUT GAMBAR
                     GestureDetector(
                       onTap: isUploading ? null : handleImageUpload,
                       child: Container(
@@ -228,6 +209,7 @@ class _ProductsScreenState extends State<ProductsScreen>
                     ),
                     const SizedBox(height: 16),
 
+                    // FORM INPUT
                     TextField(
                       controller: nameCtrl,
                       decoration: const InputDecoration(
@@ -296,6 +278,23 @@ class _ProductsScreenState extends State<ProductsScreen>
                           String category = categoryCtrl.text.trim();
                           if (category.isEmpty) category = "Umum";
 
+                          // Ambil data toko untuk disimpan di produk
+                          String sellerName = "Toko";
+                          String sellerImage = "";
+                          try {
+                            final userDoc = await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user!.uid)
+                                .get();
+                            if (userDoc.exists) {
+                              sellerName =
+                                  userDoc['storeName'] ??
+                                  userDoc['name'] ??
+                                  "Toko";
+                              sellerImage = userDoc['image'] ?? "";
+                            }
+                          } catch (e) {}
+
                           final data = {
                             'name': nameCtrl.text,
                             'price': int.tryParse(priceCtrl.text) ?? 0,
@@ -304,6 +303,8 @@ class _ProductsScreenState extends State<ProductsScreen>
                             'description': descCtrl.text,
                             'image': imageUrl ?? '',
                             'uid': user?.uid,
+                            'sellerName': sellerName,
+                            'sellerImage': sellerImage,
                             'updatedAt': FieldValue.serverTimestamp(),
                           };
 
@@ -315,6 +316,11 @@ class _ProductsScreenState extends State<ProductsScreen>
                           } else {
                             data['order'] =
                                 DateTime.now().millisecondsSinceEpoch;
+                            data['rating'] = 0.0;
+                            data['totalReviews'] = 0;
+                            data['sold'] = 0;
+                            data['createdAt'] = FieldValue.serverTimestamp();
+
                             await FirebaseFirestore.instance
                                 .collection('products')
                                 .add(data);
@@ -341,12 +347,37 @@ class _ProductsScreenState extends State<ProductsScreen>
   }
 
   Future<void> _deleteProduct(String id) async {
-    await FirebaseFirestore.instance.collection('products').doc(id).delete();
-    toastification.show(
+    showDialog(
       context: context,
-      title: const Text("Produk dihapus"),
-      type: ToastificationType.error,
-      autoCloseDuration: const Duration(seconds: 3),
+      builder: (ctx) => AlertDialog(
+        title: const Text("Hapus Produk?"),
+        content: const Text("Produk akan dihapus permanen."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await FirebaseFirestore.instance
+                  .collection('products')
+                  .doc(id)
+                  .delete();
+              if (mounted) {
+                toastification.show(
+                  context: context,
+                  title: const Text("Produk dihapus"),
+                  type: ToastificationType.error,
+                  autoCloseDuration: const Duration(seconds: 3),
+                );
+              }
+            },
+            child: const Text("Hapus"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -412,7 +443,7 @@ class _ProductsScreenState extends State<ProductsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- HEADER TOKO DENGAN TOMBOL CHAT & NOTIFIKASI ---
+                    // HEADER TOKO
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -425,7 +456,6 @@ class _ProductsScreenState extends State<ProductsScreen>
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        // TOMBOL CHAT & NOTIF (Gaya Dashboard)
                         Row(
                           children: [
                             _buildHeaderIcon(
@@ -462,9 +492,10 @@ class _ProductsScreenState extends State<ProductsScreen>
                               Colors.orange,
                             ),
                             const SizedBox(width: 12),
+                            // Summary Pesanan
                             _buildSummaryCard(
                               "Pesanan",
-                              "${orders.length}",
+                              "...",
                               LucideIcons.shoppingBag,
                               Colors.blue,
                             ),
@@ -506,7 +537,6 @@ class _ProductsScreenState extends State<ProductsScreen>
     );
   }
 
-  // --- WIDGET HELPER BARU (SAMA PERSIS DENGAN DASHBOARD) ---
   Widget _buildHeaderIcon(
     BuildContext context,
     IconData icon,
@@ -524,7 +554,7 @@ class _ProductsScreenState extends State<ProductsScreen>
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15), // Transparan ala Dashboard
+          color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: Colors.white, size: 18),
@@ -540,11 +570,7 @@ class _ProductsScreenState extends State<ProductsScreen>
     Color primaryColor,
   ) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('products')
-          .where('uid', isEqualTo: user?.uid)
-          .orderBy('order')
-          .snapshots(),
+      stream: MarketService().getUserProducts(),
       builder: (context, snapshot) {
         if (snapshot.hasError)
           return Center(child: Text("Error: ${snapshot.error}"));
@@ -666,6 +692,10 @@ class _ProductsScreenState extends State<ProductsScreen>
     final data = doc.data() as Map<String, dynamic>;
     final id = doc.id;
 
+    // --- INDIKATOR STOK HABIS ---
+    int stock = (data['stock'] ?? 0).toInt();
+    bool isOutOfStock = stock <= 0;
+
     return Card(
       key: ValueKey(id),
       color: cardColor,
@@ -674,25 +704,49 @@ class _ProductsScreenState extends State<ProductsScreen>
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         contentPadding: const EdgeInsets.all(12),
-        leading: Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-            image: (data['image'] != null && data['image'] != '')
-                ? DecorationImage(
-                    image: NetworkImage(data['image']),
-                    fit: BoxFit.cover,
-                  )
-                : null,
-          ),
-          child: (data['image'] == null || data['image'] == '')
-              ? const Icon(LucideIcons.image, color: Colors.grey)
-              : null,
+        // BAGIAN GAMBAR + OVERLAY "HABIS"
+        leading: Stack(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(8),
+                image: (data['image'] != null && data['image'] != '')
+                    ? DecorationImage(
+                        image: NetworkImage(data['image']),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: (data['image'] == null || data['image'] == '')
+                  ? const Icon(LucideIcons.image, color: Colors.grey)
+                  : null,
+            ),
+            // OVERLAY JIKA HABIS
+            if (isOutOfStock)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    "Habis",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         title: Text(
-          data['name'],
+          data['name'] ?? "Produk",
           style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
         ),
         subtitle: Column(
@@ -700,7 +754,7 @@ class _ProductsScreenState extends State<ProductsScreen>
           children: [
             const SizedBox(height: 4),
             Text(
-              currencyFormat.format(data['price']),
+              currencyFormat.format(data['price'] ?? 0),
               style: TextStyle(
                 color: primaryColor,
                 fontWeight: FontWeight.bold,
@@ -724,9 +778,16 @@ class _ProductsScreenState extends State<ProductsScreen>
                   ),
                 ),
                 const SizedBox(width: 8),
+                // INDIKATOR STOK WARNA MERAH JIKA HABIS
                 Text(
-                  "Stok: ${data['stock']}",
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  isOutOfStock ? "Stok: 0 (Habis)" : "Stok: $stock",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isOutOfStock ? Colors.red : Colors.grey[600],
+                    fontWeight: isOutOfStock
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
                 ),
               ],
             ),
@@ -735,7 +796,6 @@ class _ProductsScreenState extends State<ProductsScreen>
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // TOMBOL LIHAT ULASAN
             IconButton(
               icon: const Icon(
                 LucideIcons.messageSquare,
@@ -753,8 +813,10 @@ class _ProductsScreenState extends State<ProductsScreen>
                 );
               },
             ),
+            // TOMBOL EDIT (UTK NAMBAH STOK)
             IconButton(
               icon: const Icon(LucideIcons.edit2, size: 18, color: Colors.grey),
+              tooltip: "Edit & Restock",
               onPressed: () => _showProductDialog(product: doc),
             ),
             IconButton(
@@ -769,21 +831,55 @@ class _ProductsScreenState extends State<ProductsScreen>
     );
   }
 
-  // --- TAB 2: PESANAN ---
+  // --- TAB 2: PESANAN MASUK ---
   Widget _buildOrdersTab(
     bool isDark,
     Color cardColor,
     Color textColor,
     Color primaryColor,
   ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          ...orders.map((order) {
-            Color statusColor = order['status'] == 'Menunggu'
-                ? Colors.orange
-                : (order['status'] == 'Selesai' ? Colors.green : Colors.blue);
+    return StreamBuilder<QuerySnapshot>(
+      stream: MarketService().getIncomingOrders(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
+
+        if (snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  LucideIcons.clipboardList,
+                  size: 64,
+                  color: Colors.grey[300],
+                ),
+                const SizedBox(height: 16),
+                const Text("Belum ada pesanan masuk."),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            final doc = snapshot.data!.docs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final status = data['status'] ?? 'Menunggu';
+            final List items = (data['items'] as List?) ?? [];
+
+            Color statusColor;
+            if (status == 'Menunggu')
+              statusColor = Colors.orange;
+            else if (status == 'Diproses')
+              statusColor = Colors.blue;
+            else if (status == 'Diantar')
+              statusColor = Colors.purple;
+            else
+              statusColor = Colors.green;
+
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.all(16),
@@ -804,9 +900,9 @@ class _ProductsScreenState extends State<ProductsScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        order['id'],
+                        data['orderId'] ?? "ORD-???",
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: textColor,
                         ),
@@ -821,7 +917,7 @@ class _ProductsScreenState extends State<ProductsScreen>
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          order['status'],
+                          status,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -831,83 +927,104 @@ class _ProductsScreenState extends State<ProductsScreen>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Text(
-                    order['customer'],
-                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                    "Pembeli: ${data['buyerName'] ?? 'Pembeli'}",
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                  Text(
+                    "Alamat: ${data['address'] ?? '-'}",
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
                   ),
                   const Divider(height: 24),
-                  ...order['items']
-                      .map<Widget>(
-                        (item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "${item['qty']}x ${item['name']}",
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                  fontSize: 13,
-                                ),
-                              ),
-                              Text(
-                                "Rp ${item['price']}",
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
+
+                  // LIST ITEMS
+                  ...items.map((item) {
+                    if (item == null) return const SizedBox();
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "${item['qty'] ?? 1}x ${item['name'] ?? 'Produk'}",
+                            style: TextStyle(color: textColor, fontSize: 13),
                           ),
-                        ),
-                      )
-                      .toList(),
+                          Text(
+                            currencyFormat.format(item['price'] ?? 0),
+                            style: TextStyle(color: textColor, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+
                   const Divider(height: 24),
+
+                  // FOOTER & ACTION BUTTONS
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Total",
-                            style: TextStyle(fontSize: 11, color: Colors.grey),
+                      Text(
+                        "Total: ${currencyFormat.format(data['totalPrice'] ?? 0)}",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                      if (status == 'Menunggu')
+                        ElevatedButton(
+                          onPressed: () => MarketService().updateOrderStatus(
+                            doc.id,
+                            'Diproses',
                           ),
-                          Text(
-                            currencyFormat.format(order['total']),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
                             ),
                           ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Icon(
-                            LucideIcons.eye,
-                            size: 18,
-                            color: Colors.grey[700],
+                          child: const Text(
+                            "Terima Pesanan",
+                            style: TextStyle(fontSize: 12, color: Colors.white),
                           ),
-                          const SizedBox(width: 16),
-                          Icon(
-                            LucideIcons.messageCircle,
-                            size: 18,
-                            color: Colors.grey[700],
+                        )
+                      else if (status == 'Diproses')
+                        ElevatedButton(
+                          onPressed: () => MarketService().updateOrderStatus(
+                            doc.id,
+                            'Diantar',
                           ),
-                        ],
-                      ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.purple,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                          ),
+                          child: const Text(
+                            "Kirim Barang",
+                            style: TextStyle(fontSize: 12, color: Colors.white),
+                          ),
+                        )
+                      else if (status == 'Diantar')
+                        const Text(
+                          "Menunggu diterima...",
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
                     ],
                   ),
                 ],
               ),
             );
-          }).toList(),
-          const SizedBox(height: 120),
-        ],
-      ),
+          },
+        );
+      },
     );
   }
 

@@ -8,9 +8,12 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 import 'package:intl/intl.dart';
 
+// --- IMPORT HALAMAN LAIN ---
+import 'order_history_screen.dart';
 import 'settings_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
+import '../../services/market_service.dart'; // Import MarketService
 
 const List<String> DAYS = [
   'Senin',
@@ -49,11 +52,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'rating': 0.0,
     'totalReviews': 0,
     'totalSales': 0,
-    'responseRate':
-        0, // Ini akan kita isi dengan Total Interaksi (Semua Ulasan)
+    'responseRate': 0,
   };
 
-  // Variable baru untuk menampung total semua ulasan (Produk + Toko)
   int totalAllInteractions = 0;
 
   final TextEditingController _descController = TextEditingController();
@@ -76,7 +77,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchUserData() async {
     if (user == null) return;
 
-    // 1. Ambil Data Profil (Termasuk Rating Toko Murni)
     FirebaseFirestore.instance
         .collection('users')
         .doc(user!.uid)
@@ -84,7 +84,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .listen((docSnap) {
           if (!mounted) return;
 
-          // 2. Hitung Total Semua Ulasan (Produk + Toko) untuk kolom "Respon"
           FirebaseFirestore.instance
               .collection('reviews')
               .where('shopId', isEqualTo: user!.uid)
@@ -108,10 +107,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 'openingHours': data['openingHours'] ?? "",
                 'established': data['established'] ?? "",
                 'image': data['image'] ?? user!.photoURL ?? "",
-                'rating': (data['rating'] ?? 0)
-                    .toDouble(), // INI MURNI RATING TOKO
-                'totalReviews':
-                    data['totalReviews'] ?? 0, // INI JUMLAH ULASAN TOKO
+                'rating': (data['rating'] ?? 0).toDouble(),
+                'totalReviews': data['totalReviews'] ?? 0,
                 'totalSales': data['totalSales'] ?? 0,
                 'responseRate': data['responseRate'] ?? 0,
               };
@@ -491,7 +488,141 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 24),
 
-            // 2. STATS GRID
+            // --- 2. BAGIAN PESANAN SAYA (DENGAN BADGE TITIK MERAH) ---
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 2,
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Pesanan Saya",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          // Navigasi ke Halaman OrderHistory (Tab Semua)
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const OrderHistoryScreen(),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            Text(
+                              "Lihat Riwayat",
+                              style: TextStyle(fontSize: 12, color: labelColor),
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 16,
+                              color: labelColor,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // STREAM UNTUK HITUNG JUMLAH PESANAN (BADGE)
+                  StreamBuilder<QuerySnapshot>(
+                    stream: MarketService().getMyOrders(), // Ambil data pesanan
+                    builder: (context, snapshot) {
+                      int pending = 0; // Menunggu
+                      int packing = 0; // Dikemas (Diproses)
+                      int shipping = 0; // Dikirim (Diantar)
+                      // int completed = 0; // Selesai (Biasanya tidak perlu badge)
+
+                      if (snapshot.hasData) {
+                        for (var doc in snapshot.data!.docs) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final status = data['status'];
+                          if (status == 'Menunggu')
+                            pending++;
+                          else if (status == 'Diproses')
+                            packing++;
+                          else if (status == 'Diantar')
+                            shipping++;
+                        }
+                      }
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildQuickStatusIcon(
+                            LucideIcons.wallet,
+                            "Menunggu",
+                            () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const OrderHistoryScreen(),
+                              ),
+                            ),
+                            badgeCount: pending, // Badge
+                          ),
+                          _buildQuickStatusIcon(
+                            LucideIcons.package,
+                            "Dikemas",
+                            () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const OrderHistoryScreen(),
+                              ),
+                            ),
+                            badgeCount: packing, // Badge
+                          ),
+                          _buildQuickStatusIcon(
+                            LucideIcons.truck,
+                            "Dikirim",
+                            () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const OrderHistoryScreen(),
+                              ),
+                            ),
+                            badgeCount: shipping, // Badge
+                          ),
+                          _buildQuickStatusIcon(
+                            LucideIcons.star,
+                            "Selesai",
+                            () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const OrderHistoryScreen(),
+                              ),
+                            ),
+                            badgeCount: 0, // Selesai tidak perlu badge
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            // ------------------------------------------------
+
+            // 3. STATS GRID (TOKO)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -523,7 +654,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     primaryColor,
                   ),
                   const SizedBox(width: 8),
-                  // INI TOTAL SEMUA INTERAKSI
                   _buildStatCard(
                     "Total Ulasan",
                     "$totalAllInteractions",
@@ -537,7 +667,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 3. INFORMASI BISNIS
+            // 4. INFORMASI BISNIS
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
@@ -833,7 +963,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 16),
 
-            // 4. LIST ULASAN (Realtime)
+            // 5. LIST ULASAN (Realtime)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
@@ -993,6 +1123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
+
             const SizedBox(height: 120),
           ],
         ),
@@ -1018,6 +1149,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+  // WIDGET BARU: Icon Status Pesanan dengan BADGE
+  Widget _buildQuickStatusIcon(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    int badgeCount = 0,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(icon, size: 24, color: Colors.grey[700]),
+              if (badgeCount > 0)
+                Positioned(
+                  top: -6,
+                  right: -6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      badgeCount > 99 ? '99+' : '$badgeCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+        ],
       ),
     );
   }

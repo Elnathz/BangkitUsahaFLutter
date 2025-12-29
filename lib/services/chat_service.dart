@@ -1,47 +1,52 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image_picker/image_picker.dart'; // Tambahkan ini
-import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
 
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // Update Parameter: Tambahkan receiverId (Penerima)
+  // --- KIRIM PESAN (TEXT, GAMBAR, VIDEO) ---
   Future<void> sendMessage({
     required String chatRoomId,
     required String senderId,
     required String receiverId,
     required String text,
-    XFile? imageFile, // <--- UBAH TIPE DATA JADI XFile
+    XFile? imageFile, // Parameter ini menampung file Gambar ATAU Video
+    String type = 'text', // 'text', 'image', atau 'video'
   }) async {
-    String type = 'text';
     String content = text;
+    String finalType = type;
 
-    // 1. Upload Gambar (Versi Aman Web & Android)
+    // 1. PROSES UPLOAD FILE (Jika ada)
     if (imageFile != null) {
       try {
-        String fileName = "${DateTime.now().millisecondsSinceEpoch}.jpg";
-        Reference ref = _storage.ref().child('chats/$chatRoomId/$fileName');
-
-        // UBAH CARA UPLOAD: Baca sebagai Bytes (Data), bukan File
         Uint8List fileBytes = await imageFile.readAsBytes();
+
+        // Tentukan path dan metadata berdasarkan tipe
+        String extension = finalType == 'video' ? 'mp4' : 'jpg';
+        String contentType = finalType == 'video' ? 'video/mp4' : 'image/jpeg';
+        String folder = finalType == 'video' ? 'videos' : 'images';
+
+        String fileName = "${DateTime.now().millisecondsSinceEpoch}.$extension";
+
+        // Path: chats/{roomId}/images/filename.jpg atau chats/{roomId}/videos/filename.mp4
+        Reference ref = _storage.ref().child(
+          'chats/$chatRoomId/$folder/$fileName',
+        );
 
         // Upload Data
         UploadTask uploadTask = ref.putData(
           fileBytes,
-          SettableMetadata(
-            contentType: 'image/jpeg',
-          ), // Penting agar bisa dibuka di browser
+          SettableMetadata(contentType: contentType),
         );
 
         TaskSnapshot snapshot = await uploadTask;
         content = await snapshot.ref.getDownloadURL();
-        type = 'image';
       } catch (e) {
-        print("Gagal upload: $e");
-        return;
+        print("Gagal upload file: $e");
+        return; // Hentikan jika upload gagal
       }
     }
 
@@ -49,33 +54,65 @@ class ChatService {
         .collection('chat_rooms')
         .doc(chatRoomId);
 
-    // 2. Simpan Pesan
+    // 2. SIMPAN PESAN KE FIRESTORE
     await roomRef.collection('messages').add({
       'senderId': senderId,
-      'text': content,
-      'type': type,
+      'text': content, // Isi pesan (Teks biasa atau URL File)
+      'type': finalType,
+      'isEdited': false, // Penanda untuk fitur edit
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    // 3. Update Room Data
+    // 3. UPDATE DATA RUANGAN CHAT (Untuk List Chat)
+    String previewMsg = content;
+    if (finalType == 'image') previewMsg = '📷 Mengirim gambar';
+    if (finalType == 'video') previewMsg = '🎥 Mengirim video';
+
     await roomRef.set({
       'participants': [senderId, receiverId],
-      'last_message': type == 'image' ? '📷 Mengirim gambar' : content,
+      'last_message': previewMsg,
       'last_message_time': FieldValue.serverTimestamp(),
       'unread_count_$receiverId': FieldValue.increment(1),
     }, SetOptions(merge: true));
   }
 
-  // ... (Fungsi deleteMessage dan editMessage biarkan tetap sama) ...
+  // --- HAPUS PESAN ---
   Future<void> deleteMessage(String chatRoomId, String messageId) async {
-    await _firestore
-        .collection('chat_rooms')
-        .doc(chatRoomId)
-        .collection('messages')
-        .doc(messageId)
-        .delete();
+    try {
+      // 1. Hapus Dokumen dari Firestore
+      DocumentSnapshot doc = await _firestore
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .collection('messages')
+          .doc(messageId)
+          .get();
+
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+        // (Opsional) Hapus file dari Storage jika tipe bukan text
+        // Jika ingin hemat storage, aktifkan kode di bawah ini:
+        /*
+        if (data['type'] == 'image' || data['type'] == 'video') {
+          try {
+            await _storage.refFromURL(data['text']).delete();
+          } catch (e) {
+            print("Gagal hapus file storage: $e");
+          }
+        }
+        */
+
+        await doc.reference.delete();
+
+        // Update last message jika pesan terakhir dihapus (Opsional, agak kompleks logikanya)
+        // Untuk simpelnya, kita biarkan last_message tetap yang lama tidak masalah.
+      }
+    } catch (e) {
+      print("Error delete message: $e");
+    }
   }
 
+  // --- EDIT PESAN ---
   Future<void> editMessage(
     String chatRoomId,
     String messageId,
@@ -86,6 +123,9 @@ class ChatService {
         .doc(chatRoomId)
         .collection('messages')
         .doc(messageId)
-        .update({'text': newText, 'isEdited': true});
+        .update({
+          'text': newText,
+          'isEdited': true, // Tandai pesan telah diedit
+        });
   }
 }

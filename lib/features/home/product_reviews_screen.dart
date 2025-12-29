@@ -4,10 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 
-// --- IMPORT WIDGET REVIEW CARD YANG BARU ---
-// (Sesuaikan path ini dengan lokasi Anda menyimpan review_card.dart)
+// Pastikan path ini benar
 import '../home/review_card.dart';
-// ------------------------------------------
 
 class ProductReviewsScreen extends StatefulWidget {
   final String productId;
@@ -25,8 +23,83 @@ class ProductReviewsScreen extends StatefulWidget {
 
 class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
   final user = FirebaseAuth.instance.currentUser;
+  bool _isAdmin = false; // Status Admin
 
-  // --- LOGIC: KIRIM ULASAN ---
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminStatus(); // Cek admin saat layar dibuka
+  }
+
+  // --- LOGIC 1: CEK ADMIN ---
+  Future<void> _checkAdminStatus() async {
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .get();
+
+      if (doc.exists && doc.data()?['role'] == 'admin') {
+        if (mounted) {
+          setState(() => _isAdmin = true);
+        }
+      }
+    } catch (e) {
+      debugPrint("Gagal cek admin: $e");
+    }
+  }
+
+  // --- LOGIC 2: HAPUS ULASAN (ADMIN/PEMILIK REVIEW) ---
+  Future<void> _deleteReview(String reviewId) async {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Hapus Ulasan?"),
+        content: const Text("Ulasan ini akan dihapus permanen."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx); // Tutup dialog
+              try {
+                // 1. Hapus dari Firestore
+                await FirebaseFirestore.instance
+                    .collection('reviews')
+                    .doc(reviewId)
+                    .delete();
+
+                // 2. Hitung Ulang Rating Produk (Agar sinkron)
+                await _recalculateProductRating(widget.productId);
+
+                if (mounted) {
+                  toastification.show(
+                    context: context,
+                    title: const Text("Ulasan berhasil dihapus"),
+                    type: ToastificationType.success,
+                    autoCloseDuration: const Duration(seconds: 3),
+                  );
+                }
+              } catch (e) {
+                toastification.show(
+                  context: context,
+                  title: Text("Gagal hapus: $e"),
+                  type: ToastificationType.error,
+                );
+              }
+            },
+            child: const Text("Hapus"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- LOGIC 3: KIRIM ULASAN ---
   void _showAddReviewDialog() {
     final commentCtrl = TextEditingController();
     double rating = 5.0;
@@ -43,7 +116,6 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                 children: [
                   const Text("Berikan bintang untuk produk ini:"),
                   const SizedBox(height: 12),
-                  // Input Bintang Manual
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (index) {
@@ -106,7 +178,6 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Update Rating PRODUK
       await _recalculateProductRating(widget.productId);
 
       if (mounted) {
@@ -127,7 +198,15 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
         .collection('reviews')
         .where('productId', isEqualTo: productId)
         .get();
-    if (snapshot.docs.isEmpty) return;
+
+    // Jika review kosong (baru dihapus semua), set ke 0
+    if (snapshot.docs.isEmpty) {
+      await FirebaseFirestore.instance
+          .collection('products')
+          .doc(productId)
+          .update({'rating': 0.0, 'totalReviews': 0});
+      return;
+    }
 
     double totalStars = 0;
     for (var doc in snapshot.docs) {
@@ -152,7 +231,6 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
         : Colors.black87;
     final primaryColor = theme.primaryColor;
 
-    // Cek apakah user yang login adalah pemilik produk (untuk fitur balasan)
     bool isProductOwner = widget.productData['uid'] == user?.uid;
 
     return Scaffold(
@@ -173,10 +251,15 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Text(
-                "Perlu Index Database (Cek Console)",
-                style: TextStyle(color: Colors.red),
+            // Error ini biasanya karena Index belum dibuat di Firebase Console
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Text(
+                  "Error: Perlu Index Database.\nCek Debug Console untuk link pembuatan index.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.red[700]),
+                ),
               ),
             );
           }
@@ -198,7 +281,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    "Belum ada ulasan untuk produk ini.",
+                    "Belum ada ulasan.",
                     style: TextStyle(color: Colors.grey[500]),
                   ),
                 ],
@@ -209,27 +292,46 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: reviews.length,
-            // ... di dalam ListView.builder ...
             itemBuilder: (context, index) {
               final doc = reviews[index];
               final data = doc.data() as Map<String, dynamic>;
 
-              return ReviewCard(
-                // --- TAMBAHKAN BARIS INI ---
-                productId: widget.productId,
+              // Cek hak akses hapus
+              bool isMyReview = data['userId'] == user?.uid;
+              bool canDelete = _isAdmin || isMyReview;
 
-                // ---------------------------
-                reviewId: doc.id,
-                data: data,
-                currentUserId: user?.uid ?? "",
-                isProductOwner: isProductOwner,
+              // Gunakan Stack untuk menaruh tombol hapus di atas Card
+              return Stack(
+                children: [
+                  ReviewCard(
+                    productId: widget.productId,
+                    reviewId: doc.id,
+                    data: data,
+                    currentUserId: user?.uid ?? "",
+                    isProductOwner: isProductOwner,
+                  ),
+
+                  // TOMBOL HAPUS (Hanya Admin/Pemilik Review)
+                  if (canDelete)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: IconButton(
+                        icon: const Icon(
+                          LucideIcons.trash2,
+                          size: 18,
+                          color: Colors.red,
+                        ),
+                        onPressed: () => _deleteReview(doc.id),
+                        tooltip: _isAdmin ? "Hapus (Admin)" : "Hapus Ulasan",
+                      ),
+                    ),
+                ],
               );
             },
-            // ...
           );
         },
       ),
-      // Tombol Tulis Ulasan (Hanya muncul jika BUKAN pemilik produk)
       floatingActionButton: !isProductOwner
           ? FloatingActionButton.extended(
               onPressed: _showAddReviewDialog,
