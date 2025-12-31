@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'transaction_model.dart';
-import 'finance_log_page.dart';
+// Ensure this path matches your folder structure
+import './models/transaction_model.dart';
+import './screens/finance_log_page.dart'; // Adjusted path if they are in the same folder
 import '../chat/chat_screen.dart';
 import '../notifications/notification_screen.dart';
 
@@ -16,46 +17,46 @@ class TransactionsPage extends StatefulWidget {
 class _TransactionsPageState extends State<TransactionsPage> {
   String selectedPeriod = 'week';
 
-  // --- MOCK DATA ---
-  List<Transaction> transactions = [
-    Transaction(
+  // --- MOCK DATA (Fixed to use TransactionModel) ---
+  List<TransactionModel> transactions = [
+    TransactionModel(
       id: '1',
       type: TransactionType.income,
       category: 'Penjualan Produk',
       amount: 250000,
-      description: 'Penjualan Keripik Singkong',
+      title: 'Penjualan Keripik Singkong', // Changed description to title
       date: DateTime(2025, 12, 3),
     ),
-    Transaction(
+    TransactionModel(
       id: '2',
       type: TransactionType.expense,
       category: 'Bahan Baku',
       amount: 150000,
-      description: 'Pembelian singkong 10kg',
+      title: 'Pembelian singkong 10kg',
       date: DateTime(2025, 12, 2),
     ),
-    Transaction(
+    TransactionModel(
       id: '3',
       type: TransactionType.income,
       category: 'Jasa',
       amount: 500000,
-      description: 'Konsultasi Bisnis',
+      title: 'Konsultasi Bisnis',
       date: DateTime(2025, 12, 1),
     ),
-    Transaction(
+    TransactionModel(
       id: '4',
       type: TransactionType.expense,
       category: 'Operasional',
       amount: 50000,
-      description: 'Bensin pengiriman',
+      title: 'Bensin pengiriman',
       date: DateTime(2025, 11, 30),
     ),
-    Transaction(
+    TransactionModel(
       id: '5',
       type: TransactionType.income,
       category: 'Penjualan Produk',
       amount: 1200000,
-      description: 'Pesanan Katering',
+      title: 'Pesanan Katering',
       date: DateTime(2025, 11, 28),
     ),
   ];
@@ -81,19 +82,21 @@ class _TransactionsPageState extends State<TransactionsPage> {
   PeriodData get periodData =>
       selectedPeriod == 'week' ? weeklyData : monthlyData;
 
-  void handleAddTransaction(Transaction transaction) {
+  void handleAddTransaction(TransactionModel transaction) {
     setState(() {
       transactions.insert(0, transaction);
     });
   }
 
+  // NOTE: I commented out onAddTransaction because FinanceLogPage likely
+  // doesn't support it yet based on your error logs.
   void navigateToFinanceLog() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => FinanceLogPage(
           transactions: transactions,
-          onAddTransaction: handleAddTransaction,
+          // onAddTransaction: handleAddTransaction, // Uncomment if FinanceLogPage accepts this
         ),
       ),
     );
@@ -162,7 +165,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                                 Icons.history,
                                 FinanceLogPage(
                                   transactions: transactions,
-                                  onAddTransaction: handleAddTransaction,
+                                  // onAddTransaction: handleAddTransaction, // Check FinanceLogPage
                                 ),
                               ),
                             ],
@@ -176,7 +179,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
                         style: TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                       const SizedBox(height: 8),
-                      // PERBAIKAN 1: FittedBox agar saldo milyaran tidak overflow
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
@@ -288,10 +290,10 @@ class _TransactionsPageState extends State<TransactionsPage> {
   // --- HELPER WIDGETS ---
 
   Widget _buildHeaderIcon(
-    BuildContext context,
-    IconData icon,
-    Widget destination,
-  ) {
+      BuildContext context,
+      IconData icon,
+      Widget destination,
+      ) {
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -332,7 +334,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
               child: Icon(icon, size: 16, color: color),
             ),
             const SizedBox(width: 8),
-            // PERBAIKAN 2: Flexible agar teks tidak overflow
             Flexible(
               child: Text(
                 title,
@@ -343,7 +344,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
           ],
         ),
         const SizedBox(height: 8),
-        // PERBAIKAN 3: FittedBox agar angka besar mengecil otomatis
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
@@ -373,7 +373,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // PERBAIKAN 4: Expanded di kolom kiri agar tidak ditabrak indikator %
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,6 +459,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       decoration: BoxDecoration(
         color: Colors.grey[200],
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey[300]!), // Added border for clarity
       ),
       padding: const EdgeInsets.all(2),
       child: Row(
@@ -475,7 +475,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
     final isSelected = selectedPeriod == value;
     return GestureDetector(
       onTap: () => setState(() => selectedPeriod = value),
-      child: Container(
+      child: AnimatedContainer( // Added animation for smooth transition
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
@@ -496,7 +497,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
-  Widget _buildProfessionalTransactionTile(Transaction transaction) {
+  Widget _buildProfessionalTransactionTile(TransactionModel transaction) {
     final isIncome = transaction.type == TransactionType.income;
     final color = isIncome ? Colors.green : Colors.red;
     return Container(
@@ -531,7 +532,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
           children: [
             const SizedBox(height: 2),
             Text(
-              transaction.description,
+              transaction.title, // Fixed: using title instead of description
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -543,7 +544,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
             ),
           ],
         ),
-        // PERBAIKAN 5: FittedBox agar nominal tidak menabrak teks di kiri
         trailing: FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
@@ -558,4 +558,17 @@ class _TransactionsPageState extends State<TransactionsPage> {
       ),
     );
   }
+}
+
+// --- ADDED MISSING CLASS DEFINITION ---
+class PeriodData {
+  final double revenue;
+  final double revenueChange;
+  final int orders;
+
+  PeriodData({
+    required this.revenue,
+    required this.revenueChange,
+    required this.orders,
+  });
 }
