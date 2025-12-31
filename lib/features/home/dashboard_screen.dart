@@ -28,291 +28,267 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final primaryColor = theme.primaryColor;
-    final Color cardColor = isDark ? Colors.grey[900]! : Colors.white;
-    final Color textColor = isDark ? Colors.white : Colors.black87;
+    // UI Constants matches the requested "Blue Theme" style
+    final gradientColors = [Colors.blue[600]!, Colors.blue[700]!];
+    final scaffoldBg = Colors.grey[50];
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: scaffoldBg,
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // HEADER + SEARCH BAR
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  height: 180,
-                  padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [primaryColor, const Color(0xFF503C37)],
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(24),
-                      bottomRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: Column(
+            // 1. HEADER SECTION
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: gradientColors,
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(0),
+                  bottomRight: Radius.circular(0),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // PROFILE INFO
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 45,
+                              height: 45,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                image: const DecorationImage(
+                                  image: AssetImage(
+                                    'assets/images/bangkitusaha.jpeg',
+                                  ),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Bangkit Usaha",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                  StreamBuilder<DocumentSnapshot>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(user?.uid)
+                                        .snapshots(),
+                                    builder: (context, snapshot) {
+                                      String ownerName = "Pemilik";
+                                      if (snapshot.hasData &&
+                                          snapshot.data!.exists) {
+                                        final data =
+                                        snapshot.data!.data()
+                                        as Map<String, dynamic>?;
+                                        ownerName =
+                                            data?['ownerName'] ??
+                                                user?.displayName ??
+                                                "Pemilik";
+                                      }
+                                      return Text(
+                                        "Selamat datang, $ownerName! 👋",
+                                        style: TextStyle(
+                                          color: Colors.blue[100],
+                                          fontSize: 13,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ACTION ICONS
                       Row(
                         children: [
-                          // Foto Profil
-                          Container(
-                            width: 45,
-                            height: 45,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              image: const DecorationImage(
-                                image: AssetImage(
-                                  'assets/images/bangkitusaha.jpeg',
-                                ),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                          _buildHeaderIcon(
+                            context,
+                            LucideIcons.bell,
+                            const NotificationScreen(),
+                            showBadge: false,
                           ),
-                          const SizedBox(width: 12),
-                          // Nama User
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  "Bangkit Usaha",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                StreamBuilder<DocumentSnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('users')
-                                      .doc(user?.uid)
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    String ownerName = "Pemilik";
-                                    if (snapshot.hasData &&
-                                        snapshot.data!.exists) {
-                                      final data =
-                                          snapshot.data!.data()
-                                              as Map<String, dynamic>?;
-                                      ownerName =
-                                          data?['ownerName'] ??
-                                          user?.displayName ??
-                                          "Pemilik";
-                                    }
-                                    return Text(
-                                      "Selamat datang, $ownerName! 👋",
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
+                          const SizedBox(width: 8),
+                          // Chat Stream Logic Preserved
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('chat_rooms')
+                                .where(
+                              'participants',
+                              arrayContains: user?.uid,
+                            )
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              bool hasUnread = false;
+                              if (snapshot.hasData) {
+                                for (var doc in snapshot.data!.docs) {
+                                  final data =
+                                  doc.data() as Map<String, dynamic>;
+                                  final int unreadCount =
+                                      data['unread_count_${user?.uid}'] ?? 0;
 
-                          // --- ICON BARIS (NOTIF, CHAT, CART) ---
-                          Row(
-                            children: [
-                              // 1. Notifikasi (Manual Badge)
-                              _buildHeaderIcon(
-                                context,
-                                LucideIcons.bell,
-                                const NotificationScreen(),
-                                showBadge:
-                                    false, // Ubah logic jika sudah ada notif
-                              ),
-                              const SizedBox(width: 8),
-
-                              // 2. Chat (SMART BADGE - Realtime dari Database)
-                              // ...
-                              // 2. Chat (SMART BADGE + SYSTEM NOTIFICATION)
-                              // ...
-                              StreamBuilder<QuerySnapshot>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('chat_rooms')
-                                    .where(
-                                      'participants',
-                                      arrayContains: user?.uid,
-                                    )
-                                    .snapshots(),
-                                builder: (context, snapshot) {
-                                  bool hasUnread = false;
-
-                                  if (snapshot.hasData) {
-                                    for (var doc in snapshot.data!.docs) {
-                                      final data =
-                                          doc.data() as Map<String, dynamic>;
-                                      final int unreadCount =
-                                          data['unread_count_${user?.uid}'] ??
-                                          0;
-
-                                      if (unreadCount > 0) {
-                                        hasUnread = true;
-
-                                        // --- LOGIKA NOTIFIKASI SYSTEM ---
-                                        final Timestamp? lastTime =
-                                            data['last_message_time'];
-                                        if (lastTime != null) {
-                                          final now = DateTime.now();
-                                          final messageTime = lastTime.toDate();
-                                          // Perbesar toleransi waktu jadi 10 detik
-                                          final diff = now
-                                              .difference(messageTime)
+                                  if (unreadCount > 0) {
+                                    hasUnread = true;
+                                    final Timestamp? lastTime =
+                                    data['last_message_time'];
+                                    if (lastTime != null) {
+                                      final now = DateTime.now();
+                                      final diff =
+                                          now
+                                              .difference(lastTime.toDate())
                                               .inSeconds;
 
-                                          // Debug Print (Cek ini di Terminal VS Code saat chat masuk)
-                                          print(
-                                            "Pesan masuk! Selisih waktu: $diff detik",
+                                      // Logic Notif System
+                                      if (diff.abs() <= 10) {
+                                        try {
+                                          NotificationService.showNotification(
+                                            id: doc.id.hashCode,
+                                            title: "Pesan Baru",
+                                            body:
+                                            data['last_message'] ??
+                                                "Anda mendapat pesan",
                                           );
-
-                                          if (diff.abs() <= 10) {
-                                            try {
-                                              NotificationService.showNotification(
-                                                id: doc.id.hashCode,
-                                                title: "Pesan Baru",
-                                                body:
-                                                    data['last_message'] ??
-                                                    "Anda mendapat pesan",
-                                              );
-                                            } catch (e) {
-                                              print(
-                                                "Gagal menampilkan notif: $e",
-                                              );
-                                            }
-                                          }
+                                        } catch (e) {
+                                          debugPrint("Gagal notif: $e");
                                         }
                                       }
                                     }
                                   }
-
-                                  return _buildHeaderIcon(
-                                    context,
-                                    LucideIcons.messageCircle,
-                                    const ChatScreen(),
-                                    showBadge: hasUnread,
-                                  );
-                                },
-                              ),
-
-                              const SizedBox(width: 8),
-
-                              // 3. Cart
-                              _buildHeaderIcon(
+                                }
+                              }
+                              return _buildHeaderIcon(
                                 context,
-                                LucideIcons.shoppingCart,
-                                CartScreen(),
-                                showBadge: false,
-                              ),
-                            ],
+                                LucideIcons.messageCircle,
+                                const ChatScreen(),
+                                showBadge: hasUnread,
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          _buildHeaderIcon(
+                            context,
+                            LucideIcons.shoppingCart,
+                            CartScreen(),
+                            showBadge: false,
                           ),
                         ],
                       ),
                     ],
                   ),
-                ),
-
-                // SEARCH BAR
-                Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: -25,
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SearchPage(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          Icon(LucideIcons.search, color: Colors.grey[400]),
-                          const SizedBox(width: 12),
-                          Text(
-                            "Cari produk UMKM di sini...",
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
 
-            const SizedBox(height: 40),
-
-            // MARKETPLACE FEED (GRID PRODUK)
+            // 2. SEARCH BAR & CONTENT
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Floating Search Bar Style
+                  Transform.translate(
+                    offset: const Offset(0, -25),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SearchPage(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Icon(LucideIcons.search, color: Colors.grey[400]),
+                            const SizedBox(width: 12),
+                            Text(
+                              "Cari produk, toko, atau kategori...",
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // SECTION HEADER
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            LucideIcons.shoppingBag,
-                            size: 20,
-                            color: primaryColor,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Rekomendasi Untuk Anda",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        "Lihat Semua",
+                      const Text(
+                        "🛍️ Produk Pilihan",
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue[600],
-                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const SearchPage()),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            Text(
+                              "Lihat Semua",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.blue[600],
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Icon(LucideIcons.chevronRight, size: 16, color: Colors.blue[600]),
+                          ],
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
 
+                  // MARKETPLACE GRID
                   StreamBuilder<QuerySnapshot>(
                     stream: MarketService().getAvailableProducts(),
                     builder: (context, snapshot) {
@@ -322,17 +298,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                       final allProducts = snapshot.data!.docs;
 
-                      // --- LOGIKA FILTER ---
+                      // --- LOGIKA FILTER (PRESERVED) ---
                       final otherShopProducts = allProducts.where((doc) {
                         final data = doc.data() as Map<String, dynamic>;
                         final stock = data['stock'] ?? 0;
-
-                        // SAYA EDIT: Bagian 'uid != user.uid' saya komentari dulu
-                        // supaya Anda bisa melihat barang sendiri saat testing.
-                        // Nanti kalau sudah rilis, bisa diaktifkan lagi.
-
-                        // return data['uid'] != user?.uid && stock > 0; // <--- Kode Asli
-                        return stock > 0; // <--- Kode Testing (Tampilkan Semua)
+                        // Logic preserved as requested
+                        // return data['uid'] != user?.uid && stock > 0;
+                        return stock > 0; // Display all for testing
                       }).toList();
 
                       if (otherShopProducts.isEmpty) {
@@ -342,9 +314,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             child: Column(
                               children: [
                                 Icon(
-                                  Icons.remove_shopping_cart,
+                                  LucideIcons.packageOpen,
                                   size: 40,
-                                  color: Colors.grey[400],
+                                  color: Colors.grey[300],
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
@@ -362,12 +334,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.7,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                            ),
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.72,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                        ),
                         itemCount: otherShopProducts.length,
                         itemBuilder: (context, index) {
                           final doc = otherShopProducts[index];
@@ -386,20 +358,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                               );
                             },
-                            child: _buildProductCard(
-                              data,
-                              cardColor,
-                              textColor,
-                              isDark,
-                            ),
+                            child: _buildProductCard(data),
                           );
                         },
                       );
                     },
                   ),
 
-                  // SPACING BAWAH (Supaya tidak tertutup Nav Bar)
-                  const SizedBox(height: 200),
+                  // Bottom Spacing
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
@@ -409,60 +376,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // HEADER ICON STYLE
   Widget _buildHeaderIcon(
-    BuildContext context,
-    IconData icon,
-    Widget? destination, {
-    bool showBadge = false,
-  }) {
+      BuildContext context,
+      IconData icon,
+      Widget? destination, {
+        bool showBadge = false,
+      }) {
     return InkWell(
       onTap: destination != null
           ? () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => destination),
-            )
+        context,
+        MaterialPageRoute(builder: (context) => destination),
+      )
           : () {},
-      borderRadius: BorderRadius.circular(8),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: Colors.white, size: 18),
-          ),
-          if (showBadge)
-            Positioned(
-              top: -2,
-              right: -2,
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: Colors.redAccent,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFF5D4037),
-                    width: 1.5,
+      borderRadius: BorderRadius.circular(50),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          shape: BoxShape.circle,
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            if (showBadge)
+              Positioned(
+                top: -2,
+                right: -2,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 1.5,
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildProductCard(
-    Map<String, dynamic> item,
-    Color cardColor,
-    Color textColor,
-    bool isDark,
-  ) {
+  // CARD STYLE (Matches UI Guidelines)
+  Widget _buildProductCard(Map<String, dynamic> item) {
     String image = (item['imageUrl'] != null && item['imageUrl'] != "")
         ? item['imageUrl']
         : (item['image'] != null && item['image'] != "")
@@ -470,60 +433,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
         : "https://via.placeholder.com/150";
 
     String name = item['name'] ?? "Tanpa Nama";
-    String category = item['category'] ?? "Umum";
+    String sellerName = item['sellerName'] ?? "Toko";
     int price = (item['price'] ?? 0).toInt();
-    int stock = (item['stock'] ?? 0).toInt();
     double rating = (item['rating'] ?? 0).toDouble();
-    int totalReviews = item['totalReviews'] ?? 0;
+    int sold = item['sold'] ?? 0;
+    String location = item['location'] ?? "Indonesia";
 
     return Container(
       decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0 : 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
+      clipBehavior: Clip.hardEdge,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // IMAGE SECTION
           Expanded(
             child: Stack(
               children: [
                 Container(
                   width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(12),
-                    ),
-                    color: Colors.grey[300],
-                    image: DecorationImage(
-                      image: NetworkImage(image),
-                      fit: BoxFit.cover,
-                    ),
+                  height: double.infinity,
+                  color: Colors.grey[200],
+                  child: Image.network(
+                    image,
+                    fit: BoxFit.cover,
+                    errorBuilder: (ctx, err, stack) =>
+                    const Center(child: Icon(LucideIcons.image, color: Colors.grey)),
                   ),
                 ),
+                // Location Badge
                 Positioned(
                   top: 8,
                   right: 8,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
-                      vertical: 2,
+                      vertical: 3,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      category,
+                      location,
                       style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
                         color: Colors.black87,
                       ),
                     ),
@@ -532,29 +496,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
+
+          // DETAILS SECTION
           Padding(
             padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "UMKM Mitra",
-                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                  sellerName,
+                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   name,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                    height: 1.2,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   currencyFormat.format(price),
                   style: TextStyle(
@@ -564,38 +531,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
+                // Rating & Sold
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          LucideIcons.star,
-                          size: 10,
-                          color: rating > 0 ? Colors.orange : Colors.grey[300],
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          "$rating",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          "($totalReviews)",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
+                    const Icon(LucideIcons.star, size: 12, color: Colors.orange),
+                    const SizedBox(width: 3),
                     Text(
-                      "Sisa: $stock",
-                      style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                      "$rating",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "• Terjual $sold",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                      ),
                     ),
                   ],
                 ),

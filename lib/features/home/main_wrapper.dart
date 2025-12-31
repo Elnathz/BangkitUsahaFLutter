@@ -54,46 +54,48 @@ class _MainWrapperState extends State<MainWrapper> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Stack untuk Floating Navigation
-      body: Stack(
-        children: [
-          // 1. CONTENT LAYER
-          Positioned.fill(
-            child: _getCurrentScreen(),
+      backgroundColor: Colors.grey[50],
+      body: _getCurrentScreen(),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(color: Colors.grey[200]!, width: 1),
           ),
-
-          // 2. FLOATING NAVIGATION BAR
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 24,
-            child: Container(
-              height: 70,
-              decoration: BoxDecoration(
-                color: colVanDike,
-                borderRadius: BorderRadius.circular(40),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildNavItem(0, LucideIcons.home, "Beranda"),
-                  _buildNavItem(1, LucideIcons.wallet, "Keuangan"),
-                  _buildNavItem(2, LucideIcons.store, "Toko"),
-                  _buildNavItem(3, LucideIcons.users, "Komunitas"),
-                  _buildProfileItem(4),
-                ],
-              ),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: (index) => setState(() => _selectedIndex = index),
+          backgroundColor: Colors.white,
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+          selectedItemColor: Colors.blue[600],
+          unselectedItemColor: Colors.grey[500],
+          selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          unselectedLabelStyle: const TextStyle(fontSize: 12),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(LucideIcons.home),
+              label: 'Beranda',
             ),
-          ),
-        ],
+            BottomNavigationBarItem(
+              icon: Icon(LucideIcons.wallet),
+              label: 'Keuangan',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(LucideIcons.store),
+              label: 'Toko',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(LucideIcons.users),
+              label: 'Komunitas',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(LucideIcons.user),
+              label: 'Akun',
+            ),
+          ],
+        ),
       ),
     );
   }
