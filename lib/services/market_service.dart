@@ -5,11 +5,7 @@ class MarketService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // ==========================================
-  // BAGIAN 1: PRODUK (GET DATA)
-  // ==========================================
-
-  // 1. GLOBAL MARKET (Untuk Beranda - Tetap Terbaru)
+  // ... (BAGIAN 1 & 2: GET DATA & KERANJANG - TIDAK BERUBAH) ...
   Stream<QuerySnapshot> getAvailableProducts() {
     return _firestore
         .collection('products')
@@ -17,24 +13,16 @@ class MarketService {
         .snapshots();
   }
 
-  // 2. TOKO SAYA (Untuk Tab Inventory - Mode Drag & Drop)
-  // KITA KEMBALIKAN KE 'order' AGAR BISA DIGESER-GESER
   Stream<QuerySnapshot> getUserProducts() {
     final user = _auth.currentUser;
     if (user == null) return const Stream.empty();
-
     return _firestore
         .collection('products')
         .where('uid', isEqualTo: user.uid)
-        .orderBy('order') // <--- PENTING: Pakai 'order' agar Drag & Drop jalan
+        .orderBy('order')
         .snapshots();
   }
 
-  // ==========================================
-  // BAGIAN 2: KERANJANG BELANJA
-  // ==========================================
-
-  // Tambah ke Keranjang
   Future<void> addToCart(
     String productId,
     String name,
@@ -43,13 +31,11 @@ class MarketService {
   ) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception("Harus login");
-
     final cartRef = _firestore
         .collection('users')
         .doc(user.uid)
         .collection('cart')
         .doc(productId);
-
     final doc = await cartRef.get();
     if (doc.exists) {
       await cartRef.update({'qty': FieldValue.increment(1)});
@@ -65,7 +51,6 @@ class MarketService {
     }
   }
 
-  // Ambil Data Keranjang
   Stream<QuerySnapshot> getUserCart() {
     final user = _auth.currentUser;
     if (user == null) return const Stream.empty();
@@ -77,7 +62,6 @@ class MarketService {
         .snapshots();
   }
 
-  // Hapus Item Keranjang
   Future<void> removeFromCart(String productId) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -89,7 +73,6 @@ class MarketService {
         .delete();
   }
 
-  // Update Qty Keranjang
   Future<void> updateCartQty(String productId, int newQty) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -106,7 +89,7 @@ class MarketService {
   }
 
   // ==========================================
-  // BAGIAN 3: TRANSAKSI & ORDER
+  // BAGIAN 3: TRANSAKSI & ORDER (DI UPDATE)
   // ==========================================
 
   // BUAT PESANAN BARU (CHECKOUT)
@@ -123,6 +106,7 @@ class MarketService {
     try {
       String orderId = "ORD-${DateTime.now().millisecondsSinceEpoch}";
 
+      // 1. Simpan Pesanan
       await _firestore.collection('orders').doc(orderId).set({
         'orderId': orderId,
         'buyerId': user.uid,
@@ -137,16 +121,44 @@ class MarketService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Kurangi Stok Produk
+      // 2. [NOTIFIKASI] Beritahu Penjual ada pesanan masuk
+      await _sendNotification(
+        recipientId: sellerId,
+        title: "Pesanan Baru Masuk! 📦",
+        body:
+            "${user.displayName ?? 'Seseorang'} memesan barang dari toko Anda.",
+        type: "order_incoming",
+        relatedId: orderId,
+      );
+
+      // 3. Kurangi Stok Produk & Cek Stok Habis
       for (var item in items) {
         if (item['productId'] != null) {
-          await _firestore
+          final productRef = _firestore
               .collection('products')
-              .doc(item['productId'])
-              .update({
-                'stock': FieldValue.increment(-item['qty']),
-                'sold': FieldValue.increment(item['qty']),
-              });
+              .doc(item['productId']);
+
+          // Update Stok
+          await productRef.update({
+            'stock': FieldValue.increment(-item['qty']),
+            'sold': FieldValue.increment(item['qty']),
+          });
+
+          // Cek sisa stok untuk notifikasi
+          final productSnap = await productRef.get();
+          if (productSnap.exists) {
+            int currentStock = productSnap.data()?['stock'] ?? 0;
+            if (currentStock <= 0) {
+              // [NOTIFIKASI] Stok Habis ke Penjual
+              await _sendNotification(
+                recipientId: sellerId,
+                title: "Stok Habis! ⚠️",
+                body: "Produk '${item['name']}' telah habis terjual.",
+                type: "stock_empty",
+                relatedId: item['productId'],
+              );
+            }
+          }
         }
       }
 
@@ -160,14 +172,19 @@ class MarketService {
   Future<void> updateOrderStatus(String orderId, String newStatus) async {
     try {
       DocumentReference orderRef = _firestore.collection('orders').doc(orderId);
+      DocumentSnapshot orderSnap = await orderRef.get(); // Ambil data dulu
+
+      if (!orderSnap.exists) throw Exception("Order not found");
+      Map<String, dynamic> data = orderSnap.data() as Map<String, dynamic>;
+      String buyerId = data['buyerId'];
+      String productName =
+          (data['items'] != null && (data['items'] as List).isNotEmpty)
+          ? data['items'][0]['name']
+          : "Pesanan Anda";
 
       // Jika status berubah jadi 'Selesai', cairkan dana ke penjual
       if (newStatus == 'Selesai') {
         await _firestore.runTransaction((transaction) async {
-          DocumentSnapshot orderSnap = await transaction.get(orderRef);
-          if (!orderSnap.exists) throw Exception("Order not found");
-
-          Map<String, dynamic> data = orderSnap.data() as Map<String, dynamic>;
           String sellerId = data['sellerId'];
           int total = data['totalPrice'];
 
@@ -193,16 +210,45 @@ class MarketService {
             'userId': sellerId,
             'type': 'income', // Pemasukan
             'amount': total,
-            'description': 'Penjualan ${data['items'][0]['name']}',
+            'description': 'Penjualan $productName',
             'timestamp': FieldValue.serverTimestamp(),
           });
         });
+
+        // [NOTIFIKASI] Ke Penjual (Dana Masuk)
+        await _sendNotification(
+          recipientId: data['sellerId'],
+          title: "Dana Diterima! 💰",
+          body: "Pesanan selesai. Dana penjualan masuk ke saldo Anda.",
+          type: "wallet",
+          relatedId: orderId,
+        );
       } else {
         // Update status biasa (Diproses/Diantar)
         await orderRef.update({
           'status': newStatus,
           'updatedAt': FieldValue.serverTimestamp(),
         });
+
+        // [NOTIFIKASI] Ke Pembeli (Update Status)
+        String bodyMsg = "";
+        if (newStatus == "Diproses") {
+          bodyMsg = "Penjual sedang mengemas pesanan Anda.";
+        } else if (newStatus == "Dikirim") {
+          bodyMsg = "Pesanan Anda sedang dalam perjalanan.";
+        } else if (newStatus == "Sampai") {
+          bodyMsg = "Pesanan telah sampai! Mohon konfirmasi terima.";
+        }
+
+        if (bodyMsg.isNotEmpty) {
+          await _sendNotification(
+            recipientId: buyerId,
+            title: "Status Pesanan: $newStatus 🚚",
+            body: "$productName: $bodyMsg",
+            type: "order_update",
+            relatedId: orderId,
+          );
+        }
       }
     } catch (e) {
       print("Error update status: $e");
@@ -210,16 +256,10 @@ class MarketService {
     }
   }
 
-  // ==========================================
-  // BAGIAN 4: AMBIL DATA PESANAN (LIST ORDER)
-  // ==========================================
-
-  // 1. PESANAN SAYA (Sebagai PEMBELI - Riwayat Belanja)
-  // Butuh Index: buyerId Ascending + createdAt Descending
+  // ... (BAGIAN 4: GET ORDER - TIDAK BERUBAH) ...
   Stream<QuerySnapshot> getMyOrders() {
     final user = _auth.currentUser;
     if (user == null) return const Stream.empty();
-
     return _firestore
         .collection('orders')
         .where('buyerId', isEqualTo: user.uid)
@@ -227,12 +267,9 @@ class MarketService {
         .snapshots();
   }
 
-  // 2. PESANAN MASUK (Sebagai PENJUAL - Toko)
-  // Butuh Index: sellerId Ascending + createdAt Descending
   Stream<QuerySnapshot> getIncomingOrders() {
     final user = _auth.currentUser;
     if (user == null) return const Stream.empty();
-
     return _firestore
         .collection('orders')
         .where('sellerId', isEqualTo: user.uid)
@@ -240,8 +277,32 @@ class MarketService {
         .snapshots();
   }
 
-  // Legacy Support
   Future<String> processPayment(String productId, int qty) async {
     return "SUCCESS";
+  }
+
+  // ==========================================
+  // FUNGSI BANTUAN NOTIFIKASI (BARU)
+  // ==========================================
+  Future<void> _sendNotification({
+    required String recipientId,
+    required String title,
+    required String body,
+    required String type,
+    String? relatedId,
+  }) async {
+    try {
+      await _firestore.collection('notifications').add({
+        'recipientId': recipientId,
+        'title': title,
+        'body': body,
+        'type': type, // 'order_incoming', 'order_update', 'stock_empty'
+        'relatedId': relatedId,
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print("Gagal kirim notif: $e");
+    }
   }
 }

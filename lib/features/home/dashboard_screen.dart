@@ -127,20 +127,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           // --- ICON BARIS (NOTIF, CHAT, CART) ---
                           Row(
                             children: [
-                              // 1. Notifikasi (Manual Badge)
-                              _buildHeaderIcon(
-                                context,
-                                LucideIcons.bell,
-                                const NotificationScreen(),
-                                showBadge:
-                                    false, // Ubah logic jika sudah ada notif
+                              // 1. Notifikasi (REALTIME BADGE)
+                              StreamBuilder<QuerySnapshot>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('notifications')
+                                    .where('recipientId', isEqualTo: user?.uid)
+                                    .where('isRead', isEqualTo: false)
+                                    .limit(
+                                      1,
+                                    ) // Cukup cek ada 1 aja utk nyalain badge
+                                    .snapshots(),
+                                builder: (context, snapshot) {
+                                  bool hasUnreadNotif = false;
+                                  if (snapshot.hasData &&
+                                      snapshot.data!.docs.isNotEmpty) {
+                                    hasUnreadNotif = true;
+                                  }
+
+                                  return _buildHeaderIcon(
+                                    context,
+                                    LucideIcons.bell,
+                                    const NotificationScreen(),
+                                    showBadge: hasUnreadNotif,
+                                  );
+                                },
                               ),
                               const SizedBox(width: 8),
 
-                              // 2. Chat (SMART BADGE - Realtime dari Database)
-                              // ...
                               // 2. Chat (SMART BADGE + SYSTEM NOTIFICATION)
-                              // ...
                               StreamBuilder<QuerySnapshot>(
                                 stream: FirebaseFirestore.instance
                                     .collection('chat_rooms')
@@ -169,15 +183,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         if (lastTime != null) {
                                           final now = DateTime.now();
                                           final messageTime = lastTime.toDate();
-                                          // Perbesar toleransi waktu jadi 10 detik
                                           final diff = now
                                               .difference(messageTime)
                                               .inSeconds;
-
-                                          // Debug Print (Cek ini di Terminal VS Code saat chat masuk)
-                                          print(
-                                            "Pesan masuk! Selisih waktu: $diff detik",
-                                          );
 
                                           if (diff.abs() <= 10) {
                                             try {
@@ -326,13 +334,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       final otherShopProducts = allProducts.where((doc) {
                         final data = doc.data() as Map<String, dynamic>;
                         final stock = data['stock'] ?? 0;
-
-                        // SAYA EDIT: Bagian 'uid != user.uid' saya komentari dulu
-                        // supaya Anda bisa melihat barang sendiri saat testing.
-                        // Nanti kalau sudah rilis, bisa diaktifkan lagi.
-
-                        // return data['uid'] != user?.uid && stock > 0; // <--- Kode Asli
-                        return stock > 0; // <--- Kode Testing (Tampilkan Semua)
+                        return stock > 0;
                       }).toList();
 
                       if (otherShopProducts.isEmpty) {
