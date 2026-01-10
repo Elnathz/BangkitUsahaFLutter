@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart'; // Wajib import ini
 import 'package:chewie/chewie.dart'; // Wajib import ini
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../services/chat_service.dart';
 
@@ -307,7 +308,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             Expanded(
               child: Text(
                 widget.targetName,
-                style: const TextStyle(
+                style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -338,7 +339,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   return Center(
                     child: Text(
                       "Mulai percakapan dengan ${widget.targetName}",
-                      style: TextStyle(color: Colors.grey[400]),
+                      style: GoogleFonts.poppins(color: Colors.grey[400]),
                     ),
                   );
                 }
@@ -406,6 +407,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       ),
                       child: TextField(
                         controller: _messageController,
+                        style: GoogleFonts.poppins(),
                         maxLines: null,
                         decoration: const InputDecoration(
                           hintText: "Tulis pesan...",
@@ -441,9 +443,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Widget _buildMessageItem(String docId, Map<String, dynamic> data, bool isMe) {
     String type = data['type'] ?? 'text';
-    String content =
-        data['text'] ?? ''; // Bisa URL gambar/video atau teks biasa
+    String content = data['text'] ?? '';
     bool isEdited = data['isEdited'] ?? false;
+    
+    // Handle Timestamp
+    String timeString = "";
+    if (data['timestamp'] != null) {
+      Timestamp t = data['timestamp'] as Timestamp;
+      DateTime dt = t.toDate();
+      // Format manual HH:mm
+      String hour = dt.hour.toString().padLeft(2, '0');
+      String minute = dt.minute.toString().padLeft(2, '0');
+      timeString = "$hour:$minute";
+    }
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -453,7 +465,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Avatar Lawan
+            // Avatar Lawan (Receiver)
             if (!isMe) ...[
               CircleAvatar(
                 radius: 14,
@@ -475,30 +487,39 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     _showMessageOptions(docId, content, type, isMe),
                 onTap: type == 'image' ? () => _openFullImage(content) : null,
                 child: Container(
-                  padding: type == 'text'
-                      ? const EdgeInsets.symmetric(vertical: 10, horizontal: 16)
-                      : const EdgeInsets.all(4),
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.7,
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                   decoration: BoxDecoration(
-                    color: isMe ? Colors.orange : Colors.grey[200],
+                    color: isMe ? Colors.blue : Colors.white, // Sender: Blue, Receiver: White
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
                       topRight: const Radius.circular(16),
                       bottomLeft: isMe
                           ? const Radius.circular(16)
-                          : Radius.zero,
+                          : Radius.zero, // Sender: rounded bottom-left
                       bottomRight: isMe
                           ? Radius.zero
-                          : const Radius.circular(16),
+                          : const Radius.circular(16), // Receiver: rounded bottom-right
                     ),
+                    boxShadow: [
+                         if (!isMe)
+                           BoxShadow(
+                             color: Colors.black.withOpacity(0.05),
+                             blurRadius: 2,
+                             offset: const Offset(1, 1),
+                           ),
+                       ],
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // KONTEN BERDASARKAN TIPE
+                      // KONTEN
                       if (type == 'image')
                         Hero(
-                          tag: content, // Tag unik untuk animasi
+                          tag: content,
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: CachedNetworkImage(
@@ -526,28 +547,43 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             borderRadius: BorderRadius.circular(12),
                             child: VideoMessagePlayer(
                               videoUrl: content,
-                            ), // Widget Khusus
+                            ),
                           ),
                         )
                       else
                         Text(
                           content,
-                          style: TextStyle(
+                          style: GoogleFonts.poppins(
                             color: isMe ? Colors.white : Colors.black87,
                             fontSize: 15,
                           ),
                         ),
 
-                      // Label "Edited"
-                      if (isEdited && type == 'text')
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Icon(
-                            LucideIcons.pencil,
-                            size: 10,
-                            color: isMe ? Colors.white70 : Colors.black45,
+                      const SizedBox(height: 4),
+
+                      // ROW BAWAH: EDITED ICON + TIMESTAMP
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                        children: [
+                           if (isEdited && type == 'text')
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(
+                                LucideIcons.pencil,
+                                size: 10,
+                                color: isMe ? Colors.white70 : Colors.black45,
+                              ),
+                            ),
+                          Text(
+                            timeString,
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              color: isMe ? Colors.white70 : Colors.grey[500],
+                            ),
                           ),
-                        ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
