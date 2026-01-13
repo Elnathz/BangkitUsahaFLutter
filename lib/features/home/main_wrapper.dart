@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -20,11 +21,6 @@ class MainWrapper extends StatefulWidget {
 class _MainWrapperState extends State<MainWrapper> {
   int _selectedIndex = 0;
   final user = FirebaseAuth.instance.currentUser;
-
-  // Professional Color Palette
-  final Color colVanDike = const Color(0xFF503C37);      // Dark Background
-  final Color colTimberwolf = const Color(0xFFD9D1C9);   // Light Highlight
-  final Color colSoftStone = const Color(0xFFB7B0A4);    // Inactive Icon
 
   // Handle Community Page Navigation
   void _handleCommunityClose() {
@@ -62,34 +58,64 @@ class _MainWrapperState extends State<MainWrapper> {
             child: _getCurrentScreen(),
           ),
 
-          // 2. FLOATING NAVIGATION BAR
+          // 2. FLOATING LIQUID GLASS NAVIGATION BAR
           Positioned(
-            left: 20,
-            right: 20,
-            bottom: 24,
-            child: Container(
-              height: 70,
-              decoration: BoxDecoration(
-                color: colVanDike,
-                borderRadius: BorderRadius.circular(40),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
+            left: 16,
+            right: 16,
+            bottom: 20,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  height: 72,
+                  decoration: BoxDecoration(
+                    // Liquid Glass Effect - Multi-layer gradient
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withOpacity(0.25),
+                        Colors.white.withOpacity(0.10),
+                        Colors.white.withOpacity(0.05),
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
+                    borderRadius: BorderRadius.circular(28),
+                    // Glass border effect
+                    border: Border.all(
+                      width: 1.5,
+                      color: Colors.white.withOpacity(0.3),
+                    ),
+                    // Subtle shadow for depth
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 30,
+                        spreadRadius: -5,
+                        offset: const Offset(0, 10),
+                      ),
+                      // Inner glow effect
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.1),
+                        blurRadius: 10,
+                        spreadRadius: -2,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildNavItem(0, LucideIcons.home, "Beranda"),
-                  _buildNavItem(1, LucideIcons.wallet, "Keuangan"),
-                  _buildNavItem(2, LucideIcons.store, "Toko"),
-                  _buildNavItem(3, LucideIcons.users, "Komunitas"),
-                  _buildProfileItem(4),
-                ],
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNavItem(0, LucideIcons.home, "Beranda"),
+                      _buildNavItem(1, LucideIcons.wallet, "Keuangan"),
+                      _buildNavItem(2, LucideIcons.store, "Toko"),
+                      _buildNavItem(3, LucideIcons.users, "Komunitas"),
+                      _buildProfileItem(4),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -98,7 +124,7 @@ class _MainWrapperState extends State<MainWrapper> {
     );
   }
 
-  // Navigation Item Widget
+  // Navigation Item Widget - Liquid Glass Style
   Widget _buildNavItem(int index, IconData icon, String label) {
     bool isSelected = _selectedIndex == index;
 
@@ -106,29 +132,57 @@ class _MainWrapperState extends State<MainWrapper> {
       onTap: () => setState(() => _selectedIndex = index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
+        curve: Curves.easeOutCubic,
         padding: isSelected
-            ? const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
+            ? const EdgeInsets.symmetric(horizontal: 16, vertical: 10)
             : const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? colTimberwolf : Colors.transparent,
-          borderRadius: BorderRadius.circular(30),
+          // Selected item - subtle glass highlight
+          gradient: isSelected
+              ? LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.35),
+                    Colors.white.withOpacity(0.15),
+                  ],
+                )
+              : null,
+          borderRadius: BorderRadius.circular(20),
+          border: isSelected
+              ? Border.all(
+                  color: Colors.white.withOpacity(0.4),
+                  width: 1,
+                )
+              : null,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              color: isSelected ? colVanDike : colSoftStone,
-              size: 24,
+              color: isSelected
+                  ? const Color(0xFF1976D2) // Blue when selected
+                  : Colors.grey[600],
+              size: 22,
             ),
             if (isSelected) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 label,
-                style: TextStyle(
-                  color: colVanDike,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                style: const TextStyle(
+                  color: Color(0xFF1976D2),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
                 ),
               ),
             ],
@@ -138,7 +192,7 @@ class _MainWrapperState extends State<MainWrapper> {
     );
   }
 
-  // Profile Item with Dynamic Photo
+  // Profile Item with Dynamic Photo - Liquid Glass Style
   Widget _buildProfileItem(int index) {
     bool isSelected = _selectedIndex == index;
 
@@ -146,15 +200,40 @@ class _MainWrapperState extends State<MainWrapper> {
       onTap: () => setState(() => _selectedIndex = index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
+        curve: Curves.easeOutCubic,
         padding: isSelected
             ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
-            : const EdgeInsets.all(12),
+            : const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: isSelected ? colTimberwolf : Colors.transparent,
-          borderRadius: BorderRadius.circular(30),
+          gradient: isSelected
+              ? LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.35),
+                    Colors.white.withOpacity(0.15),
+                  ],
+                )
+              : null,
+          borderRadius: BorderRadius.circular(20),
+          border: isSelected
+              ? Border.all(
+                  color: Colors.white.withOpacity(0.4),
+                  width: 1,
+                )
+              : null,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Dynamic Profile Photo
             StreamBuilder<DocumentSnapshot>(
@@ -175,21 +254,32 @@ class _MainWrapperState extends State<MainWrapper> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSelected ? colVanDike : Colors.transparent,
-                        width: 1.5,
+                        color: isSelected
+                            ? const Color(0xFF1976D2)
+                            : Colors.white.withOpacity(0.5),
+                        width: 2,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: CircleAvatar(
                       radius: 12,
                       backgroundImage: NetworkImage(imageUrl),
-                      backgroundColor: colSoftStone,
+                      backgroundColor: Colors.grey[300],
                     ),
                   );
                 } else {
                   return Icon(
                     LucideIcons.user,
-                    color: isSelected ? colVanDike : colSoftStone,
-                    size: 24,
+                    color: isSelected
+                        ? const Color(0xFF1976D2)
+                        : Colors.grey[600],
+                    size: 22,
                   );
                 }
               },
@@ -197,13 +287,13 @@ class _MainWrapperState extends State<MainWrapper> {
 
             // "Akun" Label (Only when selected)
             if (isSelected) ...[
-              const SizedBox(width: 8),
-              Text(
+              const SizedBox(width: 6),
+              const Text(
                 "Akun",
                 style: TextStyle(
-                  color: colVanDike,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  color: Color(0xFF1976D2),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
                 ),
               ),
             ],

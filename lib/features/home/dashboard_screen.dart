@@ -27,447 +27,636 @@ class _DashboardScreenState extends State<DashboardScreen> {
     decimalDigits: 0,
   );
 
+  // Pagination state
+  final ScrollController _scrollController = ScrollController();
+  int _displayedProductCount = 999; // Show all products initially
+  bool _isLoadingMore = false;
+  int _totalAvailableProducts = 0; // Track total available products
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    // Check if we're near the bottom (within 300 pixels)
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 300) {
+      // Only load more if there are more products to show
+      if (_displayedProductCount < _totalAvailableProducts) {
+        _loadMoreProducts();
+      }
+    }
+  }
+
+  void _loadMoreProducts() {
+    if (!_isLoadingMore && _displayedProductCount < _totalAvailableProducts) {
+      setState(() {
+        _isLoadingMore = true;
+      });
+      // Simulate loading delay for smooth UX
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          setState(() {
+            _displayedProductCount += 6; // Load 6 more products
+            _isLoadingMore = false;
+          });
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final primaryColor = const Color(0xFF1565C0);
     final Color cardColor = isDark ? const Color(0xFF112240) : Colors.white;
     final Color textColor = isDark ? Colors.white : Colors.black87;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // HEADER + SEARCH BAR
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  height: 180,
-                  padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        const Color(0xFF1976D2),
-                        const Color(0xFF0D47A1),
+      // Background gradient
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? [const Color(0xFF1a1a2e), const Color(0xFF16213e)]
+                : [
+                    const Color(0xFFF8FAFC),
+                    const Color(0xFFF5F3FF),
+                    const Color(0xFFEEF2FF),
+                  ],
+          ),
+        ),
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          child: Column(
+            children: [
+              // HEADER + SEARCH BAR
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Header dengan gradient Blue (Original Style)
+                  Container(
+                    height: 180,
+                    padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF1976D2),
+                          Color(0xFF0D47A1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(30),
+                        bottomRight: Radius.circular(30),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 10,
+                          offset: Offset(0, 5),
+                        ),
                       ],
                     ),
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(24),
-                      bottomRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          // Foto Profil
-                          Container(
-                            width: 45,
-                            height: 45,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              image: const DecorationImage(
-                                image: AssetImage(
-                                  'assets/images/bangkitusaha.jpeg',
-                                ),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // Nama User
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            // Logo dengan Green Dot Indicator
+                            Stack(
                               children: [
-                                const Text(
-                                  "Bangkit Usaha",
-                                  style: TextStyle(
+                                Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
                                     color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.all(8),
+                                  child: Image.asset(
+                                    'assets/images/bangkitusaha.jpeg',
+                                    fit: BoxFit.cover,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
+                                // Green dot indicator - pojok kanan bawah dalam logo
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981), // Emerald-500
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF10B981).withOpacity(0.4),
+                                          blurRadius: 4,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 12),
+                            // Title & Welcome Message
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    "Bangkit Usaha",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  StreamBuilder<DocumentSnapshot>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(user?.uid)
+                                        .snapshots(),
+                                    builder: (context, snapshot) {
+                                      return Text(
+                                        "Selamat datang kembali! 👋",
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontSize: 14,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // --- ICON BARIS (NOTIF, CHAT, CART) ---
+                            Row(
+                              children: [
+                                // 0. Toko (KHUSUS PENJUAL)
                                 StreamBuilder<DocumentSnapshot>(
                                   stream: FirebaseFirestore.instance
                                       .collection('users')
                                       .doc(user?.uid)
                                       .snapshots(),
-                                  builder: (context, snapshot) {
-                                    String ownerName = "Pemilik";
-                                    if (snapshot.hasData &&
-                                        snapshot.data!.exists) {
-                                      final data =
-                                          snapshot.data!.data()
-                                              as Map<String, dynamic>?;
-                                      ownerName =
-                                          data?['ownerName'] ??
-                                          user?.displayName ??
-                                          "Pemilik";
+                                  builder: (context, userSnapshot) {
+                                    if (userSnapshot.hasData &&
+                                        userSnapshot.data!.exists) {
+                                      final userData =
+                                          userSnapshot.data!.data()
+                                              as Map<String, dynamic>;
+                                      if (userData['role'] == 'seller') {
+                                        return StreamBuilder<QuerySnapshot>(
+                                          stream: MarketService()
+                                              .getIncomingOrders(),
+                                          builder: (context, orderSnapshot) {
+                                            int incomingCount = 0;
+                                            if (orderSnapshot.hasData) {
+                                              incomingCount = orderSnapshot
+                                                  .data!
+                                                  .docs
+                                                  .where((doc) {
+                                                    final status =
+                                                        (doc.data()
+                                                            as Map<
+                                                              String,
+                                                              dynamic
+                                                            >)['status'];
+                                                    return status != 'Selesai' &&
+                                                        status != 'Dibatalkan';
+                                                  })
+                                                  .length;
+                                            }
+
+                                            return Row(
+                                              children: [
+                                                _buildHeaderIcon(
+                                                  context,
+                                                  LucideIcons.store,
+                                                  const OrderHistoryScreen(
+                                                    isSellerMode: true,
+                                                  ),
+                                                  badgeCount: incomingCount,
+                                                ),
+                                                const SizedBox(width: 8),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      }
                                     }
-                                    return Text(
-                                      "Selamat datang, $ownerName! 👋",
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                    return const SizedBox();
+                                  },
+                                ),
+
+                                // 1. Notifikasi (REALTIME BADGE)
+                                StreamBuilder<QuerySnapshot>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('notifications')
+                                      .where('recipientId', isEqualTo: user?.uid)
+                                      .where('isRead', isEqualTo: false)
+                                      .limit(1)
+                                      .snapshots(),
+                                  builder: (context, snapshot) {
+                                    bool hasUnreadNotif = false;
+                                    if (snapshot.hasData &&
+                                        snapshot.data!.docs.isNotEmpty) {
+                                      hasUnreadNotif = true;
+                                    }
+
+                                    return _buildHeaderIcon(
+                                      context,
+                                      LucideIcons.bell,
+                                      const NotificationScreen(),
+                                      showBadge: hasUnreadNotif,
                                     );
                                   },
                                 ),
-                              ],
-                            ),
-                          ),
+                                const SizedBox(width: 8),
 
-                          // --- ICON BARIS (NOTIF, CHAT, CART) ---
-                          Row(
-                            children: [
-                              // 0. Toko (KHUSUS PENJUAL)
-                              StreamBuilder<DocumentSnapshot>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(user?.uid)
-                                    .snapshots(),
-                                builder: (context, userSnapshot) {
-                                  if (userSnapshot.hasData &&
-                                      userSnapshot.data!.exists) {
-                                    final userData =
-                                        userSnapshot.data!.data()
-                                            as Map<String, dynamic>;
-                                    if (userData['role'] == 'seller') {
-                                      // Stream Pesanan Masuk
-                                      return StreamBuilder<QuerySnapshot>(
-                                        stream: MarketService()
-                                            .getIncomingOrders(),
-                                        builder: (context, orderSnapshot) {
-                                          int incomingCount = 0;
-                                          if (orderSnapshot.hasData) {
-                                            // Hitung pesanan yang belum selesai (Menunggu, Diproses, Diantar)
-                                            incomingCount = orderSnapshot
-                                                .data!
-                                                .docs
-                                                .where((doc) {
-                                                  final status =
-                                                      (doc.data()
-                                                          as Map<
-                                                            String,
-                                                            dynamic
-                                                          >)['status'];
-                                                  return status != 'Selesai' &&
-                                                      status != 'Dibatalkan';
-                                                })
-                                                .length;
-                                          }
+                                // 2. Chat (SMART BADGE + SYSTEM NOTIFICATION)
+                                StreamBuilder<QuerySnapshot>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('chat_rooms')
+                                      .where(
+                                        'participants',
+                                        arrayContains: user?.uid,
+                                      )
+                                      .snapshots(),
+                                  builder: (context, snapshot) {
+                                    bool hasUnread = false;
 
-                                          return Row(
-                                            children: [
-                                              _buildHeaderIcon(
-                                                context,
-                                                LucideIcons.store,
-                                                const OrderHistoryScreen(
-                                                  isSellerMode: true,
-                                                ),
-                                                badgeCount: incomingCount,
-                                              ),
-                                              const SizedBox(width: 8),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    }
-                                  }
-                                  return const SizedBox();
-                                },
-                              ),
+                                    if (snapshot.hasData) {
+                                      for (var doc in snapshot.data!.docs) {
+                                        final data =
+                                            doc.data() as Map<String, dynamic>;
+                                        final int unreadCount =
+                                            data['unread_count_${user?.uid}'] ??
+                                            0;
 
-                              // 1. Notifikasi (REALTIME BADGE)
-                              StreamBuilder<QuerySnapshot>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('notifications')
-                                    .where('recipientId', isEqualTo: user?.uid)
-                                    .where('isRead', isEqualTo: false)
-                                    .limit(
-                                      1,
-                                    ) // Cukup cek ada 1 aja utk nyalain badge
-                                    .snapshots(),
-                                builder: (context, snapshot) {
-                                  bool hasUnreadNotif = false;
-                                  if (snapshot.hasData &&
-                                      snapshot.data!.docs.isNotEmpty) {
-                                    hasUnreadNotif = true;
-                                  }
+                                        if (unreadCount > 0) {
+                                          hasUnread = true;
 
-                                  return _buildHeaderIcon(
-                                    context,
-                                    LucideIcons.bell,
-                                    const NotificationScreen(),
-                                    showBadge: hasUnreadNotif,
-                                  );
-                                },
-                              ),
-                              const SizedBox(width: 8),
+                                          final Timestamp? lastTime =
+                                              data['last_message_time'];
+                                          if (lastTime != null) {
+                                            final now = DateTime.now();
+                                            final messageTime = lastTime.toDate();
+                                            final diff = now
+                                                .difference(messageTime)
+                                                .inSeconds;
 
-                              // 2. Chat (SMART BADGE + SYSTEM NOTIFICATION)
-                              StreamBuilder<QuerySnapshot>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('chat_rooms')
-                                    .where(
-                                      'participants',
-                                      arrayContains: user?.uid,
-                                    )
-                                    .snapshots(),
-                                builder: (context, snapshot) {
-                                  bool hasUnread = false;
-
-                                  if (snapshot.hasData) {
-                                    for (var doc in snapshot.data!.docs) {
-                                      final data =
-                                          doc.data() as Map<String, dynamic>;
-                                      final int unreadCount =
-                                          data['unread_count_${user?.uid}'] ??
-                                          0;
-
-                                      if (unreadCount > 0) {
-                                        hasUnread = true;
-
-                                        // --- LOGIKA NOTIFIKASI SYSTEM ---
-                                        final Timestamp? lastTime =
-                                            data['last_message_time'];
-                                        if (lastTime != null) {
-                                          final now = DateTime.now();
-                                          final messageTime = lastTime.toDate();
-                                          final diff = now
-                                              .difference(messageTime)
-                                              .inSeconds;
-
-                                          if (diff.abs() <= 10) {
-                                            try {
-                                              NotificationService.showNotification(
-                                                id: doc.id.hashCode,
-                                                title: "Pesan Baru",
-                                                body:
-                                                    data['last_message'] ??
-                                                    "Anda mendapat pesan",
-                                              );
-                                            } catch (e) {
-                                              print(
-                                                "Gagal menampilkan notif: $e",
-                                              );
+                                            if (diff.abs() <= 10) {
+                                              try {
+                                                NotificationService.showNotification(
+                                                  id: doc.id.hashCode,
+                                                  title: "Pesan Baru",
+                                                  body:
+                                                      data['last_message'] ??
+                                                      "Anda mendapat pesan",
+                                                );
+                                              } catch (e) {
+                                                print(
+                                                  "Gagal menampilkan notif: $e",
+                                                );
+                                              }
                                             }
                                           }
                                         }
                                       }
                                     }
-                                  }
 
-                                  return _buildHeaderIcon(
-                                    context,
-                                    LucideIcons.messageCircle,
-                                    const ChatScreen(),
-                                    showBadge: hasUnread,
-                                  );
-                                },
-                              ),
-
-                              const SizedBox(width: 8),
-
-                              // 3. Cart
-                              _buildHeaderIcon(
-                                context,
-                                LucideIcons.shoppingCart,
-                                CartScreen(),
-                                showBadge: false,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // SEARCH BAR
-                Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: -25,
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SearchPage(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          Icon(LucideIcons.search, color: Colors.grey[400]),
-                          const SizedBox(width: 12),
-                          Text(
-                            "Cari produk UMKM di sini...",
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 40),
-
-            // MARKETPLACE FEED (GRID PRODUK)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            LucideIcons.shoppingBag,
-                            size: 20,
-                            color: primaryColor,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Rekomendasi Untuk Anda",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        "Lihat Semua",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue[600],
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  StreamBuilder<QuerySnapshot>(
-                    stream: MarketService().getAvailableProducts(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      final allProducts = snapshot.data!.docs;
-
-                      // --- LOGIKA FILTER ---
-                      final otherShopProducts = allProducts.where((doc) {
-                        final data = doc.data() as Map<String, dynamic>;
-                        final stock = data['stock'] ?? 0;
-                        return stock > 0;
-                      }).toList();
-
-                      if (otherShopProducts.isEmpty) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(32.0),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.remove_shopping_cart,
-                                  size: 40,
-                                  color: Colors.grey[400],
+                                    return _buildHeaderIcon(
+                                      context,
+                                      LucideIcons.messageCircle,
+                                      const ChatScreen(),
+                                      showBadge: hasUnread,
+                                    );
+                                  },
                                 ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  "Belum ada produk tersedia.",
-                                  style: TextStyle(color: Colors.grey[500]),
+
+                                const SizedBox(width: 8),
+
+                                // 3. Cart
+                                _buildHeaderIcon(
+                                  context,
+                                  LucideIcons.shoppingCart,
+                                  CartScreen(),
+                                  showBadge: false,
                                 ),
                               ],
                             ),
-                          ),
-                        );
-                      }
-
-                      return GridView.builder(
-                        padding: EdgeInsets.zero,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.7,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                            ),
-                        itemCount: otherShopProducts.length,
-                        itemBuilder: (context, index) {
-                          final doc = otherShopProducts[index];
-                          final data = doc.data() as Map<String, dynamic>;
-                          final id = doc.id;
-
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ProductDetailScreen(
-                                    productData: data,
-                                    productId: id,
-                                  ),
-                                ),
-                              );
-                            },
-                            child: _buildProductCard(
-                              data,
-                              cardColor,
-                              textColor,
-                              isDark,
-                            ),
-                          );
-                        },
-                      );
-                    },
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
 
-                  // SPACING BAWAH (Supaya tidak tertutup Nav Bar)
-                  const SizedBox(height: 200),
+                  // SEARCH BAR
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: -28,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SearchPage(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: cardColor.withOpacity(0.95),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 15,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Icon(
+                              LucideIcons.search,
+                              color: const Color(0xFF818CF8), // Indigo-400
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              "Cari produk, toko, atau kategori...",
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
+
+              const SizedBox(height: 48),
+
+              // MARKETPLACE FEED (GRID PRODUK)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Section Header "Produk Pilihan"
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            // Icon background putih dengan warna biru
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                LucideIcons.shoppingBag,
+                                size: 24,
+                                color: Color(0xFF1976D2), // Blue (sama dengan header)
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Title dan Subtitle dalam Column
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Produk Pilihan",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  "Produk terbaik dari UMKM Indonesia",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        // "Lihat Semua" Button
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SearchPage(),
+                              ),
+                            );
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            backgroundColor: const Color(0xFFEEF2FF),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Row(
+                            children: const [
+                              Text(
+                                "Lihat Semua",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF4F46E5),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                LucideIcons.chevronRight,
+                                size: 16,
+                                color: Color(0xFF4F46E5),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    StreamBuilder<QuerySnapshot>(
+                      stream: MarketService().getAvailableProducts(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        final allProducts = snapshot.data!.docs;
+
+                        final otherShopProducts = allProducts.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final stock = data['stock'] ?? 0;
+                          return stock > 0;
+                        }).toList();
+
+                        // Update total available products for pagination
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (_totalAvailableProducts != otherShopProducts.length) {
+                            setState(() {
+                              _totalAvailableProducts = otherShopProducts.length;
+                            });
+                          }
+                        });
+
+                        if (otherShopProducts.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(32.0),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.remove_shopping_cart,
+                                    size: 40,
+                                    color: Colors.grey[400],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    "Belum ada produk tersedia.",
+                                    style: TextStyle(color: Colors.grey[500]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        // Calculate displayed count
+                        final displayCount = _displayedProductCount < otherShopProducts.length 
+                            ? _displayedProductCount 
+                            : otherShopProducts.length;
+                        final hasMore = displayCount < otherShopProducts.length;
+
+                        return Column(
+                          children: [
+                            GridView.builder(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    childAspectRatio: 0.65,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                  ),
+                              itemCount: otherShopProducts.length,
+                              itemBuilder: (context, index) {
+                                final doc = otherShopProducts[index];
+                                final data = doc.data() as Map<String, dynamic>;
+                                final id = doc.id;
+
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ProductDetailScreen(
+                                          productData: data,
+                                          productId: id,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: _buildProductCard(
+                                    data,
+                                    cardColor,
+                                    textColor,
+                                    isDark,
+                                    isPopular: index < 3,
+                                  ),
+                                );
+                              },
+                            ),
+                            // Loading indicator
+                            if (_isLoadingMore || hasMore)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                child: _isLoadingMore
+                                    ? const CircularProgressIndicator()
+                                    : Text(
+                                        'Scroll untuk memuat lebih banyak...',
+                                        style: TextStyle(
+                                          color: Colors.grey[500],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+
+                    // SPACING BAWAH (Supaya tidak tertutup Nav Bar)
+                    const SizedBox(height: 200),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -487,46 +676,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
               MaterialPageRoute(builder: (context) => destination),
             )
           : () {},
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(12),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Icon(icon, color: Colors.white, size: 18),
+            child: Icon(icon, color: Colors.white, size: 20),
           ),
           if (showBadge || badgeCount > 0)
             Positioned(
-              top: -2,
-              right: -2,
+              top: 2,
+              right: 2,
               child: Container(
-                width: 12,
-                height: 12,
+                width: 10,
+                height: 10,
                 decoration: BoxDecoration(
-                  color: Colors.redAccent,
+                  color: const Color(0xFFEF4444), // Red-500
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: const Color(0xFF1565C0),
-                    width: 1.5,
+                    color: Colors.white,
+                    width: 2,
                   ),
                 ),
-                child: badgeCount > 0
-                    ? Center(
-                        child: Text(
-                          badgeCount > 9 ? "9+" : "$badgeCount",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
-                    : null,
               ),
             ),
         ],
@@ -538,9 +722,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Map<String, dynamic> item,
     Color cardColor,
     Color textColor,
-    bool isDark,
-  ) {
-    // Helper sederhana untuk mengambil gambar yang valid
+    bool isDark, {
+    bool isPopular = false,
+  }) {
     String getValidImage() {
       if (item['imageUrl'] != null && item['imageUrl'] != "")
         return item['imageUrl'];
@@ -549,134 +733,202 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     String image = getValidImage();
-
     String name = item['name'] ?? "Tanpa Nama";
     String category = item['category'] ?? "Umum";
     int price = (item['price'] ?? 0).toInt();
     int stock = (item['stock'] ?? 0).toInt();
     double rating = (item['rating'] ?? 0).toDouble();
-    int totalReviews = item['totalReviews'] ?? 0;
+    int totalSold = item['totalSold'] ?? 0;
 
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.grey[800]! : const Color(0xFFF3F4F6),
+          width: 2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0 : 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(isDark ? 0 : 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Image Container
           Expanded(
             child: Stack(
               children: [
+                // Product Image
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(12),
+                      top: Radius.circular(10),
                     ),
-                    color: Colors.grey[300],
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.grey[200]!,
+                        Colors.grey[300]!,
+                      ],
+                    ),
                     image: DecorationImage(
                       image: NetworkImage(image),
                       fit: BoxFit.cover,
                     ),
                   ),
                 ),
+                // Location Badge
                 Positioned(
                   top: 8,
                   right: 8,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
-                      vertical: 2,
+                      vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(4),
+                      color: Colors.white.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: Colors.grey[200]!,
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Text(
-                      category,
-                      style: const TextStyle(
+                      "📍 $category",
+                      style: TextStyle(
                         fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[800],
                       ),
                     ),
                   ),
                 ),
+                // Popular Badge
+                if (isPopular)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFFFBBF24), // Amber-400
+                            Color(0xFFF97316), // Orange-500
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.orange.withOpacity(0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        "🔥 Popular",
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
+          // Product Info
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "UMKM Mitra",
-                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                // Seller with verified icon
+                Row(
+                  children: [
+                    Icon(
+                      LucideIcons.checkCircle,
+                      size: 12,
+                      color: const Color(0xFF10B981), // Emerald-500
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        "UMKM Mitra",
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
+                // Product Name
                 Text(
                   name,
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                     color: textColor,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
+                // Price
                 Text(
                   currencyFormat.format(price),
-                  style: TextStyle(
-                    fontSize: 14,
+                  style: const TextStyle(
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue[600],
+                    color: Color(0xFF10B981), // Green
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
+                // Rating & Sold
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          LucideIcons.star,
-                          size: 10,
-                          color: rating > 0 ? Colors.amber : Colors.grey[300],
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          "$rating",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          "($totalReviews)",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
+                    Icon(
+                      Icons.star,
+                      size: 14,
+                      color: const Color(0xFFF59E0B), // Amber-500
                     ),
+                    const SizedBox(width: 2),
                     Text(
-                      "Sisa: $stock",
-                      style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                      "$rating",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "• Terjual $totalSold",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                      ),
                     ),
                   ],
                 ),
