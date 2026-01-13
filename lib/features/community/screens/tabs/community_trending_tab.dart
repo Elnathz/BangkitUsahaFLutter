@@ -57,7 +57,7 @@ class CommunityTrendingTab extends StatelessWidget {
             ...docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
               final topic = TrendingTopic.fromFirestore(data, doc.id);
-              
+
               return Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -69,13 +69,13 @@ class CommunityTrendingTab extends StatelessWidget {
                   leading: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.orange[50],
+                      color: Colors.blue[50],
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       "${docs.indexOf(doc) + 1}", // Ranking 1, 2, 3...
                       style: const TextStyle(
-                        color: Colors.deepOrange, 
+                        color: Color(0xFF1565C0),
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -86,12 +86,16 @@ class CommunityTrendingTab extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text('${topic.posts} diskusi'),
-                  trailing: const Icon(LucideIcons.chevronRight, size: 20, color: Colors.grey),
+                  trailing: const Icon(
+                    LucideIcons.chevronRight,
+                    size: 20,
+                    color: Colors.grey,
+                  ),
                   onTap: () {
                     // Ketika diklik, arahkan ke halaman detail topic
                     // (Halaman ini akan menampilkan post yang mengandung hashtag tsb)
                     Navigator.push(
-                      context, 
+                      context,
                       MaterialPageRoute(
                         builder: (_) => CommunityTopicDetailPage(topic: topic),
                       ),
@@ -100,9 +104,9 @@ class CommunityTrendingTab extends StatelessWidget {
                 ),
               );
             }).toList(),
-            
+
             // Tambahan padding bawah agar tidak ketutup navbar/fab jika ada
-            const SizedBox(height: 80), 
+            const SizedBox(height: 80),
           ],
         );
       },

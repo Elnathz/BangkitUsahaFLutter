@@ -144,7 +144,7 @@ class CartScreen extends StatelessWidget {
                           // Tombol Checkout
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).primaryColor,
+                              backgroundColor: const Color(0xFF1565C0),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
@@ -155,8 +155,9 @@ class CartScreen extends StatelessWidget {
                               // --- PROTEKSI SAAT KLIK BELI ---
                               String safeProductId = productId;
                               String safeName = cartData['name'] ?? 'Produk';
-                              int safePrice = (cartData['price'] ?? 0) as int;
-                              int safeQty = (cartData['qty'] ?? 1) as int;
+                              // Gunakan .toInt() agar aman jika data dari Firestore berupa double
+                              int safePrice = (cartData['price'] ?? 0).toInt();
+                              int safeQty = (cartData['qty'] ?? 1).toInt();
 
                               // Cek image di cart, kalau null cek di product, kalau null pakai string kosong
                               String safeImage =

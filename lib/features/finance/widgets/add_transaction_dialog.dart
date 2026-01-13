@@ -3,7 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 import '../services/finance_service.dart';
 // Jika ingin menggunakan TransactionModel untuk passing data balik, uncomment baris bawah
-import '../models/transaction_model.dart'; 
+import '../models/transaction_model.dart';
 
 class AddTransactionDialog extends StatefulWidget {
   const AddTransactionDialog({super.key});
@@ -16,7 +16,7 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
-  
+
   // Default Values
   String _selectedCategory = 'Operasional';
   DateTime _selectedDate = DateTime.now();
@@ -50,7 +50,7 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF5D4037),
+              primary: Color(0xFF1565C0),
               onPrimary: Colors.white,
               onSurface: Colors.black87,
             ),
@@ -71,7 +71,9 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
       setState(() => _isLoading = true);
 
       try {
-        final amount = double.parse(_amountController.text.replaceAll(RegExp(r'[^0-9]'), ''));
+        final amount = double.parse(
+          _amountController.text.replaceAll(RegExp(r'[^0-9]'), ''),
+        );
 
         // Simpan ke Firebase menggunakan Service
         await _financeService.addExpense(
@@ -111,7 +113,8 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
   @override
   Widget build(BuildContext context) {
     // Format tanggal untuk tampilan
-    final dateStr = "${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}";
+    final dateStr =
+        "${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}";
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -130,9 +133,9 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                   const Text(
                     'Catat Pengeluaran',
                     style: TextStyle(
-                      fontSize: 18, 
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF5D4037),
+                      color: Color(0xFF1565C0),
                     ),
                   ),
                   IconButton(
@@ -150,10 +153,17 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                   labelText: 'Judul Transaksi',
                   hintText: 'Contoh: Beli Kertas, Bayar Listrik',
                   prefixIcon: const Icon(LucideIcons.type, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
-                validator: (value) => value == null || value.isEmpty ? 'Judul tidak boleh kosong' : null,
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Judul tidak boleh kosong'
+                    : null,
               ),
               const SizedBox(height: 16),
 
@@ -164,12 +174,19 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                 decoration: InputDecoration(
                   labelText: 'Nominal (Rp)',
                   prefixIcon: const Icon(LucideIcons.banknote, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'Nominal harus diisi';
-                  if (double.tryParse(value) == null) return 'Masukkan angka yang valid';
+                  if (value == null || value.isEmpty)
+                    return 'Nominal harus diisi';
+                  if (double.tryParse(value) == null)
+                    return 'Masukkan angka yang valid';
                   return null;
                 },
               ),
@@ -181,8 +198,13 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                 decoration: InputDecoration(
                   labelText: 'Kategori',
                   prefixIcon: const Icon(LucideIcons.tag, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
                 items: _categories.map((String category) {
                   return DropdownMenuItem<String>(
@@ -201,21 +223,29 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                 onTap: () => _selectDate(context),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      const Icon(LucideIcons.calendar, size: 20, color: Colors.grey),
-                      const SizedBox(width: 12),
-                      Text(
-                        dateStr,
-                        style: const TextStyle(fontSize: 16),
+                      const Icon(
+                        LucideIcons.calendar,
+                        size: 20,
+                        color: Colors.grey,
                       ),
+                      const SizedBox(width: 12),
+                      Text(dateStr, style: const TextStyle(fontSize: 16)),
                       const Spacer(),
-                      const Icon(LucideIcons.chevronDown, size: 16, color: Colors.grey),
+                      const Icon(
+                        LucideIcons.chevronDown,
+                        size: 16,
+                        color: Colors.grey,
+                      ),
                     ],
                   ),
                 ),
@@ -226,27 +256,30 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5D4037),
+                  backgroundColor: const Color(0xFF1565C0),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 2,
                 ),
-                child: _isLoading 
-                  ? const SizedBox(
-                      width: 20, 
-                      height: 20, 
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : const Text(
-                      'Simpan Pengeluaran',
-                      style: TextStyle(
-                        fontSize: 16, 
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Simpan Pengeluaran',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
               ),
             ],
           ),

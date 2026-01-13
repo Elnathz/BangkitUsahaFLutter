@@ -38,10 +38,10 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // Color Scheme - Brown Theme
-  static const Color primaryBrown = Color(0xFF8D6E63); // Main Brown
-  static const Color lightBrown = Color(0xFFA1887F); // Light Brown
-  static const Color darkBrown = Color(0xFF6D4C41); // Dark Brown
+  // Color Scheme - Blue Theme
+  static const Color primaryBlue = Color(0xFF1565C0); // Main Blue
+  static const Color lightBlue = Color(0xFF42A5F5); // Light Blue
+  static const Color darkBlue = Color(0xFF0D47A1); // Dark Blue
 
   @override
   Widget build(BuildContext context) {
@@ -58,21 +58,21 @@ class MyApp extends StatelessWidget {
             theme: ThemeData(
               brightness: Brightness.light,
               colorScheme: ColorScheme.fromSeed(
-                seedColor: primaryBrown,
-                primary: primaryBrown,
-                secondary: lightBrown,
+                seedColor: primaryBlue,
+                primary: primaryBlue,
+                secondary: lightBlue,
                 brightness: Brightness.light,
               ),
               useMaterial3: true,
               scaffoldBackgroundColor: const Color(0xFFF5F5F5),
               appBarTheme: const AppBarTheme(
-                backgroundColor: primaryBrown,
+                backgroundColor: primaryBlue,
                 foregroundColor: Colors.white,
                 elevation: 0,
               ),
               elevatedButtonTheme: ElevatedButtonThemeData(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBrown,
+                  backgroundColor: primaryBlue,
                   foregroundColor: Colors.white,
                   elevation: 2,
                   padding: const EdgeInsets.symmetric(
@@ -96,22 +96,24 @@ class MyApp extends StatelessWidget {
             darkTheme: ThemeData(
               brightness: Brightness.dark,
               colorScheme: ColorScheme.fromSeed(
-                seedColor: primaryBrown,
-                primary: primaryBrown,
-                secondary: lightBrown,
+                seedColor: primaryBlue,
+                primary: primaryBlue,
+                secondary: lightBlue,
                 brightness: Brightness.dark,
-                surface: const Color(0xFF1E1E1E),
+                surface: const Color(0xFF112240),
               ),
               useMaterial3: true,
-              scaffoldBackgroundColor: const Color(0xFF3E2723),
+              scaffoldBackgroundColor: const Color(
+                0xFF0A1929,
+              ), // Dark Blue Background
               appBarTheme: const AppBarTheme(
-                backgroundColor: darkBrown,
+                backgroundColor: darkBlue,
                 foregroundColor: Colors.white,
                 elevation: 0,
               ),
               elevatedButtonTheme: ElevatedButtonThemeData(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBrown,
+                  backgroundColor: primaryBlue,
                   foregroundColor: Colors.white,
                   elevation: 2,
                   padding: const EdgeInsets.symmetric(
@@ -168,7 +170,7 @@ class ErrorApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        backgroundColor: const Color(0xFF3E2723),
+        backgroundColor: const Color(0xFF0A1929),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
@@ -198,7 +200,7 @@ class ErrorApp extends StatelessWidget {
                     main();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8D6E63),
+                    backgroundColor: const Color(0xFF1565C0),
                   ),
                   child: const Text('Retry'),
                 ),

@@ -168,7 +168,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            backgroundColor: const Color(0xFF5D4037),
+            backgroundColor: const Color(0xFF1565C0),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -254,7 +254,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isJoined
                                     ? Colors.grey[200]
-                                    : const Color(0xFF5D4037),
+                                    : const Color(0xFF1565C0),
                                 foregroundColor: isJoined
                                     ? Colors.black87
                                     : Colors.white,
@@ -369,7 +369,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         padding: const EdgeInsets.only(bottom: 100.0),
         child: FloatingActionButton(
           onPressed: _showCreateGroupPostModal,
-          backgroundColor: const Color(0xFF5D4037),
+          backgroundColor: const Color(0xFF1565C0),
           child: const Icon(LucideIcons.penTool, color: Colors.white),
         ),
       ),
@@ -565,13 +565,16 @@ class _GroupCreatePostSheetState extends State<GroupCreatePostSheet> {
             children: [
               IconButton(
                 onPressed: _pickImage,
-                icon: const Icon(LucideIcons.image, color: Colors.green),
+                icon: const Icon(
+                  LucideIcons.image,
+                  color: const Color(0xFF1565C0),
+                ),
               ),
               const Spacer(),
               ElevatedButton(
                 onPressed: _isUploading ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5D4037),
+                  backgroundColor: const Color(0xFF1565C0),
                 ),
                 child: _isUploading
                     ? const SizedBox(

@@ -141,9 +141,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: isRead
-                        ? (isDark ? Colors.grey[900] : Colors.white)
+                        ? (isDark ? const Color(0xFF112240) : Colors.white)
                         : (isDark
-                              ? const Color(0xFF2C2C2C)
+                              ? const Color(0xFF1A3050)
                               : const Color(0xFFF0F7FF)),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(

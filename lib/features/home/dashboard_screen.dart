@@ -10,6 +10,7 @@ import '../chat/chat_screen.dart';
 import 'search_page.dart';
 import 'product_detail_screen.dart';
 import '../../services/notification_service.dart';
+import '../account/order_history_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -30,8 +31,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final primaryColor = theme.primaryColor;
-    final Color cardColor = isDark ? Colors.grey[900]! : Colors.white;
+    final primaryColor = const Color(0xFF1565C0);
+    final Color cardColor = isDark ? const Color(0xFF112240) : Colors.white;
     final Color textColor = isDark ? Colors.white : Colors.black87;
 
     return Scaffold(
@@ -50,7 +51,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [primaryColor, const Color(0xFF503C37)],
+                      colors: [
+                        const Color(0xFF1976D2),
+                        const Color(0xFF0D47A1),
+                      ],
                     ),
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(24),
@@ -127,6 +131,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           // --- ICON BARIS (NOTIF, CHAT, CART) ---
                           Row(
                             children: [
+                              // 0. Toko (KHUSUS PENJUAL)
+                              StreamBuilder<DocumentSnapshot>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(user?.uid)
+                                    .snapshots(),
+                                builder: (context, userSnapshot) {
+                                  if (userSnapshot.hasData &&
+                                      userSnapshot.data!.exists) {
+                                    final userData =
+                                        userSnapshot.data!.data()
+                                            as Map<String, dynamic>;
+                                    if (userData['role'] == 'seller') {
+                                      // Stream Pesanan Masuk
+                                      return StreamBuilder<QuerySnapshot>(
+                                        stream: MarketService()
+                                            .getIncomingOrders(),
+                                        builder: (context, orderSnapshot) {
+                                          int incomingCount = 0;
+                                          if (orderSnapshot.hasData) {
+                                            // Hitung pesanan yang belum selesai (Menunggu, Diproses, Diantar)
+                                            incomingCount = orderSnapshot
+                                                .data!
+                                                .docs
+                                                .where((doc) {
+                                                  final status =
+                                                      (doc.data()
+                                                          as Map<
+                                                            String,
+                                                            dynamic
+                                                          >)['status'];
+                                                  return status != 'Selesai' &&
+                                                      status != 'Dibatalkan';
+                                                })
+                                                .length;
+                                          }
+
+                                          return Row(
+                                            children: [
+                                              _buildHeaderIcon(
+                                                context,
+                                                LucideIcons.store,
+                                                const OrderHistoryScreen(
+                                                  isSellerMode: true,
+                                                ),
+                                                badgeCount: incomingCount,
+                                              ),
+                                              const SizedBox(width: 8),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    }
+                                  }
+                                  return const SizedBox();
+                                },
+                              ),
+
                               // 1. Notifikasi (REALTIME BADGE)
                               StreamBuilder<QuerySnapshot>(
                                 stream: FirebaseFirestore.instance
@@ -416,6 +478,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     IconData icon,
     Widget? destination, {
     bool showBadge = false,
+    int badgeCount = 0,
   }) {
     return InkWell(
       onTap: destination != null
@@ -437,7 +500,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             child: Icon(icon, color: Colors.white, size: 18),
           ),
-          if (showBadge)
+          if (showBadge || badgeCount > 0)
             Positioned(
               top: -2,
               right: -2,
@@ -448,10 +511,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: Colors.redAccent,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: const Color(0xFF5D4037),
+                    color: const Color(0xFF1565C0),
                     width: 1.5,
                   ),
                 ),
+                child: badgeCount > 0
+                    ? Center(
+                        child: Text(
+                          badgeCount > 9 ? "9+" : "$badgeCount",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    : null,
               ),
             ),
         ],
@@ -465,11 +540,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Color textColor,
     bool isDark,
   ) {
-    String image = (item['imageUrl'] != null && item['imageUrl'] != "")
-        ? item['imageUrl']
-        : (item['image'] != null && item['image'] != "")
-        ? item['image']
-        : "https://via.placeholder.com/150";
+    // Helper sederhana untuk mengambil gambar yang valid
+    String getValidImage() {
+      if (item['imageUrl'] != null && item['imageUrl'] != "")
+        return item['imageUrl'];
+      if (item['image'] != null && item['image'] != "") return item['image'];
+      return "https://via.placeholder.com/150";
+    }
+
+    String image = getValidImage();
 
     String name = item['name'] ?? "Tanpa Nama";
     String category = item['category'] ?? "Umum";
@@ -574,7 +653,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Icon(
                           LucideIcons.star,
                           size: 10,
-                          color: rating > 0 ? Colors.orange : Colors.grey[300],
+                          color: rating > 0 ? Colors.amber : Colors.grey[300],
                         ),
                         const SizedBox(width: 2),
                         Text(

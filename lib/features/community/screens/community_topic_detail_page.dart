@@ -11,10 +11,8 @@ import '../services/firebase_storage_service.dart';
 class CommunityTopicDetailPage extends StatefulWidget {
   final TrendingTopic topic;
 
-  const CommunityTopicDetailPage({
-    Key? key,
-    required this.topic,
-  }) : super(key: key);
+  const CommunityTopicDetailPage({Key? key, required this.topic})
+    : super(key: key);
 
   @override
   State<CommunityTopicDetailPage> createState() =>
@@ -40,7 +38,7 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
       _showLoginToast();
       return;
     }
-    
+
     // PERBAIKAN: Menggunakan showModalBottomSheet dan menghapus parameter dummy
     showModalBottomSheet(
       context: context,
@@ -102,17 +100,21 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
                 }
 
                 final allPosts = snapshot.data ?? [];
-                
+
                 // FILTER: Cari post yang mengandung kata dari Judul Topik
                 // Contoh: Topik "Strategi Marketing" akan mencari post dengan kata "Strategi" atau "Marketing"
-                final topicKeywords = widget.topic.title.toLowerCase().split(' ');
+                final topicKeywords = widget.topic.title.toLowerCase().split(
+                  ' ',
+                );
                 final relatedPosts = allPosts.where((post) {
                   final contentLower = post.content.toLowerCase();
                   final categoryLower = post.category.toLowerCase();
-                  
+
                   // Cek apakah ada keyword yang cocok di konten atau kategori
-                  return topicKeywords.any((word) => 
-                    contentLower.contains(word) || categoryLower.contains(word)
+                  return topicKeywords.any(
+                    (word) =>
+                        contentLower.contains(word) ||
+                        categoryLower.contains(word),
                   );
                 }).toList();
 
@@ -135,7 +137,8 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
                             post: post,
                             onLike: () => _handleLike(post),
                             onComment: () => _handleComment(post),
-                            onShare: () => _handleShare(post.id, post.author.name),
+                            onShare: () =>
+                                _handleShare(post.id, post.author.name),
                             onBookmark: () => _handleBookmark(post.id),
                           ),
                         );
@@ -156,9 +159,9 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Color(0xFFD84315),
-            Color(0xFF5D4037)
-          ], // Oranye ke Coklat
+            Color(0xFF1976D2),
+            Color(0xFF0D47A1),
+          ], // Biru Terang ke Biru Gelap
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
@@ -192,10 +195,7 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
                 const SizedBox(height: 2),
                 const Text(
                   'Topik Hangat 🔥',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFFFEF3C7),
-                  ),
+                  style: TextStyle(fontSize: 14, color: Color(0xFFBBDEFB)),
                 ),
               ],
             ),
@@ -212,12 +212,12 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFFED7AA), width: 1),
+        side: const BorderSide(color: Color(0xFF90CAF9), width: 1),
       ),
       child: Container(
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFFFFF7ED), Color(0xFFFEE2E2)],
+            colors: [Color(0xFFE3F2FD), Color(0xFFE1F5FE)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -230,12 +230,12 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFED7AA),
+                color: const Color(0xFFBBDEFB),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
                 LucideIcons.hash,
-                color: Color(0xFFEA580C),
+                color: Color(0xFF1565C0),
                 size: 24,
               ),
             ),
@@ -249,7 +249,7 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF7C2D12),
+                      color: Color(0xFF0D47A1),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -257,7 +257,7 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
                     'Ditemukan $postCount diskusi terkait topik ini. Bergabunglah dalam percakapan!',
                     style: const TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF9A3412),
+                      color: Color(0xFF1565C0),
                       height: 1.5,
                     ),
                   ),
@@ -287,7 +287,7 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
             OutlinedButton(
               onPressed: () => Navigator.pop(context),
               child: const Text("Kembali ke Feed"),
-            )
+            ),
           ],
         ),
       ),

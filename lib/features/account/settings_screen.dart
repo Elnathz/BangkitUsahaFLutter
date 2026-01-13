@@ -35,10 +35,10 @@ class SettingsScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bgColor = isDark
-        ? const Color(0xFF6D4C41).withOpacity(0.2)
-        : Colors.white; // Wadah cokelat gelap transparan di dark mode
+        ? const Color(0xFF1565C0).withOpacity(0.2)
+        : Colors.white; // Wadah biru gelap transparan di dark mode
     final textColor = isDark ? Colors.white : Colors.black87;
-    final primaryColor = theme.primaryColor; // Warna Cokelat Utama #8D6E63
+    final primaryColor = const Color(0xFF1565C0); // Warna Biru Utama
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -109,7 +109,7 @@ class SettingsScreen extends StatelessWidget {
                           style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                         value: mode == ThemeMode.dark,
-                        activeColor: primaryColor, // Switch jadi cokelat
+                        activeColor: primaryColor, // Switch jadi biru
                         onChanged: (val) {
                           ThemeManager.toggleTheme(val);
                         },

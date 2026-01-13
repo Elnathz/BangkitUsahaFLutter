@@ -6,7 +6,8 @@ import 'package:toastification/toastification.dart';
 import '../../services/market_service.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
-  const OrderHistoryScreen({super.key});
+  final bool isSellerMode;
+  const OrderHistoryScreen({super.key, this.isSellerMode = false});
 
   @override
   State<OrderHistoryScreen> createState() => _OrderHistoryScreenState();
@@ -44,7 +45,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
             child: const Text("Batal"),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0),
+            ),
             onPressed: () async {
               Navigator.pop(ctx); // Tutup dialog
               try {
@@ -78,18 +81,43 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     );
   }
 
+  // --- LOGIC PENJUAL: UPDATE STATUS ---
+  Future<void> _updateOrderStatus(String orderId, String newStatus) async {
+    try {
+      await MarketService().updateOrderStatus(orderId, newStatus);
+      if (mounted) {
+        String msg = "";
+        if (newStatus == 'Diproses') msg = "Pesanan diproses";
+        if (newStatus == 'Diantar') msg = "Pesanan dikirim";
+
+        toastification.show(
+          context: context,
+          title: Text(msg),
+          type: ToastificationType.success,
+          autoCloseDuration: const Duration(seconds: 2),
+        );
+      }
+    } catch (e) {
+      toastification.show(
+        context: context,
+        title: Text("Gagal: $e"),
+        type: ToastificationType.error,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark ? Colors.grey[900]! : Colors.white;
+    final cardColor = isDark ? const Color(0xFF112240) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
-    final primaryColor = theme.primaryColor;
+    final primaryColor = const Color(0xFF1565C0);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Pesanan Saya"),
+        title: Text(widget.isSellerMode ? "Pesanan Masuk" : "Pesanan Saya"),
         elevation: 0,
         backgroundColor: cardColor,
         foregroundColor: textColor,
@@ -121,7 +149,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
 
   Widget _buildOrderList(String statusFilter) {
     return StreamBuilder<QuerySnapshot>(
-      stream: MarketService().getMyOrders(), // Ambil semua order user
+      stream: widget.isSellerMode
+          ? MarketService().getIncomingOrders()
+          : MarketService().getMyOrders(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Text("Error: ${snapshot.error}"));
@@ -182,9 +212,11 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
   ) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark ? Colors.grey[850]! : Colors.white;
+    final cardColor = isDark ? const Color(0xFF152A45) : Colors.white;
     final primaryColor = theme.primaryColor;
     final status = data['status'] ?? 'Menunggu';
+    final isSeller = widget.isSellerMode;
+    final int totalPrice = (data['totalPrice'] ?? 0).toInt();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -210,10 +242,16 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
               children: [
                 Row(
                   children: [
-                    const Icon(LucideIcons.store, size: 16, color: Colors.grey),
+                    Icon(
+                      isSeller ? LucideIcons.user : LucideIcons.store,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 8),
                     Text(
-                      data['sellerName'] ?? "Toko",
+                      isSeller
+                          ? (data['buyerName'] ?? "Pembeli")
+                          : (data['sellerName'] ?? "Toko"),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -264,7 +302,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                       children: [
                         Text(
                           items[0]['name'] ?? "Produk",
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
@@ -313,7 +351,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                       style: TextStyle(fontSize: 10, color: Colors.grey),
                     ),
                     Text(
-                      currencyFormat.format(data['totalPrice'] ?? 0),
+                      currencyFormat.format(totalPrice),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: primaryColor,
@@ -324,7 +362,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 ),
 
                 // TOMBOL AKSI BERDASARKAN STATUS
-                if (status == 'Diantar')
+                if (!isSeller && status == 'Diantar')
                   ElevatedButton(
                     onPressed: () => _confirmOrderReceived(orderId),
                     style: ElevatedButton.styleFrom(
@@ -337,7 +375,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                     ),
                     child: const Text("Pesanan Diterima"),
                   )
-                else if (status == 'Selesai')
+                else if (!isSeller && status == 'Selesai')
                   OutlinedButton(
                     onPressed: () {
                       // Logic beri ulasan bisa diarahkan ke halaman detail produk
@@ -353,6 +391,30 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                       foregroundColor: primaryColor,
                     ),
                     child: const Text("Beri Ulasan"),
+                  )
+                // --- TOMBOL AKSI PENJUAL ---
+                else if (isSeller && status == 'Menunggu')
+                  ElevatedButton(
+                    onPressed: () => _updateOrderStatus(orderId, 'Diproses'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text("Proses Pesanan"),
+                  )
+                else if (isSeller && status == 'Diproses')
+                  ElevatedButton(
+                    onPressed: () => _updateOrderStatus(orderId, 'Diantar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text("Kirim Barang"),
+                  )
+                else if (isSeller && status == 'Diantar')
+                  const Text(
+                    "Menunggu Konfirmasi",
+                    style: TextStyle(color: Colors.orange, fontSize: 12),
                   )
                 else
                   // Status Menunggu/Diproses tidak ada tombol aksi

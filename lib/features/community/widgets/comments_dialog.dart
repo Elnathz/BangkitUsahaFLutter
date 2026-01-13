@@ -12,7 +12,7 @@ class CommentsDialog extends StatefulWidget {
     Key? key,
     required this.post,
     // Parameter lain tidak diperlukan lagi karena kita fetch sendiri di sini
-    // required this.comments, 
+    // required this.comments,
     // required this.onAddComment,
   }) : super(key: key);
 
@@ -36,13 +36,13 @@ class _CommentsDialogState extends State<CommentsDialog> {
     if (content.isEmpty) return;
 
     setState(() => _isSending = true);
-    
+
     // Kirim ke Firebase
     await _firebaseService.addComment(widget.post.id, content);
-    
+
     _commentController.clear();
     setState(() => _isSending = false);
-    
+
     // Tutup keyboard
     FocusScope.of(context).unfocus();
   }
@@ -51,9 +51,9 @@ class _CommentsDialogState extends State<CommentsDialog> {
   String _formatTimestamp(String timestampStr) {
     // Karena model Comment kita string, tapi di fromMap kita olah.
     // Jika masih raw timestamp, logic-nya ada di Model.
-    // Di sini kita anggap Model sudah memberikan string yang "human readable" 
+    // Di sini kita anggap Model sudah memberikan string yang "human readable"
     // atau kita biarkan apa adanya.
-    return timestampStr; 
+    return timestampStr;
   }
 
   @override
@@ -93,7 +93,7 @@ class _CommentsDialogState extends State<CommentsDialog> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                
+
                 if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
@@ -105,9 +105,16 @@ class _CommentsDialogState extends State<CommentsDialog> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(LucideIcons.messageSquare, size: 48, color: Colors.grey),
+                        Icon(
+                          LucideIcons.messageSquare,
+                          size: 48,
+                          color: Colors.grey,
+                        ),
                         SizedBox(height: 16),
-                        Text('Belum ada komentar', style: TextStyle(color: Colors.grey)),
+                        Text(
+                          'Belum ada komentar',
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ],
                     ),
                   );
@@ -125,12 +132,20 @@ class _CommentsDialogState extends State<CommentsDialog> {
                         children: [
                           CircleAvatar(
                             radius: 18,
-                            backgroundImage: (comment.avatar != null && comment.avatar!.isNotEmpty)
-                              ? NetworkImage(comment.avatar!)
-                              : null,
-                            child: (comment.avatar == null || comment.avatar!.isEmpty)
-                              ? const Icon(LucideIcons.user, size: 18, color: Colors.grey)
-                              : null,
+                            backgroundImage:
+                                (comment.avatar != null &&
+                                    comment.avatar!.isNotEmpty)
+                                ? NetworkImage(comment.avatar!)
+                                : null,
+                            child:
+                                (comment.avatar == null ||
+                                    comment.avatar!.isEmpty)
+                                ? const Icon(
+                                    LucideIcons.user,
+                                    size: 18,
+                                    color: Colors.grey,
+                                  )
+                                : null,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -178,10 +193,10 @@ class _CommentsDialogState extends State<CommentsDialog> {
           // Input Field
           Padding(
             padding: EdgeInsets.fromLTRB(
-              16, 
-              16, 
-              16, 
-              16 + MediaQuery.of(context).viewInsets.bottom
+              16,
+              16,
+              16,
+              16 + MediaQuery.of(context).viewInsets.bottom,
             ),
             child: Row(
               children: [
@@ -207,9 +222,13 @@ class _CommentsDialogState extends State<CommentsDialog> {
                 const SizedBox(width: 8),
                 IconButton(
                   onPressed: _isSending ? null : _sendComment,
-                  icon: _isSending 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(LucideIcons.send, color: Color(0xFF5D4037)),
+                  icon: _isSending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(LucideIcons.send, color: Color(0xFF1565C0)),
                 ),
               ],
             ),

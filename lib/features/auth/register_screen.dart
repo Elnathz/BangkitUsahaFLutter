@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 import '../home/main_wrapper.dart'; // Benar (Mencari di folder features/home/)
+
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -50,8 +51,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // 2. Validasi Khusus Penjual
     if (_isSeller) {
       if (_addressCtrl.text.isEmpty || _hoursCtrl.text.isEmpty) {
-        _showToast("Penjual wajib mengisi Alamat & Jam Operasional",
-            ToastificationType.warning);
+        _showToast(
+          "Penjual wajib mengisi Alamat & Jam Operasional",
+          ToastificationType.warning,
+        );
         return;
       }
     }
@@ -60,11 +63,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       // 3. Buat Akun di Firebase Auth
-      UserCredential userCredential =
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailCtrl.text.trim(),
-        password: _passCtrl.text.trim(),
-      );
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailCtrl.text.trim(),
+            password: _passCtrl.text.trim(),
+          );
 
       User? user = userCredential.user;
 
@@ -109,7 +112,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           // Pindah ke Halaman Utama (MainWrapper) dan hapus history back
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const MainWrapper()),
-                (Route<dynamic> route) => false,
+            (Route<dynamic> route) => false,
           );
         }
       }
@@ -136,9 +139,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme
-        .of(context)
-        .primaryColor;
+    final primaryColor = Theme.of(context).primaryColor;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -161,7 +162,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.orange, // Update to orange
+                  color: Color(0xFF1565C0), // Update to blue
                 ),
               ),
               const SizedBox(height: 8),
@@ -221,16 +222,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 obscureText: !_isPasswordVisible,
                 decoration: _inputDecor("Kata Sandi", LucideIcons.lock)
                     .copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _isPasswordVisible ? LucideIcons.eye : LucideIcons.eyeOff,
-                      color: Colors.grey,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isPasswordVisible
+                              ? LucideIcons.eye
+                              : LucideIcons.eyeOff,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () {
+                          setState(
+                            () => _isPasswordVisible = !_isPasswordVisible,
+                          );
+                        },
+                      ),
                     ),
-                    onPressed: () {
-                      setState(() => _isPasswordVisible = !_isPasswordVisible);
-                    },
-                  ),
-                ),
               ),
               const SizedBox(height: 16),
 
@@ -255,8 +260,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextField(
                   controller: _hoursCtrl,
                   decoration: _inputDecor(
-                      "Jam Operasional (Contoh: 08:00 - 17:00)",
-                      LucideIcons.clock),
+                    "Jam Operasional (Contoh: 08:00 - 17:00)",
+                    LucideIcons.clock,
+                  ),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -267,7 +273,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _handleRegister,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange, // Explicitly set to orange
+                  backgroundColor: const Color(
+                    0xFF1565C0,
+                  ), // Explicitly set to blue
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 50),
                   shape: RoundedRectangleBorder(
@@ -277,11 +285,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                  _isSeller
-                      ? "DAFTAR SEBAGAI PENJUAL"
-                      : "DAFTAR SEBAGAI PEMBELI",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
+                        _isSeller
+                            ? "DAFTAR SEBAGAI PENJUAL"
+                            : "DAFTAR SEBAGAI PEMBELI",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
               ),
             ],
           ),
@@ -293,8 +301,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Widget Helper: Tombol Pilihan Role
   Widget _buildRoleButton(String title, bool isRoleSeller) {
     final isSelected = _isSeller == isRoleSeller;
-    // Change primaryColor to orange
-    const primaryColor = Colors.orange;
+    // Change primaryColor to blue
+    const primaryColor = Color(0xFF1565C0);
 
     return GestureDetector(
       onTap: () => setState(() => _isSeller = isRoleSeller),
@@ -303,8 +311,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         decoration: BoxDecoration(
           color: isSelected ? primaryColor : Colors.transparent,
           borderRadius: BorderRadius.circular(11),
-          border: isSelected ? null : Border.all(
-              color: Colors.grey[300]!), // Added border for unselected
+          border: isSelected
+              ? null
+              : Border.all(
+                  color: Colors.grey[300]!,
+                ), // Added border for unselected
         ),
         alignment: Alignment.center,
         child: Text(
@@ -322,11 +333,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   InputDecoration _inputDecor(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: Colors.orange),
-      // Changed to orange
+      prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
+      // Changed to blue
       filled: true,
-      fillColor: Colors.orange.withOpacity(0.05),
-      // Matches login screen's subtle orange fill
+      fillColor: const Color(0xFF1565C0).withOpacity(0.05),
+      // Matches login screen's subtle blue fill
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
@@ -334,7 +345,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(
-            color: Colors.orange, width: 2), // Orange focus border
+          color: Color(0xFF1565C0),
+          width: 2,
+        ), // Blue focus border
       ),
     );
   }

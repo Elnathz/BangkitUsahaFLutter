@@ -210,7 +210,10 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
                 // Tombol Upload Gambar
                 IconButton(
                   onPressed: _pickImage,
-                  icon: const Icon(LucideIcons.image, color: Colors.green),
+                  icon: const Icon(
+                    LucideIcons.image,
+                    color: const Color(0xFF1565C0),
+                  ),
                   tooltip: "Tambah Foto",
                 ),
 
@@ -244,7 +247,7 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
                 ElevatedButton(
                   onPressed: _isUploading ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5D4037),
+                    backgroundColor: const Color(0xFF1565C0),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 12,
