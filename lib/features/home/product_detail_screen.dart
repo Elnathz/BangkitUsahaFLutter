@@ -574,7 +574,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       icon: Column(
                         children: [
                           Icon(
-                            LucideIcons.messageCircle,
+                            LucideIcons.messageSquare,
                             size: 20,
                             color: primaryColor,
                           ),

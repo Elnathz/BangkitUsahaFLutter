@@ -356,7 +356,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                                     return _buildHeaderIcon(
                                       context,
-                                      LucideIcons.messageCircle,
+                                      LucideIcons.messageSquare,
                                       const ChatScreen(),
                                       showBadge: hasUnread,
                                     );
@@ -476,7 +476,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "Produk Pilihan",
+                                  "Produk UMKM",
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -494,45 +494,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ],
                             ),
                           ],
-                        ),
-                        // "Lihat Semua" Button
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SearchPage(),
-                              ),
-                            );
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            backgroundColor: const Color(0xFFEEF2FF),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Row(
-                            children: const [
-                              Text(
-                                "Lihat Semua",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF4F46E5),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              SizedBox(width: 4),
-                              Icon(
-                                LucideIcons.chevronRight,
-                                size: 16,
-                                color: Color(0xFF4F46E5),
-                              ),
-                            ],
-                          ),
                         ),
                       ],
                     ),
@@ -684,15 +645,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
             ),
             child: Icon(icon, color: Colors.white, size: 20),
           ),
