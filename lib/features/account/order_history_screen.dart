@@ -108,19 +108,15 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF112240) : Colors.white;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final primaryColor = const Color(0xFF1565C0);
+    const primaryColor = Color(0xFF1565C0);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: Text(widget.isSellerMode ? "Pesanan Masuk" : "Pesanan Saya"),
         elevation: 0,
-        backgroundColor: cardColor,
-        foregroundColor: textColor,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
         bottom: TabBar(
           controller: _tabController,
           labelColor: primaryColor,
@@ -210,10 +206,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     Map<String, dynamic> data,
     List items,
   ) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF152A45) : Colors.white;
-    final primaryColor = theme.primaryColor;
+    final primaryColor = const Color(0xFF1565C0);
     final status = data['status'] ?? 'Menunggu';
     final isSeller = widget.isSellerMode;
     final int totalPrice = (data['totalPrice'] ?? 0).toInt();
@@ -221,7 +214,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -256,12 +249,19 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                     ),
                   ],
                 ),
-                Text(
-                  status,
-                  style: TextStyle(
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
                     color: primaryColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    status,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
@@ -354,7 +354,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                       currencyFormat.format(totalPrice),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: primaryColor,
+                        color: const Color(0xFF10B981),
                         fontSize: 14,
                       ),
                     ),
