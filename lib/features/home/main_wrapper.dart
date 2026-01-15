@@ -54,9 +54,7 @@ class _MainWrapperState extends State<MainWrapper> {
       body: Stack(
         children: [
           // 1. CONTENT LAYER
-          Positioned.fill(
-            child: _getCurrentScreen(),
-          ),
+          Positioned.fill(child: _getCurrentScreen()),
 
           // 2. FLOATING LIQUID GLASS NAVIGATION BAR
           Positioned(
@@ -150,10 +148,7 @@ class _MainWrapperState extends State<MainWrapper> {
               : null,
           borderRadius: BorderRadius.circular(20),
           border: isSelected
-              ? Border.all(
-                  color: Colors.white.withOpacity(0.4),
-                  width: 1,
-                )
+              ? Border.all(color: Colors.white.withOpacity(0.4), width: 1)
               : null,
           boxShadow: isSelected
               ? [
@@ -217,10 +212,7 @@ class _MainWrapperState extends State<MainWrapper> {
               : null,
           borderRadius: BorderRadius.circular(20),
           border: isSelected
-              ? Border.all(
-                  color: Colors.white.withOpacity(0.4),
-                  width: 1,
-                )
+              ? Border.all(color: Colors.white.withOpacity(0.4), width: 1)
               : null,
           boxShadow: isSelected
               ? [

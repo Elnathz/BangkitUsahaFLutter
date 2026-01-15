@@ -65,7 +65,7 @@ class _CommunityFeedTabState extends State<CommunityFeedTab> {
     }
   }
 
-  Future<void> _deletePost(String postId) async {
+  Future<void> _deletePost(String postId, String? groupId) async {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -81,11 +81,8 @@ class _CommunityFeedTabState extends State<CommunityFeedTab> {
             onPressed: () async {
               Navigator.pop(ctx); // Tutup dialog
               try {
-                // Hapus dari Firestore
-                await FirebaseFirestore.instance
-                    .collection('community_posts')
-                    .doc(postId)
-                    .delete();
+                // Gunakan service function untuk delete post
+                await widget.firebaseService.deletePost(postId, groupId);
 
                 if (mounted) {
                   toastification.show(
@@ -319,7 +316,8 @@ class _CommunityFeedTabState extends State<CommunityFeedTab> {
                                   color: Colors.red,
                                 ),
                                 tooltip: _isAdmin ? "Hapus (Admin)" : "Hapus",
-                                onPressed: () => _deletePost(post.id),
+                                onPressed: () =>
+                                    _deletePost(post.id, post.groupId),
                               ),
                             ),
                           ),

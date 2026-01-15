@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Untuk Timestamp
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:toastification/toastification.dart';
 import '../models/post.dart';
 import '../models/comment.dart';
 import '../services/firebase_storage_service.dart';
@@ -23,7 +25,34 @@ class CommentsDialog extends StatefulWidget {
 class _CommentsDialogState extends State<CommentsDialog> {
   final TextEditingController _commentController = TextEditingController();
   final FirebaseStorageService _firebaseService = FirebaseStorageService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isSending = false;
+  bool _isAdmin = false; // Status Admin
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminStatus(); // Cek admin saat init
+  }
+
+  // --- CEK ADMIN STATUS ---
+  Future<void> _checkAdminStatus() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (doc.exists && doc.data()?['role'] == 'admin') {
+        if (mounted) {
+          setState(() => _isAdmin = true);
+        }
+      }
+    } catch (e) {
+      debugPrint("Gagal cek admin: $e");
+    }
+  }
 
   @override
   void dispose() {
@@ -45,6 +74,49 @@ class _CommentsDialogState extends State<CommentsDialog> {
 
     // Tutup keyboard
     FocusScope.of(context).unfocus();
+  }
+
+  // --- DELETE COMMENT ---
+  Future<void> _deleteComment(String commentId) async {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Hapus Komentar?"),
+        content: const Text("Tindakan ini tidak dapat dibatalkan."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx); // Tutup dialog
+              try {
+                // Gunakan service function untuk delete comment
+                await _firebaseService.deleteComment(widget.post.id, commentId);
+
+                if (mounted) {
+                  toastification.show(
+                    context: context,
+                    type: ToastificationType.success,
+                    title: const Text("Komentar dihapus."),
+                    autoCloseDuration: const Duration(seconds: 2),
+                  );
+                }
+              } catch (e) {
+                toastification.show(
+                  context: context,
+                  type: ToastificationType.error,
+                  title: Text("Gagal hapus: $e"),
+                );
+              }
+            },
+            child: const Text("Hapus"),
+          ),
+        ],
+      ),
+    );
   }
 
   // Helper untuk format waktu komentar
@@ -127,58 +199,77 @@ class _CommentsDialogState extends State<CommentsDialog> {
                     final comment = comments[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Stack(
                         children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundImage:
-                                (comment.avatar != null &&
-                                    comment.avatar!.isNotEmpty)
-                                ? NetworkImage(comment.avatar!)
-                                : null,
-                            child:
-                                (comment.avatar == null ||
-                                    comment.avatar!.isEmpty)
-                                ? const Icon(
-                                    LucideIcons.user,
-                                    size: 18,
-                                    color: Colors.grey,
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundImage:
+                                    (comment.avatar != null &&
+                                        comment.avatar!.isNotEmpty)
+                                    ? NetworkImage(comment.avatar!)
+                                    : null,
+                                child:
+                                    (comment.avatar == null ||
+                                        comment.avatar!.isEmpty)
+                                    ? const Icon(
+                                        LucideIcons.user,
+                                        size: 18,
+                                        color: Colors.grey,
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      comment.author,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          comment.author,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          comment.timestamp,
+                                          style: TextStyle(
+                                            color: Colors.grey[500],
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(height: 4),
                                     Text(
-                                      comment.timestamp,
-                                      style: TextStyle(
-                                        color: Colors.grey[500],
-                                        fontSize: 11,
-                                      ),
+                                      comment.content,
+                                      style: const TextStyle(fontSize: 14),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  comment.content,
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
+                          // TOMBOL HAPUS (ADMIN ONLY)
+                          if (_isAdmin)
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: IconButton(
+                                icon: const Icon(
+                                  LucideIcons.trash2,
+                                  size: 16,
+                                  color: Colors.red,
+                                ),
+                                tooltip: "Hapus Komentar",
+                                onPressed: () => _deleteComment(comment.id),
+                              ),
+                            ),
                         ],
                       ),
                     );
