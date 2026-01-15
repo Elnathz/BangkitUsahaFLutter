@@ -101,342 +101,228 @@ class _DashboardScreenState extends State<DashboardScreen> {
           controller: _scrollController,
           child: Column(
             children: [
-              // HEADER + SEARCH BAR
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Header dengan gradient Blue (Original Style)
-                  Container(
-                    height: 180,
-                    padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF1976D2),
-                          Color(0xFF0D47A1),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(30),
-                        bottomRight: Radius.circular(30),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 10,
-                          offset: Offset(0, 5),
-                        ),
-                      ],
+              // HEADER dengan SEARCH BAR terintegrasi
+              Container(
+                padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 16, 16, 20),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF1976D2),
+                      Color(0xFF0D47A1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 10,
+                      offset: Offset(0, 5),
                     ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            // Logo dengan Green Dot Indicator
-                            Stack(
-                              children: [
-                                Container(
-                                  width: 56,
-                                  height: 56,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.2),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  padding: const EdgeInsets.all(8),
-                                  child: Image.asset(
-                                    'assets/images/bangkitusaha.jpeg',
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                // Green dot indicator - pojok kanan bawah dalam logo
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981), // Emerald-500
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 2.5,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF10B981).withOpacity(0.4),
-                                          blurRadius: 4,
-                                          spreadRadius: 1,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // Search Bar
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SearchPage(),
                             ),
-                            const SizedBox(width: 12),
-                            // Title & Welcome Message
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text(
-                                    "Bangkit Usaha",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  StreamBuilder<DocumentSnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('users')
-                                        .doc(user?.uid)
-                                        .snapshots(),
-                                    builder: (context, snapshot) {
-                                      return Text(
-                                        "Selamat datang kembali! 👋",
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(0.8),
-                                          fontSize: 14,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
+                          );
+                        },
+                        child: Container(
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Row(
+                            children: [
+                              Icon(
+                                LucideIcons.search,
+                                color: Colors.grey[400],
+                                size: 20,
                               ),
-                            ),
-
-                            // --- ICON BARIS (NOTIF, CHAT, CART) ---
-                            Row(
-                              children: [
-                                // 0. Toko (KHUSUS PENJUAL)
-                                StreamBuilder<DocumentSnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('users')
-                                      .doc(user?.uid)
-                                      .snapshots(),
-                                  builder: (context, userSnapshot) {
-                                    if (userSnapshot.hasData &&
-                                        userSnapshot.data!.exists) {
-                                      final userData =
-                                          userSnapshot.data!.data()
-                                              as Map<String, dynamic>;
-                                      if (userData['role'] == 'seller') {
-                                        return StreamBuilder<QuerySnapshot>(
-                                          stream: MarketService()
-                                              .getIncomingOrders(),
-                                          builder: (context, orderSnapshot) {
-                                            int incomingCount = 0;
-                                            if (orderSnapshot.hasData) {
-                                              incomingCount = orderSnapshot
-                                                  .data!
-                                                  .docs
-                                                  .where((doc) {
-                                                    final status =
-                                                        (doc.data()
-                                                            as Map<
-                                                              String,
-                                                              dynamic
-                                                            >)['status'];
-                                                    return status != 'Selesai' &&
-                                                        status != 'Dibatalkan';
-                                                  })
-                                                  .length;
-                                            }
-
-                                            return Row(
-                                              children: [
-                                                _buildHeaderIcon(
-                                                  context,
-                                                  LucideIcons.store,
-                                                  const OrderHistoryScreen(
-                                                    isSellerMode: true,
-                                                  ),
-                                                  badgeCount: incomingCount,
-                                                ),
-                                                const SizedBox(width: 8),
-                                              ],
-                                            );
-                                          },
+                              const SizedBox(width: 10),
+                              Text(
+                                "Cari produk...",
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Icons Row
+                    Row(
+                      children: [
+                        // Toko (KHUSUS PENJUAL)
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user?.uid)
+                              .snapshots(),
+                          builder: (context, userSnapshot) {
+                            if (userSnapshot.hasData &&
+                                userSnapshot.data!.exists) {
+                              final userData =
+                                  userSnapshot.data!.data()
+                                      as Map<String, dynamic>;
+                              if (userData['role'] == 'seller') {
+                                return StreamBuilder<QuerySnapshot>(
+                                  stream: MarketService()
+                                      .getIncomingOrders(),
+                                  builder: (context, orderSnapshot) {
+                                    int incomingCount = 0;
+                                    if (orderSnapshot.hasData) {
+                                      incomingCount = orderSnapshot
+                                          .data!
+                                          .docs
+                                          .where((doc) {
+                                            final status =
+                                                (doc.data()
+                                                    as Map<
+                                                      String,
+                                                      dynamic
+                                                    >)['status'];
+                                            return status != 'Selesai' &&
+                                                status != 'Dibatalkan';
+                                          })
+                                          .length;
+                                    }
+                                    return Row(
+                                      children: [
+                                        _buildHeaderIconNew(
+                                          context,
+                                          LucideIcons.store,
+                                          const OrderHistoryScreen(
+                                            isSellerMode: true,
+                                          ),
+                                          badgeCount: incomingCount,
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                    );
+                                  },
+                                );
+                              }
+                            }
+                            return const SizedBox();
+                          },
+                        ),
+                        // Notifikasi
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('notifications')
+                              .where('recipientId', isEqualTo: user?.uid)
+                              .where('isRead', isEqualTo: false)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            int unreadNotifCount = 0;
+                            if (snapshot.hasData) {
+                              unreadNotifCount = snapshot.data!.docs.length;
+                            }
+                            return _buildHeaderIconNew(
+                              context,
+                              LucideIcons.bell,
+                              const NotificationScreen(),
+                              badgeCount: unreadNotifCount,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        // Chat
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('chat_rooms')
+                              .where(
+                                'participants',
+                                arrayContains: user?.uid,
+                              )
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            int totalUnreadChat = 0;
+                            if (snapshot.hasData) {
+                              for (var doc in snapshot.data!.docs) {
+                                final data =
+                                    doc.data() as Map<String, dynamic>;
+                                final int unreadCount =
+                                    data['unread_count_${user?.uid}'] ?? 0;
+                                totalUnreadChat += unreadCount;
+                                if (unreadCount > 0) {
+                                  final Timestamp? lastTime =
+                                      data['last_message_time'];
+                                  if (lastTime != null) {
+                                    final now = DateTime.now();
+                                    final messageTime = lastTime.toDate();
+                                    final diff = now
+                                        .difference(messageTime)
+                                        .inSeconds;
+                                    if (diff.abs() <= 10) {
+                                      try {
+                                        NotificationService.showNotification(
+                                          id: doc.id.hashCode,
+                                          title: "Pesan Baru",
+                                          body:
+                                              data['last_message'] ??
+                                              "Anda mendapat pesan",
+                                        );
+                                      } catch (e) {
+                                        print(
+                                          "Gagal menampilkan notif: $e",
                                         );
                                       }
                                     }
-                                    return const SizedBox();
-                                  },
-                                ),
-
-                                // 1. Notifikasi (REALTIME BADGE)
-                                StreamBuilder<QuerySnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('notifications')
-                                      .where('recipientId', isEqualTo: user?.uid)
-                                      .where('isRead', isEqualTo: false)
-                                      .limit(1)
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    bool hasUnreadNotif = false;
-                                    if (snapshot.hasData &&
-                                        snapshot.data!.docs.isNotEmpty) {
-                                      hasUnreadNotif = true;
                                     }
-
-                                    return _buildHeaderIcon(
-                                      context,
-                                      LucideIcons.bell,
-                                      const NotificationScreen(),
-                                      showBadge: hasUnreadNotif,
-                                    );
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-
-                                // 2. Chat (SMART BADGE + SYSTEM NOTIFICATION)
-                                StreamBuilder<QuerySnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('chat_rooms')
-                                      .where(
-                                        'participants',
-                                        arrayContains: user?.uid,
-                                      )
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    bool hasUnread = false;
-
-                                    if (snapshot.hasData) {
-                                      for (var doc in snapshot.data!.docs) {
-                                        final data =
-                                            doc.data() as Map<String, dynamic>;
-                                        final int unreadCount =
-                                            data['unread_count_${user?.uid}'] ??
-                                            0;
-
-                                        if (unreadCount > 0) {
-                                          hasUnread = true;
-
-                                          final Timestamp? lastTime =
-                                              data['last_message_time'];
-                                          if (lastTime != null) {
-                                            final now = DateTime.now();
-                                            final messageTime = lastTime.toDate();
-                                            final diff = now
-                                                .difference(messageTime)
-                                                .inSeconds;
-
-                                            if (diff.abs() <= 10) {
-                                              try {
-                                                NotificationService.showNotification(
-                                                  id: doc.id.hashCode,
-                                                  title: "Pesan Baru",
-                                                  body:
-                                                      data['last_message'] ??
-                                                      "Anda mendapat pesan",
-                                                );
-                                              } catch (e) {
-                                                print(
-                                                  "Gagal menampilkan notif: $e",
-                                                );
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-
-                                    return _buildHeaderIcon(
-                                      context,
-                                      LucideIcons.messageSquare,
-                                      const ChatScreen(),
-                                      showBadge: hasUnread,
-                                    );
-                                  },
-                                ),
-
-                                const SizedBox(width: 8),
-
-                                // 3. Cart
-                                _buildHeaderIcon(
-                                  context,
-                                  LucideIcons.shoppingCart,
-                                  CartScreen(),
-                                  showBadge: false,
-                                ),
-                              ],
-                            ),
-                          ],
+                                  }
+                                }
+                              }
+                            }
+                            return _buildHeaderIconNew(
+                              context,
+                              LucideIcons.messageCircle,
+                              const ChatScreen(),
+                              badgeCount: totalUnreadChat,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        // Cart
+                        StreamBuilder<QuerySnapshot>(
+                          stream: MarketService().getUserCart(),
+                          builder: (context, snapshot) {
+                            int cartItemCount = 0;
+                            if (snapshot.hasData) {
+                              cartItemCount = snapshot.data!.docs.length;
+                            }
+                            return _buildHeaderIconNew(
+                              context,
+                              LucideIcons.shoppingCart,
+                              CartScreen(),
+                              badgeCount: cartItemCount,
+                            );
+                          },
                         ),
                       ],
                     ),
-                  ),
-
-                  // SEARCH BAR
-                  Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: -28,
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SearchPage(),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: cardColor.withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Icon(
-                              LucideIcons.search,
-                              color: const Color(0xFF818CF8), // Indigo-400
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              "Cari produk, toko, atau kategori...",
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
 
-              const SizedBox(height: 48),
+              const SizedBox(height: 20),
 
               // MARKETPLACE FEED (GRID PRODUK)
               Padding(
@@ -664,6 +550,128 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   border: Border.all(
                     color: Colors.white,
                     width: 2,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderIconNew(
+    BuildContext context,
+    IconData icon,
+    Widget? destination, {
+    int badgeCount = 0,
+  }) {
+    return InkWell(
+      onTap: destination != null
+          ? () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => destination),
+            )
+          : () {},
+      borderRadius: BorderRadius.circular(10),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          if (badgeCount > 0)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(
+                  minWidth: 18,
+                  minHeight: 18,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 1.5,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    badgeCount > 99 ? '99+' : badgeCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBarIcon(
+    BuildContext context,
+    IconData icon,
+    Widget? destination, {
+    int badgeCount = 0,
+  }) {
+    return InkWell(
+      onTap: destination != null
+          ? () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => destination),
+            )
+          : () {},
+      borderRadius: BorderRadius.circular(10),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEEF2FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: const Color(0xFF4F46E5), size: 18),
+          ),
+          if (badgeCount > 0)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(
+                  minWidth: 18,
+                  minHeight: 18,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 1.5,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    badgeCount > 99 ? '99+' : badgeCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),

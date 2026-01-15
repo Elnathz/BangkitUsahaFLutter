@@ -363,4 +363,24 @@ class FirebaseStorageService {
       print("Error deleting post: $e");
     }
   }
+
+  // --- DELETE COMMENT ---
+  Future<void> deleteComment(String postId, String commentId) async {
+    try {
+      // 1. Hapus Komentar
+      await _firestore
+          .collection('posts')
+          .doc(postId)
+          .collection('comments')
+          .doc(commentId)
+          .delete();
+
+      // 2. Kurangi counter komentar di post
+      await _firestore.collection('posts').doc(postId).update({
+        'comments': FieldValue.increment(-1),
+      });
+    } catch (e) {
+      print("Error deleting comment: $e");
+    }
+  }
 }

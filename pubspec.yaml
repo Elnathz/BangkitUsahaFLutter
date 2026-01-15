@@ -58,6 +58,7 @@ dependencies:
   video_player: ^2.8.1
   chewie: ^1.7.1
   path_provider: ^2.1.5
+  firebase_messaging: ^15.2.10
 
 dev_dependencies:
   flutter_test:
