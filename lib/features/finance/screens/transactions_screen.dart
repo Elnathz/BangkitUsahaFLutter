@@ -35,6 +35,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   String _selectedPeriod = 'week'; // 'week' or 'month'
 
   @override
+  void initState() {
+    super.initState();
+    _saveDeviceToken();
+  }
+
+  Future<void> _saveDeviceToken() async {
+    final token = await NotificationService.getFCMToken();
+    if (token != null && user != null) {
+      await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({'fcmToken': token}, SetOptions(merge: true));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(

@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart'; // Ganti dart:io dengan ini agar aman di Web
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -40,6 +41,38 @@ class NotificationService {
           >()
           ?.requestNotificationsPermission();
     }
+
+    // 4. Setup Firebase Messaging (FCM)
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+    // Minta izin notifikasi (Penting untuk iOS & Android 13+)
+    await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // Handler untuk notifikasi saat aplikasi di Foreground (Sedang dibuka)
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      RemoteNotification? notification = message.notification;
+      AndroidNotification? android = message.notification?.android;
+
+      // Jika ada notifikasi masuk saat aplikasi dibuka, kita tampilkan manual
+      // menggunakan Local Notification agar muncul popup (heads-up)
+      if (notification != null && android != null) {
+        showNotification(
+          id: notification.hashCode,
+          title: notification.title ?? 'Notifikasi Baru',
+          body: notification.body ?? '',
+        );
+      }
+    });
+
+    // Handler saat notifikasi diklik dan aplikasi terbuka dari background
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('Notifikasi diklik: ${message.data}');
+      // Di sini Anda bisa menambahkan navigasi ke halaman chat/order
+    });
   }
 
   static Future<void> showNotification({
@@ -67,4 +100,18 @@ class NotificationService {
 
     await _notificationsPlugin.show(id, title, body, platformChannelSpecifics);
   }
+
+  // Fungsi untuk mendapatkan Token FCM (Diperlukan untuk dikirim ke Database User)
+  static Future<String?> getFCMToken() async {
+    return await FirebaseMessaging.instance.getToken();
+  }
+}
+
+// Handler Background (Harus di luar class, top-level function)
+// Ini menangani notifikasi saat aplikasi BENAR-BENAR MATI (Terminated)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Saat app mati, sistem Android yang akan menangani tampilan notifikasi secara otomatis
+  // jika payload berisi "notification". Kita tidak perlu coding UI di sini.
+  print("Handling a background message: ${message.messageId}");
 }
