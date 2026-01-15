@@ -7,7 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/transaction_model.dart';
 import '../services/finance_service.dart';
-import 'finance_log_page.dart';
+import 'finance_log_page.dart'; // Pastikan ini mengarah ke file di folder yang sama (screens/)
 import '../../home/main_wrapper.dart';
 
 // Import Chat & Notification
@@ -42,8 +42,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   Future<void> _saveDeviceToken() async {
     final token = await NotificationService.getFCMToken();
+    print("=== TOKEN HP INI: $token ==="); // Cek di Debug Console
+
     if (token != null && user != null) {
-      await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({'fcmToken': token}, SetOptions(merge: true));
+      // Ganti set() biasa dengan arrayUnion agar token HP lain tidak tertimpa
+      await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
+        'fcmTokens': FieldValue.arrayUnion([
+          token,
+        ]), // Simpan ke dalam List (Banyak HP)
+        'fcmToken': token, // Tetap update yang terakhir (sebagai backup/legacy)
+      }, SetOptions(merge: true));
     }
   }
 

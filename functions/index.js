@@ -31,24 +31,49 @@ exports.sendChatNotification = onDocumentCreated("chat_rooms/{roomId}/messages/{
     const userSnap = await admin.firestore().collection('users').doc(receiverId).get();
     const userData = userSnap.data();
 
-    if (!userData || !userData.fcmToken) {
+    if (!userData) return null;
+
+    // Kumpulkan token (Support Single & Multiple)
+    let tokens = [];
+    if (userData.fcmTokens && Array.isArray(userData.fcmTokens)) {
+        tokens = userData.fcmTokens;
+    } else if (userData.fcmToken) {
+        tokens = [userData.fcmToken];
+    }
+
+    if (tokens.length === 0) {
       console.log("User tidak memiliki token FCM.");
       return null;
     }
 
-    // 4. Siapkan Pesan Notifikasi
-    const payload = {
+    // 4. Siapkan Pesan Notifikasi (Format V1 API - Lebih Stabil)
+    const message = {
+      tokens: tokens,
       notification: {
         title: 'Pesan Baru',
         body: messageData.type === 'image' ? '📷 Mengirim gambar' : messageData.text,
-        click_action: 'FLUTTER_NOTIFICATION_CLICK', // Penting agar aplikasi terbuka saat diklik
+      },
+      // Konfigurasi Spesifik Android
+      android: {
+        priority: 'high',
+        ttl: 3600 * 1000, // (PENTING) Time To Live 1 jam. Membantu menembus mode Doze/Hemat Baterai.
+        notification: {
+          channelId: 'chat_channel_id', // Channel ID wajib di sini
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+          sound: 'default',
+          priority: 'max', // (PENTING) Ubah ke 'max' agar muncul Popup (Heads-up) saat layar mati/app close
+          defaultSound: true,
+          defaultVibrateTimings: true,
+          visibility: 'public',
+          icon: 'ic_launcher' // (OPSIONAL) Memastikan icon muncul (menggunakan icon aplikasi)
+        }
       },
       data: {
         roomId: roomId,
-        type: 'chat'
+        type: 'chat',
+        click_action: 'FLUTTER_NOTIFICATION_CLICK'
       }
     };
 
-    // 5. Kirim Notifikasi ke HP Penerima
-    return admin.messaging().sendToDevice(userData.fcmToken, payload);
-  });
+    return admin.messaging().sendEachForMulticast(message);
+});

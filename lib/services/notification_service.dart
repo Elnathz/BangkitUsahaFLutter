@@ -33,6 +33,25 @@ class NotificationService {
 
     await _notificationsPlugin.initialize(initializationSettings);
 
+    // --- TAMBAHAN: Buat Notification Channel untuk Android ---
+    // Penting agar notifikasi muncul saat aplikasi ditutup (Background/Terminated)
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+          _notificationsPlugin
+              .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin
+              >();
+
+      await androidImplementation?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'chat_channel_id', // ID harus sama dengan di AndroidManifest.xml
+          'Chat Notifications', // Nama yang muncul di pengaturan HP
+          description: 'Notifikasi pesan masuk',
+          importance: Importance.max,
+        ),
+      );
+    }
+
     // 3. Minta Izin (Hanya untuk Android, menggunakan pengecekan yang aman)
     if (defaultTargetPlatform == TargetPlatform.android) {
       await _notificationsPlugin
@@ -46,11 +65,7 @@ class NotificationService {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
     // Minta izin notifikasi (Penting untuk iOS & Android 13+)
-    await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    await messaging.requestPermission(alert: true, badge: true, sound: true);
 
     // Handler untuk notifikasi saat aplikasi di Foreground (Sedang dibuka)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -110,7 +125,7 @@ class NotificationService {
 // Handler Background (Harus di luar class, top-level function)
 // Ini menangani notifikasi saat aplikasi BENAR-BENAR MATI (Terminated)
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Saat app mati, sistem Android yang akan menangani tampilan notifikasi secara otomatis
   // jika payload berisi "notification". Kita tidak perlu coding UI di sini.
   print("Handling a background message: ${message.messageId}");

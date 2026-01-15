@@ -14,11 +14,27 @@
       },
       "oauth_client": [
         {
+          "client_id": "1083523484604-6mnfps1qdhds4lrcbk79bnfm4srrhlc9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.bangkit_usaha",
+            "certificate_hash": "2358aaf5ac9b3cbb4172a2ae645dd226348d1fa0"
+          }
+        },
+        {
           "client_id": "1083523484604-k666etnjd2pouudnqt3q0iivgbc1ljq0.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.bangkit_usaha",
             "certificate_hash": "17e97d072e620158f54c54bd0ed84eecce85b168"
+          }
+        },
+        {
+          "client_id": "1083523484604-k6df5e62p5be3mbjmffrvhstalcbelh3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.bangkit_usaha",
+            "certificate_hash": "bead1437d6753dcb947b2a16bd9d2950f7e75ade"
           }
         },
         {
