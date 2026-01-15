@@ -292,18 +292,26 @@ class _CommentsDialogState extends State<CommentsDialog> {
                                       ],
                                     ),
                                     const SizedBox(height: 4),
-                                    Text(
-                                      comment.content,
-                                      style: const TextStyle(fontSize: 14),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.grey[200]!),
+                                      ),
+                                      child: Text(
+                                        comment.content,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.black87,
+                                          height: 1.4,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, 
-                                  vertical: 8,
+                                  ],
                                 ),
                               ),
                             ],
