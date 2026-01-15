@@ -209,7 +209,7 @@ class _CommunityFeedTabState extends State<CommunityFeedTab> {
                     onSelected: (val) =>
                         setState(() => selectedCategory = category),
                     backgroundColor: Colors.white,
-                    selectedColor: const Color(0xFF5D4037),
+                    selectedColor: Colors.black,
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.white : Colors.black87,
                     ),

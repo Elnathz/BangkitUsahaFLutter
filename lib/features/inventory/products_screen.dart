@@ -831,14 +831,14 @@ class _ProductsScreenState extends State<ProductsScreen>
                           children: [
                             _buildHeaderIcon(
                               context,
-                              LucideIcons.messageCircle,
-                              const ChatScreen(),
+                              LucideIcons.bell,
+                              const NotificationScreen(),
                             ),
                             const SizedBox(width: 8),
                             _buildHeaderIcon(
                               context,
-                              LucideIcons.bell,
-                              const NotificationScreen(),
+                              LucideIcons.messageSquare,
+                              const ChatScreen(),
                             ),
                           ],
                         ),
@@ -972,15 +972,15 @@ class _ProductsScreenState extends State<ProductsScreen>
           MaterialPageRoute(builder: (context) => destination),
         );
       },
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 36,
-        height: 36,
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
-        child: Icon(icon, color: Colors.white, size: 18),
+        child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }

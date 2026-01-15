@@ -197,14 +197,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 children: [
                   _buildHeaderIcon(
                     context,
-                    LucideIcons.messageCircle,
-                    const ChatScreen(),
+                    LucideIcons.bell,
+                    const NotificationScreen(),
                   ),
                   const SizedBox(width: 8),
                   _buildHeaderIcon(
                     context,
-                    LucideIcons.bell,
-                    const NotificationScreen(),
+                    LucideIcons.messageSquare,
+                    const ChatScreen(),
                   ),
                 ],
               ),
@@ -460,7 +460,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     children: [
                       _buildHeaderIcon(
                         context,
-                        LucideIcons.messageCircle,
+                        LucideIcons.messageSquare,
                         const ChatScreen(),
                       ),
                       const SizedBox(width: 8),
@@ -806,15 +806,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
         child: Icon(icon, color: Colors.white, size: 20),
       ),

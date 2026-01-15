@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart'; // Untuk kIsWeb
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
@@ -12,8 +13,11 @@ import '../../home/main_wrapper.dart';
 
 // Import Tabs
 import './tabs/community_feed_tab.dart';
-import './tabs/community_trending_tab.dart';
+
 import './tabs/community_groups_tab.dart';
+
+// Import Widgets
+import '../widgets/create_group_modal.dart';
 
 // Import Chat & Notification
 import '../../chat/chat_screen.dart';
@@ -33,14 +37,19 @@ class _CommunityPageState extends State<CommunityPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String searchQuery = '';
+  bool _showSearch = false; // Toggle search bar visibility
   final FirebaseStorageService _firebaseService = FirebaseStorageService();
   final user = FirebaseAuth.instance.currentUser;
-  final Color primaryBrown = const Color(0xFF5D4037);
+  final Color primaryBrown = Colors.black;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
+    // Listen to tab changes to rebuild custom tabs
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -79,16 +88,13 @@ class _CommunityPageState extends State<CommunityPage>
       _showLoginToast();
       return;
     }
-    // Jika Mas punya widget CreateGroupSheet, aktifkan kode di bawah ini:
-    /*
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => CreateGroupSheet(
-        firebaseService: _firebaseService,
-        currentUser: user!,
-        onGroupCreated: (newGroup) {
+      builder: (context) => CreateGroupModal(
+        onClose: () => Navigator.pop(context),
+        onSuccess: () {
           toastification.show(
             context: context,
             type: ToastificationType.success,
@@ -98,8 +104,6 @@ class _CommunityPageState extends State<CommunityPage>
         },
       ),
     );
-    */
-    _showToast("Fitur buat grup akan segera hadir!", ToastificationType.info);
   }
 
   void _showLoginToast() {
@@ -140,22 +144,46 @@ class _CommunityPageState extends State<CommunityPage>
                   searchQuery: searchQuery,
                   onShowCreatePost: _showCreatePostModal,
                 ),
-                // TAB 2: TRENDING
-                CommunityTrendingTab(),
-                // TAB 3: GRUP
+                // TAB 2: GRUP
                 CommunityGroupsTab(onShowCreateGroup: _showCreateGroupModal),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 100),
-        child: FloatingActionButton(
-          onPressed: _showCreatePostModal,
-          backgroundColor: primaryBrown,
-          elevation: 4,
-          child: const Icon(LucideIcons.penTool, color: Colors.white),
+      floatingActionButton: Tooltip(
+        message: 'Buat Postingan',
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 100),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2563EB), Color(0xFF4F46E5)], // blue-600 to indigo-600
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2563EB).withOpacity(0.5),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _showCreatePostModal,
+                borderRadius: BorderRadius.circular(30),
+                child: const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Icon(LucideIcons.plus, color: Colors.white, size: 28),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -163,136 +191,256 @@ class _CommunityPageState extends State<CommunityPage>
 
   // --- WIDGET HELPER ---
   Widget _buildHeader() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [primaryBrown, const Color(0xFF8D6E63)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      // PERBAIKAN: Gunakan SafeArea agar tidak tertutup poni HP/Notch
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  // TOMBOL KEMBALI
-                  InkWell(
-                    onTap: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MainWrapper(),
-                        ),
-                        (route) => false,
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        LucideIcons.arrowLeft,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Komunitas UMKM',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  _buildHeaderIcon(
-                    LucideIcons.messageCircle,
-                    const ChatScreen(),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildHeaderIcon(
-                    LucideIcons.bell,
-                    const NotificationScreen(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Search Bar
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TextField(
-                  onChanged: (val) => setState(() => searchQuery = val),
-                  decoration: InputDecoration(
-                    hintText: 'Cari diskusi, topik, atau anggota...',
-                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                    prefixIcon: Icon(
-                      LucideIcons.search,
-                      color: Colors.grey[400],
-                      size: 20,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                  ),
-                ),
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(15)),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF1976D2),
+                Color(0xFF0D47A1),
+              ],
+            ),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(15)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26, 
+                blurRadius: 8,
+                offset: Offset(0, 2),
               ),
             ],
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Bar: Title + Action Icons
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Komunitas',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white, // Changed to white
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          // Search Toggle Button
+                          _buildActionIcon(
+                            icon: LucideIcons.search,
+                            onTap: () => setState(() => _showSearch = !_showSearch),
+                            color: Colors.white, // Explicit white color
+                          ),
+                          const SizedBox(width: 8),
+                          // Notifications Button with Badge
+                          _buildActionIcon(
+                            icon: LucideIcons.bell,
+                            showBadge: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                            ),
+                            color: Colors.white, // Explicit white color
+                          ),
+                          const SizedBox(width: 8),
+                          // Messages Button
+                          _buildActionIcon(
+                            icon: LucideIcons.messageSquare,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ChatScreen()),
+                            ),
+                            color: Colors.white, // Explicit white color
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Search Bar (Toggleable)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  height: _showSearch ? 60 : 0,
+                  child: _showSearch
+                      ? Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF3F4F6),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextField(
+                              autofocus: true,
+                              onChanged: (val) => setState(() => searchQuery = val),
+                              decoration: InputDecoration(
+                                hintText: 'Cari di Komunitas...',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 15,
+                                ),
+                                prefixIcon: Icon(
+                                  LucideIcons.search,
+                                  color: Colors.grey[500],
+                                  size: 20,
+                                ),
+                                suffixIcon: searchQuery.isNotEmpty
+                                    ? IconButton(
+                                        icon: Icon(LucideIcons.x, size: 18, color: Colors.grey[500]),
+                                        onPressed: () => setState(() => searchQuery = ''),
+                                      )
+                                    : null,
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHeaderIcon(IconData icon, Widget destination) {
+  Widget _buildActionIcon({
+    required IconData icon,
+    required VoidCallback onTap,
+    bool showBadge = false,
+    Color? color,
+  }) {
     return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => destination),
-      ),
-      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
-        child: Icon(icon, color: Colors.white, size: 18),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(icon, color: color ?? Colors.white, size: 20),
+            if (showBadge)
+              Positioned(
+                top: -2,
+                right: -2,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEF4444),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildTabBar() {
     return Container(
-      color: Colors.white,
-      child: TabBar(
-        controller: _tabController,
-        labelColor: primaryBrown,
-        unselectedLabelColor: Colors.grey,
-        indicatorColor: primaryBrown,
-        indicatorWeight: 3,
-        tabs: const [
-          Tab(icon: Icon(LucideIcons.home, size: 20), text: 'Beranda'),
-          Tab(icon: Icon(LucideIcons.trendingUp, size: 20), text: 'Trending'),
-          Tab(icon: Icon(LucideIcons.users, size: 20), text: 'Grup'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.7),
+        border: const Border(
+          bottom: BorderSide(color: Color(0xFFE0E0E0), width: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildCustomTab(
+              index: 0,
+              icon: LucideIcons.messageCircle,
+              label: 'Feed',
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildCustomTab(
+              index: 1,
+              icon: LucideIcons.users,
+              label: 'Grup',
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCustomTab({
+    required int index,
+    required IconData icon,
+    required String label,
+  }) {
+    final isActive = _tabController.index == index;
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _tabController.animateTo(index);
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isActive ? const Color(0xFF1976D2) : Colors.grey[600],
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: isActive ? const Color(0xFF1976D2) : Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

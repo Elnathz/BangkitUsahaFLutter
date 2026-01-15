@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart'; // Untuk cek current user
 import 'package:toastification/toastification.dart';
 import '../models/post.dart';
 import '../services/firebase_storage_service.dart'; // Import Service
+import 'share_bottom_sheet.dart';
+import 'full_screen_image_viewer.dart';
 
 class PostCard extends StatefulWidget {
   final Post post;
@@ -67,7 +69,7 @@ class _PostCardState extends State<PostCard> {
                 }
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5D4037)),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
             child: const Text("Simpan", style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -113,6 +115,42 @@ class _PostCardState extends State<PostCard> {
       type: type,
       autoCloseDuration: const Duration(seconds: 2),
     );
+  }
+
+  void _showShareSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => ShareBottomSheet(postUrl: "https://bangkitbmkm.app/post/${widget.post.id}"),
+    );
+  }
+
+  void _openImageViewer() {
+    if (widget.post.image != null && widget.post.image!.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FullScreenImageViewer(
+            imageUrl: widget.post.image!,
+            authorName: widget.post.author.name,
+            likes: widget.post.likes,
+            comments: widget.post.comments,
+            shares: 0,
+            isLiked: widget.post.isLiked,
+            onLikeToggled: (bool isLiked) {
+              // Trigger the post's like callback to update database
+              widget.onLike();
+            },
+            onCommentTap: () {
+              // Close viewer and open comment
+              Navigator.pop(context);
+              widget.onComment();
+            },
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -180,7 +218,7 @@ class _PostCardState extends State<PostCard> {
                   onSelected: (value) {
                     if (value == 'edit') _showEditDialog();
                     if (value == 'delete') _confirmDelete();
-                    if (value == 'share') widget.onShare();
+                    if (value == 'share') _showShareSheet();
                   },
                   itemBuilder: (context) {
                     return [
@@ -235,19 +273,22 @@ class _PostCardState extends State<PostCard> {
               ),
             ),
 
-          // Content Image
+          // Content Image (Clickable)
           if (widget.post.image != null && widget.post.image!.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              width: double.infinity,
-              constraints: const BoxConstraints(maxHeight: 400),
-              child: Image.network(
-                widget.post.image!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 200,
-                  color: Colors.grey[200],
-                  child: const Center(child: Icon(LucideIcons.imageOff, color: Colors.grey)),
+            GestureDetector(
+              onTap: _openImageViewer,
+              child: Container(
+                margin: const EdgeInsets.only(top: 8),
+                width: double.infinity,
+                constraints: const BoxConstraints(maxHeight: 400),
+                child: Image.network(
+                  widget.post.image!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 200,
+                    color: Colors.grey[200],
+                    child: const Center(child: Icon(LucideIcons.imageOff, color: Colors.grey)),
+                  ),
                 ),
               ),
             ),
@@ -259,13 +300,13 @@ class _PostCardState extends State<PostCard> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.brown[50],
+                  color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   widget.post.category,
                   style: TextStyle(
-                    color: Colors.brown[700],
+                    color: Colors.black87,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -282,21 +323,22 @@ class _PostCardState extends State<PostCard> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _ActionButton(
-                  icon: widget.post.isLiked ? Icons.favorite : LucideIcons.heart,
-                  label: '${widget.post.likes} Suka',
-                  color: widget.post.isLiked ? Colors.red : Colors.grey[600],
+                _AnimatedLikeButton(
+                  isLiked: widget.post.isLiked,
+                  likeCount: widget.post.likes,
                   onTap: widget.onLike,
                 ),
-                _ActionButton(
+                _AnimatedIconButton(
                   icon: LucideIcons.messageCircle,
                   label: '${widget.post.comments} Komen',
                   onTap: widget.onComment,
+                  activeColor: Colors.blue, // Comment active color
                 ),
-                _ActionButton(
+                _AnimatedIconButton(
                   icon: LucideIcons.share2,
                   label: 'Bagikan',
-                  onTap: widget.onShare,
+                  onTap: _showShareSheet,
+                  activeColor: Colors.green, // Share active color
                 ),
               ],
             ),
@@ -307,34 +349,153 @@ class _PostCardState extends State<PostCard> {
   }
 }
 
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
+class _AnimatedLikeButton extends StatefulWidget {
+  final bool isLiked;
+  final int likeCount;
   final VoidCallback onTap;
-  final Color? color;
 
-  const _ActionButton({
-    required this.icon,
-    required this.label,
+  const _AnimatedLikeButton({
+    required this.isLiked,
+    required this.likeCount,
     required this.onTap,
-    this.color,
   });
+
+  @override
+  State<_AnimatedLikeButton> createState() => _AnimatedLikeButtonState();
+}
+
+class _AnimatedLikeButtonState extends State<_AnimatedLikeButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 50),
+    ]).animate(_controller);
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedLikeButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isLiked && !oldWidget.isLiked) {
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        widget.onTap();
+        // Always animate on tap for feedback
+        _controller.forward(from: 0.0);
+      },
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: color ?? Colors.grey[600]),
+            ScaleTransition(
+              scale: _scaleAnimation,
+              child: Icon(
+                widget.isLiked ? Icons.favorite : LucideIcons.heart,
+                size: 20,
+                color: widget.isLiked ? const Color(0xFFE91E63) : Colors.grey[600],
+              ),
+            ),
             const SizedBox(width: 6),
             Text(
-              label,
+              '${widget.likeCount} Suka',
               style: TextStyle(
-                color: color ?? Colors.grey[600],
+                color: widget.isLiked ? const Color(0xFFE91E63) : Colors.grey[600],
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Reusable Animated Button for Comment & Share
+class _AnimatedIconButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color activeColor;
+
+  const _AnimatedIconButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.activeColor,
+  });
+
+  @override
+  State<_AnimatedIconButton> createState() => _AnimatedIconButtonState();
+}
+
+class _AnimatedIconButtonState extends State<_AnimatedIconButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.2), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.2, end: 1.0), weight: 50),
+    ]).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        _controller.forward(from: 0.0);
+        widget.onTap();
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            ScaleTransition(
+              scale: _scaleAnimation,
+              child: Icon(widget.icon, size: 20, color: Colors.grey[600]),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              widget.label,
+              style: TextStyle(
+                color: Colors.grey[600],
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),

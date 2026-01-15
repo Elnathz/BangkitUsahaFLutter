@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data'; // Untuk Uint8List
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart'; // Untuk kIsWeb
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -12,6 +13,32 @@ class FirebaseStorageService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  // --- GET CURRENT USER ID ---
+  String? getCurrentUserId() => _auth.currentUser?.uid;
+
+  // --- FIX NEGATIVE POST COUNT ---
+  Future<void> fixNegativePostCount(String groupId) async {
+    try {
+      final groupDoc = await _firestore.collection('groups').doc(groupId).get();
+      if (groupDoc.exists) {
+        final currentPosts = (groupDoc.data()?['posts'] as int?) ?? 0;
+        if (currentPosts < 0) {
+          // Count actual posts in this group
+          final postsSnapshot = await _firestore
+              .collection('posts')
+              .where('groupId', isEqualTo: groupId)
+              .get();
+          
+          await _firestore.collection('groups').doc(groupId).update({
+            'posts': postsSnapshot.docs.length,
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fixing negative post count: $e");
+    }
+  }
 
   // --- GET POSTS STREAM ---
   Stream<List<Post>> getPosts() {
@@ -318,9 +345,16 @@ class FirebaseStorageService {
 
       // 2. Jika ini postingan grup, kurangi jumlah post di grup tersebut
       if (groupId != null && groupId.isNotEmpty) {
-        await _firestore.collection('groups').doc(groupId).update({
-          'posts': FieldValue.increment(-1),
-        });
+        // First check current count to prevent going negative
+        final groupDoc = await _firestore.collection('groups').doc(groupId).get();
+        if (groupDoc.exists) {
+          final currentPosts = (groupDoc.data()?['posts'] as int?) ?? 0;
+          if (currentPosts > 0) {
+            await _firestore.collection('groups').doc(groupId).update({
+              'posts': FieldValue.increment(-1),
+            });
+          }
+        }
       }
 
       // Opsional: Hapus sub-collection comments (Firestore tidak otomatis menghapus sub-collection)

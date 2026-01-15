@@ -489,7 +489,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                             const SizedBox(width: 8),
                             _buildHeaderIcon(
                               context,
-                              LucideIcons.messageCircle,
+                              LucideIcons.messageSquare,
                               const ChatScreen(),
                             ),
                             const SizedBox(width: 8),
@@ -1028,12 +1028,13 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
         context,
         MaterialPageRoute(builder: (context) => destination),
       ),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
         child: Icon(icon, color: Colors.white, size: 20),
       ),
