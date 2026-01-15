@@ -46,10 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleGoogleLogin() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId:
-            '1083523484604-h2im51pc98fnofml1lpjfs2k324fo162.apps.googleusercontent.com',
-      );
+      final GoogleSignIn googleSignIn = GoogleSignIn();
 
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
@@ -65,8 +62,14 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
       _showToast("Berhasil masuk dengan Google!", ToastificationType.success);
-    } catch (e) {
-      _showToast("Gagal login Google: $e", ToastificationType.error);
+    } catch (e, stackTrace) {
+      debugPrint('Google Sign-In Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      String errorMessage = "Gagal login Google";
+      if (e.toString().contains('ClientException')) {
+        errorMessage = "Pastikan authorized origins dikonfigurasi di Google Cloud Console";
+      }
+      _showToast("$errorMessage: ${e.toString().split('\n').first}", ToastificationType.error);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
