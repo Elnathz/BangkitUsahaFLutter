@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -445,7 +444,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     String type = data['type'] ?? 'text';
     String content = data['text'] ?? '';
     bool isEdited = data['isEdited'] ?? false;
-    
+
     // Handle Timestamp
     String timeString = "";
     if (data['timestamp'] != null) {
@@ -490,9 +489,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.7,
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: isMe ? Colors.blue : Colors.white, // Sender: Blue, Receiver: White
+                    color: isMe
+                        ? Colors.blue
+                        : Colors.white, // Sender: Blue, Receiver: White
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
                       topRight: const Radius.circular(16),
@@ -501,19 +505,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           : Radius.zero, // Sender: rounded bottom-left
                       bottomRight: isMe
                           ? Radius.zero
-                          : const Radius.circular(16), // Receiver: rounded bottom-right
+                          : const Radius.circular(
+                              16,
+                            ), // Receiver: rounded bottom-right
                     ),
                     boxShadow: [
-                         if (!isMe)
-                           BoxShadow(
-                             color: Colors.black.withOpacity(0.05),
-                             blurRadius: 2,
-                             offset: const Offset(1, 1),
-                           ),
-                       ],
+                      if (!isMe)
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 2,
+                          offset: const Offset(1, 1),
+                        ),
+                    ],
                   ),
                   child: Column(
-                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    crossAxisAlignment: isMe
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // KONTEN
@@ -545,9 +553,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           height: 220,
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: VideoMessagePlayer(
-                              videoUrl: content,
-                            ),
+                            child: VideoMessagePlayer(videoUrl: content),
                           ),
                         )
                       else
@@ -564,9 +570,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       // ROW BAWAH: EDITED ICON + TIMESTAMP
                       Row(
                         mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                        mainAxisAlignment: isMe
+                            ? MainAxisAlignment.end
+                            : MainAxisAlignment.start,
                         children: [
-                           if (isEdited && type == 'text')
+                          if (isEdited && type == 'text')
                             Padding(
                               padding: const EdgeInsets.only(right: 4),
                               child: Icon(

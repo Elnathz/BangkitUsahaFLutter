@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+// removed unused import 'dart:typed_data'
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,7 +10,7 @@ import 'package:intl/intl.dart';
 import '../../services/market_service.dart';
 
 // IMPORT HALAMAN LAIN
-import '../home/product_reviews_screen.dart';
+// removed unused import '../home/product_reviews_screen.dart'
 import '../shop/shop_profile_screen.dart';
 import '../chat/chat_screen.dart';
 import '../notifications/notification_screen.dart';
@@ -182,18 +182,26 @@ class _ProductsScreenState extends State<ProductsScreen>
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
+                  borderSide: BorderSide(
+                    color: Colors.grey.shade200,
+                    width: 1.5,
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide(color: blueColor, width: 2),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               );
             }
 
             return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: Container(
                 width: MediaQuery.of(context).size.width * 0.9,
                 constraints: BoxConstraints(
@@ -234,7 +242,9 @@ class _ProductsScreenState extends State<ProductsScreen>
                               ],
                             ),
                             child: Icon(
-                              isEdit ? LucideIcons.edit2 : LucideIcons.packagePlus,
+                              isEdit
+                                  ? LucideIcons.edit2
+                                  : LucideIcons.packagePlus,
                               color: Colors.white,
                               size: 22,
                             ),
@@ -254,7 +264,9 @@ class _ProductsScreenState extends State<ProductsScreen>
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  isEdit ? "Perbarui detail produk Anda" : "Masukkan detail produk baru Anda",
+                                  isEdit
+                                      ? "Perbarui detail produk Anda"
+                                      : "Masukkan detail produk baru Anda",
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[600],
@@ -272,13 +284,17 @@ class _ProductsScreenState extends State<ProductsScreen>
                                 color: Colors.grey[200],
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(LucideIcons.x, size: 18, color: Colors.grey[600]),
+                              child: Icon(
+                                LucideIcons.x,
+                                size: 18,
+                                color: Colors.grey[600],
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    
+
                     // Content
                     Flexible(
                       child: SingleChildScrollView(
@@ -308,18 +324,33 @@ class _ProductsScreenState extends State<ProductsScreen>
                                       : null,
                                 ),
                                 child: isUploading
-                                    ? Center(child: CircularProgressIndicator(color: blueColor))
+                                    ? Center(
+                                        child: CircularProgressIndicator(
+                                          color: blueColor,
+                                        ),
+                                      )
                                     : (imageUrl == null
                                           ? Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
                                               children: [
                                                 Container(
-                                                  padding: const EdgeInsets.all(12),
-                                                  decoration: BoxDecoration(
-                                                    color: blueColor.withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(12),
+                                                  padding: const EdgeInsets.all(
+                                                    12,
                                                   ),
-                                                  child: Icon(LucideIcons.camera, color: blueColor, size: 28),
+                                                  decoration: BoxDecoration(
+                                                    color: blueColor
+                                                        .withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                  child: Icon(
+                                                    LucideIcons.camera,
+                                                    color: blueColor,
+                                                    size: 28,
+                                                  ),
                                                 ),
                                                 const SizedBox(height: 10),
                                                 Text(
@@ -342,7 +373,7 @@ class _ProductsScreenState extends State<ProductsScreen>
                               decoration: styledInputDecoration("Nama Produk"),
                             ),
                             const SizedBox(height: 14),
-                            
+
                             // Price and Stock Row
                             Row(
                               children: [
@@ -350,7 +381,9 @@ class _ProductsScreenState extends State<ProductsScreen>
                                   child: TextField(
                                     controller: priceCtrl,
                                     keyboardType: TextInputType.number,
-                                    decoration: styledInputDecoration("Harga (Rp)"),
+                                    decoration: styledInputDecoration(
+                                      "Harga (Rp)",
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -364,48 +397,78 @@ class _ProductsScreenState extends State<ProductsScreen>
                               ],
                             ),
                             const SizedBox(height: 14),
-                            
+
                             // Category Dropdown with Add Custom Option
                             Row(
                               children: [
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
-                                    value: ['Makanan', 'Minuman', 'Snack', 'Kue', 'Kerajinan', 'Lainnya'].contains(categoryCtrl.text) 
-                                        ? categoryCtrl.text 
-                                        : (categoryCtrl.text.isEmpty ? null : 'Lainnya'),
-                                    decoration: styledInputDecoration("Kategori"),
-                                    items: ['Makanan', 'Minuman', 'Snack', 'Kue', 'Kerajinan', 'Lainnya'].map((cat) {
-                                      return DropdownMenuItem(
-                                        value: cat,
-                                        child: Text(cat),
-                                      );
-                                    }).toList(),
+                                    value:
+                                        [
+                                          'Makanan',
+                                          'Minuman',
+                                          'Snack',
+                                          'Kue',
+                                          'Kerajinan',
+                                          'Lainnya',
+                                        ].contains(categoryCtrl.text)
+                                        ? categoryCtrl.text
+                                        : (categoryCtrl.text.isEmpty
+                                              ? null
+                                              : 'Lainnya'),
+                                    decoration: styledInputDecoration(
+                                      "Kategori",
+                                    ),
+                                    items:
+                                        [
+                                          'Makanan',
+                                          'Minuman',
+                                          'Snack',
+                                          'Kue',
+                                          'Kerajinan',
+                                          'Lainnya',
+                                        ].map((cat) {
+                                          return DropdownMenuItem(
+                                            value: cat,
+                                            child: Text(cat),
+                                          );
+                                        }).toList(),
                                     onChanged: (value) {
                                       if (value == 'Lainnya') {
                                         // Show custom category dialog
                                         showDialog(
                                           context: context,
                                           builder: (ctx) {
-                                            final customCatCtrl = TextEditingController();
+                                            final customCatCtrl =
+                                                TextEditingController();
                                             return AlertDialog(
-                                              title: const Text("Tambah Kategori Baru"),
+                                              title: const Text(
+                                                "Tambah Kategori Baru",
+                                              ),
                                               content: TextField(
                                                 controller: customCatCtrl,
-                                                decoration: const InputDecoration(
-                                                  hintText: "Nama kategori baru",
-                                                  border: OutlineInputBorder(),
-                                                ),
+                                                decoration:
+                                                    const InputDecoration(
+                                                      hintText:
+                                                          "Nama kategori baru",
+                                                      border:
+                                                          OutlineInputBorder(),
+                                                    ),
                                               ),
                                               actions: [
                                                 TextButton(
-                                                  onPressed: () => Navigator.pop(ctx),
+                                                  onPressed: () =>
+                                                      Navigator.pop(ctx),
                                                   child: const Text("Batal"),
                                                 ),
                                                 ElevatedButton(
                                                   onPressed: () {
-                                                    if (customCatCtrl.text.isNotEmpty) {
+                                                    if (customCatCtrl
+                                                        .text
+                                                        .isNotEmpty) {
                                                       setStateSB(() {
-                                                        categoryCtrl.text = customCatCtrl.text;
+                                                        categoryCtrl.text =
+                                                            customCatCtrl.text;
                                                       });
                                                     }
                                                     Navigator.pop(ctx);
@@ -431,9 +494,12 @@ class _ProductsScreenState extends State<ProductsScreen>
                                     showDialog(
                                       context: context,
                                       builder: (ctx) {
-                                        final customCatCtrl = TextEditingController();
+                                        final customCatCtrl =
+                                            TextEditingController();
                                         return AlertDialog(
-                                          title: const Text("Tambah Kategori Baru"),
+                                          title: const Text(
+                                            "Tambah Kategori Baru",
+                                          ),
                                           content: TextField(
                                             controller: customCatCtrl,
                                             decoration: const InputDecoration(
@@ -443,14 +509,18 @@ class _ProductsScreenState extends State<ProductsScreen>
                                           ),
                                           actions: [
                                             TextButton(
-                                              onPressed: () => Navigator.pop(ctx),
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx),
                                               child: const Text("Batal"),
                                             ),
                                             ElevatedButton(
                                               onPressed: () {
-                                                if (customCatCtrl.text.isNotEmpty) {
+                                                if (customCatCtrl
+                                                    .text
+                                                    .isNotEmpty) {
                                                   setStateSB(() {
-                                                    categoryCtrl.text = customCatCtrl.text;
+                                                    categoryCtrl.text =
+                                                        customCatCtrl.text;
                                                   });
                                                 }
                                                 Navigator.pop(ctx);
@@ -466,28 +536,40 @@ class _ProductsScreenState extends State<ProductsScreen>
                                   child: Container(
                                     padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF1976D2).withOpacity(0.1),
+                                      color: const Color(
+                                        0xFF1976D2,
+                                      ).withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFF1976D2).withOpacity(0.3)),
+                                      border: Border.all(
+                                        color: const Color(
+                                          0xFF1976D2,
+                                        ).withOpacity(0.3),
+                                      ),
                                     ),
-                                    child: const Icon(LucideIcons.plus, color: Color(0xFF1976D2), size: 20),
+                                    child: const Icon(
+                                      LucideIcons.plus,
+                                      color: Color(0xFF1976D2),
+                                      size: 20,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 14),
-                            
+
                             // Description
                             TextField(
                               controller: descCtrl,
                               maxLines: 3,
-                              decoration: styledInputDecoration("Deskripsi Produk"),
+                              decoration: styledInputDecoration(
+                                "Deskripsi Produk",
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    
+
                     // Action Buttons
                     Container(
                       padding: const EdgeInsets.all(20),
@@ -504,7 +586,9 @@ class _ProductsScreenState extends State<ProductsScreen>
                             child: TextButton(
                               onPressed: () => Navigator.pop(context),
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   side: BorderSide(color: Colors.grey.shade300),
@@ -526,8 +610,14 @@ class _ProductsScreenState extends State<ProductsScreen>
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: isUploading
-                                      ? [Colors.grey.shade400, Colors.grey.shade500]
-                                      : [const Color(0xFF1976D2), const Color(0xFF0D47A1)],
+                                      ? [
+                                          Colors.grey.shade400,
+                                          Colors.grey.shade500,
+                                        ]
+                                      : [
+                                          const Color(0xFF1976D2),
+                                          const Color(0xFF0D47A1),
+                                        ],
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: isUploading
@@ -546,40 +636,50 @@ class _ProductsScreenState extends State<ProductsScreen>
                                   onTap: isUploading
                                       ? null
                                       : () async {
-                                          if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty)
+                                          if (nameCtrl.text.isEmpty ||
+                                              priceCtrl.text.isEmpty)
                                             return;
 
-                                          String category = categoryCtrl.text.trim();
-                                          if (category.isEmpty) category = "Umum";
+                                          String category = categoryCtrl.text
+                                              .trim();
+                                          if (category.isEmpty)
+                                            category = "Umum";
 
                                           // Ambil data toko untuk disimpan di produk
                                           String sellerName = "Toko";
                                           String sellerImage = "";
                                           try {
-                                            final userDoc = await FirebaseFirestore.instance
-                                                .collection('users')
-                                                .doc(user!.uid)
-                                                .get();
+                                            final userDoc =
+                                                await FirebaseFirestore.instance
+                                                    .collection('users')
+                                                    .doc(user!.uid)
+                                                    .get();
                                             if (userDoc.exists) {
                                               sellerName =
                                                   userDoc['storeName'] ??
                                                   userDoc['name'] ??
                                                   "Toko";
-                                              sellerImage = userDoc['image'] ?? "";
+                                              sellerImage =
+                                                  userDoc['image'] ?? "";
                                             }
                                           } catch (e) {}
 
                                           final data = {
                                             'name': nameCtrl.text,
-                                            'price': int.tryParse(priceCtrl.text) ?? 0,
-                                            'stock': int.tryParse(stockCtrl.text) ?? 0,
+                                            'price':
+                                                int.tryParse(priceCtrl.text) ??
+                                                0,
+                                            'stock':
+                                                int.tryParse(stockCtrl.text) ??
+                                                0,
                                             'category': category,
                                             'description': descCtrl.text,
                                             'image': imageUrl ?? '',
                                             'uid': user?.uid,
                                             'sellerName': sellerName,
                                             'sellerImage': sellerImage,
-                                            'updatedAt': FieldValue.serverTimestamp(),
+                                            'updatedAt':
+                                                FieldValue.serverTimestamp(),
                                           };
 
                                           if (isEdit) {
@@ -588,12 +688,13 @@ class _ProductsScreenState extends State<ProductsScreen>
                                                 .doc(product.id)
                                                 .update(data);
                                           } else {
-                                            data['order'] =
-                                                DateTime.now().millisecondsSinceEpoch;
+                                            data['order'] = DateTime.now()
+                                                .millisecondsSinceEpoch;
                                             data['rating'] = 0.0;
                                             data['totalReviews'] = 0;
                                             data['sold'] = 0;
-                                            data['createdAt'] = FieldValue.serverTimestamp();
+                                            data['createdAt'] =
+                                                FieldValue.serverTimestamp();
 
                                             await FirebaseFirestore.instance
                                                 .collection('products')
@@ -604,26 +705,37 @@ class _ProductsScreenState extends State<ProductsScreen>
                                           toastification.show(
                                             context: context,
                                             title: Text(
-                                              isEdit ? "Produk Diupdate!" : "Produk Ditambah!",
+                                              isEdit
+                                                  ? "Produk Diupdate!"
+                                                  : "Produk Ditambah!",
                                             ),
                                             type: ToastificationType.success,
-                                            autoCloseDuration: const Duration(seconds: 3),
+                                            autoCloseDuration: const Duration(
+                                              seconds: 3,
+                                            ),
                                           );
                                         },
                                   borderRadius: BorderRadius.circular(12),
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Icon(
-                                          isEdit ? LucideIcons.save : LucideIcons.plus,
+                                          isEdit
+                                              ? LucideIcons.save
+                                              : LucideIcons.plus,
                                           color: Colors.white,
                                           size: 18,
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          isEdit ? "Simpan Perubahan" : "Tambah Produk",
+                                          isEdit
+                                              ? "Simpan Perubahan"
+                                              : "Tambah Produk",
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
@@ -737,7 +849,7 @@ class _ProductsScreenState extends State<ProductsScreen>
       // FAB: Tambah Produk - Premium design with plus icon
       floatingActionButton: _tabController.index == 0
           ? Padding(
-              padding: const EdgeInsets.only(bottom: 100),
+              padding: const EdgeInsets.only(bottom: 30, right: 10),
               child: Container(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
@@ -758,7 +870,10 @@ class _ProductsScreenState extends State<ProductsScreen>
                     onTap: () => _checkStoreProfileBeforeAdd(),
                     borderRadius: BorderRadius.circular(16),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
@@ -831,21 +946,21 @@ class _ProductsScreenState extends State<ProductsScreen>
                           children: [
                             _buildHeaderIcon(
                               context,
-                              LucideIcons.messageCircle,
-                              const ChatScreen(),
+                              LucideIcons.bell,
+                              const NotificationScreen(),
                             ),
                             const SizedBox(width: 8),
                             _buildHeaderIcon(
                               context,
-                              LucideIcons.bell,
-                              const NotificationScreen(),
+                              LucideIcons.messageSquare,
+                              const ChatScreen(),
                             ),
                           ],
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
-                    
+
                     // TSX-style Stats Cards
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
@@ -856,23 +971,24 @@ class _ProductsScreenState extends State<ProductsScreen>
                         final productCount = productSnapshot.hasData
                             ? productSnapshot.data!.docs.length
                             : 0;
-                        
+
                         return StreamBuilder<QuerySnapshot>(
                           stream: MarketService().getIncomingOrders(),
                           builder: (context, orderSnapshot) {
                             int pendingCount = 0;
                             Set<String> customers = {};
-                            
+
                             if (orderSnapshot.hasData) {
                               for (var doc in orderSnapshot.data!.docs) {
                                 final data = doc.data() as Map<String, dynamic>;
-                                if (data['status'] == 'Menunggu') pendingCount++;
+                                if (data['status'] == 'Menunggu')
+                                  pendingCount++;
                                 if (data['buyerName'] != null) {
                                   customers.add(data['buyerName']);
                                 }
                               }
                             }
-                            
+
                             return Row(
                               children: [
                                 // Pesanan Baru
@@ -936,13 +1052,17 @@ class _ProductsScreenState extends State<ProductsScreen>
     return StreamBuilder<QuerySnapshot>(
       stream: MarketService().getUserProducts(),
       builder: (context, productSnapshot) {
-        int productCount = productSnapshot.hasData ? productSnapshot.data!.docs.length : 0;
-        
+        int productCount = productSnapshot.hasData
+            ? productSnapshot.data!.docs.length
+            : 0;
+
         return StreamBuilder<QuerySnapshot>(
           stream: MarketService().getIncomingOrders(),
           builder: (context, orderSnapshot) {
-            int orderCount = orderSnapshot.hasData ? orderSnapshot.data!.docs.length : 0;
-            
+            int orderCount = orderSnapshot.hasData
+                ? orderSnapshot.data!.docs.length
+                : 0;
+
             return TabBar(
               controller: _tabController,
               labelColor: primaryColor,
@@ -972,15 +1092,15 @@ class _ProductsScreenState extends State<ProductsScreen>
           MaterialPageRoute(builder: (context) => destination),
         );
       },
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 36,
-        height: 36,
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
-        child: Icon(icon, color: Colors.white, size: 18),
+        child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }
@@ -1147,7 +1267,10 @@ class _ProductsScreenState extends State<ProductsScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1976D2).withOpacity(0.3), width: 1),
+        border: Border.all(
+          color: const Color(0xFF1976D2).withOpacity(0.3),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -1184,7 +1307,11 @@ class _ProductsScreenState extends State<ProductsScreen>
                         : null,
                   ),
                   child: (data['image'] == null || data['image'] == '')
-                      ? Icon(LucideIcons.image, color: Colors.grey[400], size: 32)
+                      ? Icon(
+                          LucideIcons.image,
+                          color: Colors.grey[400],
+                          size: 32,
+                        )
                       : null,
                 ),
                 if (isLowStock)
@@ -1192,7 +1319,10 @@ class _ProductsScreenState extends State<ProductsScreen>
                     top: 4,
                     left: 4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.circular(8),
@@ -1237,144 +1367,173 @@ class _ProductsScreenState extends State<ProductsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              data['name'] ?? "Produk",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    catColor.withOpacity(0.1),
-                                    catColor.withOpacity(0.2),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                category,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                data['name'] ?? "Produk",
                                 style: TextStyle(
-                                  fontSize: 10,
-                                  color: catColor,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      catColor.withOpacity(0.1),
+                                      catColor.withOpacity(0.2),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  category,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: catColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      // Action Buttons Row (Right)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          InkWell(
-                            onTap: () => _showProductDialog(product: doc),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(LucideIcons.edit2, size: 16, color: Colors.blue),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          InkWell(
-                            onTap: () => _deleteProduct(id),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(LucideIcons.trash2, size: 16, color: Colors.red),
-                            ),
-                          ),
-                          if (isReorderable) ...[
-                            const SizedBox(width: 8),
-                            ReorderableDragStartListener(
-                              index: index,
+                        // Action Buttons Row (Right)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            InkWell(
+                              onTap: () => _showProductDialog(product: doc),
+                              borderRadius: BorderRadius.circular(8),
                               child: Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.withOpacity(0.1),
+                                  color: Colors.blue.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Icon(LucideIcons.gripVertical, size: 16, color: Colors.grey[500]),
+                                child: const Icon(
+                                  LucideIcons.edit2,
+                                  size: 16,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: () => _deleteProduct(id),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  LucideIcons.trash2,
+                                  size: 16,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ),
+                            if (isReorderable) ...[
+                              const SizedBox(width: 8),
+                              ReorderableDragStartListener(
+                                index: index,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    LucideIcons.gripVertical,
+                                    size: 16,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    // Description
+                    if (data['description'] != null &&
+                        data['description'].isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Text(
+                          data['description'],
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+
+                    // Footer: Price and Stock (Always at bottom)
+                    const Spacer(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          currencyFormat.format(data['price'] ?? 0),
+                          style: const TextStyle(
+                            color: Color(0xFF10B981), // Emerald-600
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Icon(
+                              LucideIcons.package,
+                              size: 14,
+                              color: Colors.grey[500],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              "Stok: ",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            Text(
+                              "$stock",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isLowStock || isOutOfStock
+                                    ? Colors.red
+                                    : Colors.black87,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
-                        ],
-                      ),
-                    ],
-                  ),
-                  
-                  // Description
-                  if (data['description'] != null && data['description'].isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text(
-                        data['description'],
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12, height: 1.4),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-
-                  // Footer: Price and Stock (Always at bottom)
-                  const Spacer(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        currencyFormat.format(data['price'] ?? 0),
-                        style: const TextStyle(
-                          color: Color(0xFF10B981), // Emerald-600
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
                         ),
-                      ),
-                      Row(
-                        children: [
-                          Icon(LucideIcons.package, size: 14, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            "Stok: ",
-                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                          ),
-                          Text(
-                            "$stock",
-                            style: TextStyle(
-                              fontSize: 12, 
-                              color: isLowStock || isOutOfStock ? Colors.red : Colors.black87,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
             ),
           ],
         ),
@@ -1393,26 +1552,29 @@ class _ProductsScreenState extends State<ProductsScreen>
       stream: MarketService().getIncomingOrders(),
       builder: (context, snapshot) {
         if (!snapshot.hasData)
-          return const Center(child: CircularProgressIndicator(
-            color: Color(0xFF1976D2),
-          ));
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF1976D2)),
+          );
 
         final allDocs = snapshot.data!.docs;
-        
+
         // Count orders by status
         int allCount = allDocs.length;
         int pendingCount = 0;
         int processingCount = 0;
         int completedCount = 0;
-        
+
         for (var doc in allDocs) {
           final data = doc.data() as Map<String, dynamic>;
           final status = data['status'] ?? 'Menunggu';
-          if (status == 'Menunggu') pendingCount++;
-          else if (status == 'Diproses') processingCount++;
-          else if (status == 'Selesai' || status == 'Diantar') completedCount++;
+          if (status == 'Menunggu')
+            pendingCount++;
+          else if (status == 'Diproses')
+            processingCount++;
+          else if (status == 'Selesai' || status == 'Diantar')
+            completedCount++;
         }
-        
+
         // Filter orders based on selected status
         final filteredDocs = _selectedOrderStatus == "Semua"
             ? allDocs
@@ -1420,8 +1582,10 @@ class _ProductsScreenState extends State<ProductsScreen>
                 final data = doc.data() as Map<String, dynamic>;
                 final status = data['status'] ?? 'Menunggu';
                 if (_selectedOrderStatus == "Baru") return status == "Menunggu";
-                if (_selectedOrderStatus == "Proses") return status == "Diproses";
-                if (_selectedOrderStatus == "Selesai") return status == "Selesai" || status == "Diantar";
+                if (_selectedOrderStatus == "Proses")
+                  return status == "Diproses";
+                if (_selectedOrderStatus == "Selesai")
+                  return status == "Selesai" || status == "Diantar";
                 return true;
               }).toList();
 
@@ -1431,7 +1595,10 @@ class _ProductsScreenState extends State<ProductsScreen>
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                   colors: [Colors.grey.shade50, const Color(0xFFFAFAFA)], // Warm neutral grey
+                  colors: [
+                    Colors.grey.shade50,
+                    const Color(0xFFFAFAFA),
+                  ], // Warm neutral grey
                 ),
                 border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
               ),
@@ -1450,15 +1617,39 @@ class _ProductsScreenState extends State<ProductsScreen>
                 ),
                 child: Row(
                   children: [
-                    Expanded(child: _buildExpandedStatusTab("Semua", allCount, Colors.grey)), // Grey
-                    Expanded(child: _buildExpandedStatusTab("Baru", pendingCount, const Color(0xFFF97316))), // Orange
-                    Expanded(child: _buildExpandedStatusTab("Proses", processingCount, const Color(0xFF1976D2))), // Blue
-                    Expanded(child: _buildExpandedStatusTab("Selesai", completedCount, const Color(0xFF10B981))), // Emerald
+                    Expanded(
+                      child: _buildExpandedStatusTab(
+                        "Semua",
+                        allCount,
+                        Colors.grey,
+                      ),
+                    ), // Grey
+                    Expanded(
+                      child: _buildExpandedStatusTab(
+                        "Baru",
+                        pendingCount,
+                        const Color(0xFFF97316),
+                      ),
+                    ), // Orange
+                    Expanded(
+                      child: _buildExpandedStatusTab(
+                        "Proses",
+                        processingCount,
+                        const Color(0xFF1976D2),
+                      ),
+                    ), // Blue
+                    Expanded(
+                      child: _buildExpandedStatusTab(
+                        "Selesai",
+                        completedCount,
+                        const Color(0xFF10B981),
+                      ),
+                    ), // Emerald
                   ],
                 ),
               ),
             ),
-            
+
             // Orders List
             Expanded(
               child: filteredDocs.isEmpty
@@ -1473,7 +1664,7 @@ class _ProductsScreenState extends State<ProductsScreen>
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            _selectedOrderStatus == "Semua" 
+                            _selectedOrderStatus == "Semua"
                                 ? "Belum ada pesanan masuk."
                                 : "Tidak ada pesanan $_selectedOrderStatus",
                             style: const TextStyle(color: Colors.grey),
@@ -1494,7 +1685,7 @@ class _ProductsScreenState extends State<ProductsScreen>
                         Color statusColor;
                         IconData statusIcon;
                         String statusLabel;
-                        
+
                         if (status == 'Menunggu') {
                           statusColor = Colors.orange;
                           statusIcon = LucideIcons.clock;
@@ -1521,14 +1712,21 @@ class _ProductsScreenState extends State<ProductsScreen>
                               end: Alignment.bottomRight,
                               colors: [
                                 Colors.white,
-                                const Color(0xFFF8F7FF), // Very subtle purple tint
+                                const Color(
+                                  0xFFF8F7FF,
+                                ), // Very subtle purple tint
                               ],
                             ),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFF7C3AED).withOpacity(0.15), width: 1), // Purple accent
+                            border: Border.all(
+                              color: const Color(0xFF7C3AED).withOpacity(0.15),
+                              width: 1,
+                            ), // Purple accent
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF7C3AED).withOpacity(0.06),
+                                color: const Color(
+                                  0xFF7C3AED,
+                                ).withOpacity(0.06),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
                               ),
@@ -1540,7 +1738,8 @@ class _ProductsScreenState extends State<ProductsScreen>
                               children: [
                                 // HEADER
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
@@ -1549,15 +1748,29 @@ class _ProductsScreenState extends State<ProductsScreen>
                                           padding: const EdgeInsets.all(10),
                                           decoration: BoxDecoration(
                                             gradient: LinearGradient(
-                                              colors: [const Color(0xFF1976D2).withOpacity(0.1), const Color(0xFF1976D2).withOpacity(0.18)],
+                                              colors: [
+                                                const Color(
+                                                  0xFF1976D2,
+                                                ).withOpacity(0.1),
+                                                const Color(
+                                                  0xFF1976D2,
+                                                ).withOpacity(0.18),
+                                              ],
                                             ),
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
                                           ),
-                                          child: const Icon(LucideIcons.shoppingBag, color: Color(0xFF1976D2), size: 20),
+                                          child: const Icon(
+                                            LucideIcons.shoppingBag,
+                                            color: Color(0xFF1976D2),
+                                            size: 20,
+                                          ),
                                         ),
                                         const SizedBox(width: 12),
                                         Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               data['orderId'] ?? "ORD-???",
@@ -1569,10 +1782,15 @@ class _ProductsScreenState extends State<ProductsScreen>
                                             const SizedBox(height: 4),
                                             Row(
                                               children: [
-                                                Icon(LucideIcons.user, size: 12, color: Colors.grey[600]),
+                                                Icon(
+                                                  LucideIcons.user,
+                                                  size: 12,
+                                                  color: Colors.grey[600],
+                                                ),
                                                 const SizedBox(width: 4),
                                                 Text(
-                                                  data['buyerName'] ?? 'Pembeli',
+                                                  data['buyerName'] ??
+                                                      'Pembeli',
                                                   style: TextStyle(
                                                     color: Colors.grey[600],
                                                     fontSize: 12,
@@ -1585,7 +1803,10 @@ class _ProductsScreenState extends State<ProductsScreen>
                                       ],
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: statusColor.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(20),
@@ -1599,7 +1820,11 @@ class _ProductsScreenState extends State<ProductsScreen>
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(statusIcon, size: 14, color: statusColor),
+                                          Icon(
+                                            statusIcon,
+                                            size: 14,
+                                            color: statusColor,
+                                          ),
                                           const SizedBox(width: 6),
                                           Text(
                                             statusLabel,
@@ -1614,9 +1839,9 @@ class _ProductsScreenState extends State<ProductsScreen>
                                     ),
                                   ],
                                 ),
-                                
+
                                 const SizedBox(height: 16),
-                                
+
                                 // ITEMS
                                 Container(
                                   padding: const EdgeInsets.all(12),
@@ -1628,24 +1853,37 @@ class _ProductsScreenState extends State<ProductsScreen>
                                     children: items.map<Widget>((item) {
                                       int qty = item['quantity'] ?? 1;
                                       return Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 4,
+                                        ),
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Expanded(
                                               child: Row(
                                                 children: [
                                                   Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2,
+                                                        ),
                                                     decoration: BoxDecoration(
-                                                      color: const Color(0xFFEEEEEE),
-                                                      borderRadius: BorderRadius.circular(6),
+                                                      color: const Color(
+                                                        0xFFEEEEEE,
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            6,
+                                                          ),
                                                     ),
                                                     child: Text(
                                                       "${qty}x",
                                                       style: const TextStyle(
                                                         fontSize: 12,
-                                                        fontWeight: FontWeight.bold,
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                         color: Colors.black,
                                                       ),
                                                     ),
@@ -1657,17 +1895,21 @@ class _ProductsScreenState extends State<ProductsScreen>
                                                       style: const TextStyle(
                                                         fontSize: 14,
                                                         color: Colors.black87,
-                                                        fontWeight: FontWeight.w500,
+                                                        fontWeight:
+                                                            FontWeight.w500,
                                                       ),
                                                       maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                     ),
                                                   ),
                                                 ],
                                               ),
                                             ),
                                             Text(
-                                              currencyFormat.format((item['price'] ?? 0) * qty),
+                                              currencyFormat.format(
+                                                (item['price'] ?? 0) * qty,
+                                              ),
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 color: Colors.green[700],
@@ -1680,25 +1922,32 @@ class _ProductsScreenState extends State<ProductsScreen>
                                     }).toList(),
                                   ),
                                 ),
-                                
+
                                 const SizedBox(height: 16),
-                                
+
                                 // FOOTER
                                 Divider(height: 1, color: Colors.grey[200]),
                                 const SizedBox(height: 12),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text(
                                           "Total Pembayaran",
-                                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey,
+                                          ),
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          currencyFormat.format(data['totalPrice'] ?? 0),
+                                          currencyFormat.format(
+                                            data['totalPrice'] ?? 0,
+                                          ),
                                           style: const TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
@@ -1707,14 +1956,28 @@ class _ProductsScreenState extends State<ProductsScreen>
                                         ),
                                         const SizedBox(height: 6),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
                                           decoration: BoxDecoration(
-                                            border: Border.all(color: const Color(0xFFBDBDBD)),
-                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(
+                                              color: const Color(0xFFBDBDBD),
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
                                           ),
                                           child: Text(
-                                            (data['paymentMethod'] ?? 'Transfer') == 'cod' ? 'COD' : 'Transfer',
-                                            style: const TextStyle(fontSize: 10, color: Colors.black),
+                                            (data['paymentMethod'] ??
+                                                        'Transfer') ==
+                                                    'cod'
+                                                ? 'COD'
+                                                : 'Transfer',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.black,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -1724,61 +1987,159 @@ class _ProductsScreenState extends State<ProductsScreen>
                                         // ACTION BUTTONS BASED ON STATUS
                                         if (status == 'Menunggu') ...[
                                           OutlinedButton.icon(
-                                            icon: const Icon(LucideIcons.trash2, size: 16, color: Colors.red),
-                                            label: const Text("Tolak", style: TextStyle(color: Colors.red)),
-                                            onPressed: () => _updateOrderStatus(doc.id, "Ditolak"),
+                                            icon: const Icon(
+                                              LucideIcons.trash2,
+                                              size: 16,
+                                              color: Colors.red,
+                                            ),
+                                            label: const Text(
+                                              "Tolak",
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                            onPressed: () => _updateOrderStatus(
+                                              doc.id,
+                                              "Ditolak",
+                                            ),
                                             style: OutlinedButton.styleFrom(
-                                              side: BorderSide(color: Colors.grey.shade300),
-                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              side: BorderSide(
+                                                color: Colors.grey.shade300,
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 8,
+                                                  ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
                                             ),
                                           ),
                                           const SizedBox(width: 8),
                                           ElevatedButton.icon(
-                                            icon: const Icon(LucideIcons.checkCircle, size: 16, color: Colors.white),
-                                            label: const Text("Terima", style: TextStyle(color: Colors.white)),
-                                            onPressed: () => _updateOrderStatus(doc.id, "Diproses"),
+                                            icon: const Icon(
+                                              LucideIcons.checkCircle,
+                                              size: 16,
+                                              color: Colors.white,
+                                            ),
+                                            label: const Text(
+                                              "Terima",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            onPressed: () => _updateOrderStatus(
+                                              doc.id,
+                                              "Diproses",
+                                            ),
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: const Color(0xFF1976D2),
-                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              backgroundColor: const Color(
+                                                0xFF1976D2,
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                    vertical: 8,
+                                                  ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
                                               elevation: 0,
                                             ),
                                           ),
                                         ] else if (status == 'Diproses') ...[
                                           ElevatedButton.icon(
-                                            icon: const Icon(LucideIcons.truck, size: 16, color: Colors.white),
-                                            label: const Text("Kirim", style: TextStyle(color: Colors.white)),
-                                            onPressed: () => _updateOrderStatus(doc.id, "Diantar"),
+                                            icon: const Icon(
+                                              LucideIcons.truck,
+                                              size: 16,
+                                              color: Colors.white,
+                                            ),
+                                            label: const Text(
+                                              "Kirim",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            onPressed: () => _updateOrderStatus(
+                                              doc.id,
+                                              "Diantar",
+                                            ),
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: Colors.purple,
-                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                    vertical: 8,
+                                                  ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
                                               elevation: 0,
                                             ),
                                           ),
                                         ] else if (status == 'Diantar') ...[
                                           ElevatedButton.icon(
-                                            icon: const Icon(LucideIcons.check, size: 16, color: Colors.white),
-                                            label: const Text("Selesai", style: TextStyle(color: Colors.white)),
-                                            onPressed: () => _updateOrderStatus(doc.id, "Selesai"),
+                                            icon: const Icon(
+                                              LucideIcons.check,
+                                              size: 16,
+                                              color: Colors.white,
+                                            ),
+                                            label: const Text(
+                                              "Selesai",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            onPressed: () => _updateOrderStatus(
+                                              doc.id,
+                                              "Selesai",
+                                            ),
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: Colors.green,
-                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                    vertical: 8,
+                                                  ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
                                               elevation: 0,
                                             ),
                                           ),
                                         ] else ...[
                                           // Completed or other
                                           OutlinedButton.icon(
-                                            icon: const Icon(LucideIcons.eye, size: 16, color: Colors.purple),
-                                            label: const Text("Detail", style: TextStyle(color: Colors.purple)),
+                                            icon: const Icon(
+                                              LucideIcons.eye,
+                                              size: 16,
+                                              color: Colors.purple,
+                                            ),
+                                            label: const Text(
+                                              "Detail",
+                                              style: TextStyle(
+                                                color: Colors.purple,
+                                              ),
+                                            ),
                                             onPressed: () {}, // Detail action
                                             style: OutlinedButton.styleFrom(
-                                              side: const BorderSide(color: Colors.purple),
-                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              side: const BorderSide(
+                                                color: Colors.purple,
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 8,
+                                                  ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -1817,10 +2178,7 @@ class _ProductsScreenState extends State<ProductsScreen>
               ? LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    color,
-                    color.withOpacity(0.8),
-                  ],
+                  colors: [color, color.withOpacity(0.8)],
                 )
               : null,
           color: isSelected ? null : Colors.transparent,
@@ -1839,7 +2197,9 @@ class _ProductsScreenState extends State<ProductsScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white.withOpacity(0.2) : color.withOpacity(0.1),
+                color: isSelected
+                    ? Colors.white.withOpacity(0.2)
+                    : color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(

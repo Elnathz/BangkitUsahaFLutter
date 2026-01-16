@@ -6,14 +6,14 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
-import 'package:intl/intl.dart';
 
 // --- IMPORT HALAMAN LAIN ---
 import 'order_history_screen.dart';
 import 'settings_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
-import '../../services/market_service.dart'; // Import MarketService
+import 'widgets/reviews_modal.dart';
+import '../../services/market_service.dart';
 
 const List<String> DAYS = [
   'Senin',
@@ -319,867 +319,459 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     if (isLoading)
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark
-        ? const Color(0xFF6D4C41).withOpacity(0.2)
-        : Colors.white;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final labelColor = isDark ? Colors.white70 : Colors.grey[600]!;
-    final primaryColor = theme.primaryColor;
 
-    String displayName = businessProfile['name'];
-    if (displayName.isEmpty) displayName = "Nama Toko Anda";
-    String image = businessProfile['image'];
-
+    // Background gradient for the whole screen
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: const Color(0xFFF3F4F6),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 1. HEADER
-            Container(
-              padding: const EdgeInsets.only(
-                top: 50,
-                bottom: 24,
-                left: 20,
-                right: 20,
-              ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [primaryColor, const Color(0xFF503C37)],
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Stack(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: CircleAvatar(
-                          radius: 32,
-                          backgroundColor: Colors.grey[300],
-                          backgroundImage:
-                              (image != "" && image.startsWith("http"))
-                              ? NetworkImage(image)
-                              : null,
-                          child: (image == "" || !image.startsWith("http"))
-                              ? Text(
-                                  displayName.isNotEmpty
-                                      ? displayName[0].toUpperCase()
-                                      : "?",
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: primaryColor,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: _handleImageUpload,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: primaryColor, width: 1),
-                            ),
-                            child: isUploading
-                                ? SizedBox(
-                                    width: 10,
-                                    height: 10,
-                                    child: CircularProgressIndicator(
-                                      color: primaryColor,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(
-                                    LucideIcons.camera,
-                                    size: 12,
-                                    color: Colors.brown,
-                                  ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          displayName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              LucideIcons.user,
-                              size: 12,
-                              color: Colors.white70,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              businessProfile['owner'],
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      _buildHeaderIcon(
-                        context,
-                        LucideIcons.bell,
-                        const NotificationScreen(),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildHeaderIcon(
-                        context,
-                        LucideIcons.messageCircle,
-                        const ChatScreen(),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildHeaderIcon(
-                        context,
-                        LucideIcons.settings,
-                        const SettingsScreen(),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // --- 2. BAGIAN PESANAN SAYA (DENGAN BADGE TITIK MERAH) ---
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 2,
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Pesanan Saya",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          // Navigasi ke Halaman OrderHistory (Tab Semua)
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const OrderHistoryScreen(),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          children: [
-                            Text(
-                              "Lihat Riwayat",
-                              style: TextStyle(fontSize: 12, color: labelColor),
-                            ),
-                            Icon(
-                              Icons.chevron_right,
-                              size: 16,
-                              color: labelColor,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // STREAM UNTUK HITUNG JUMLAH PESANAN (BADGE)
-                  StreamBuilder<QuerySnapshot>(
-                    stream: MarketService().getMyOrders(), // Ambil data pesanan
-                    builder: (context, snapshot) {
-                      int pending = 0; // Menunggu
-                      int packing = 0; // Dikemas (Diproses)
-                      int shipping = 0; // Dikirim (Diantar)
-                      // int completed = 0; // Selesai (Biasanya tidak perlu badge)
-
-                      if (snapshot.hasData) {
-                        for (var doc in snapshot.data!.docs) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          final status = data['status'];
-                          if (status == 'Menunggu')
-                            pending++;
-                          else if (status == 'Diproses')
-                            packing++;
-                          else if (status == 'Diantar')
-                            shipping++;
-                        }
-                      }
-
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildQuickStatusIcon(
-                            LucideIcons.wallet,
-                            "Menunggu",
-                            () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const OrderHistoryScreen(),
-                              ),
-                            ),
-                            badgeCount: pending, // Badge
-                          ),
-                          _buildQuickStatusIcon(
-                            LucideIcons.package,
-                            "Dikemas",
-                            () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const OrderHistoryScreen(),
-                              ),
-                            ),
-                            badgeCount: packing, // Badge
-                          ),
-                          _buildQuickStatusIcon(
-                            LucideIcons.truck,
-                            "Dikirim",
-                            () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const OrderHistoryScreen(),
-                              ),
-                            ),
-                            badgeCount: shipping, // Badge
-                          ),
-                          _buildQuickStatusIcon(
-                            LucideIcons.star,
-                            "Selesai",
-                            () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const OrderHistoryScreen(),
-                              ),
-                            ),
-                            badgeCount: 0, // Selesai tidak perlu badge
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            // ------------------------------------------------
-
-            // 3. STATS GRID (TOKO)
+            _buildHeader(context),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  _buildStatCard(
-                    "Penjualan",
-                    "${businessProfile['totalSales']}",
-                    LucideIcons.award,
-                    cardColor,
-                    textColor,
-                    primaryColor,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildStatCard(
-                    "Rating Toko",
-                    "${businessProfile['rating']}",
-                    LucideIcons.star,
-                    cardColor,
-                    textColor,
-                    primaryColor,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildStatCard(
-                    "Ulasan Toko",
-                    "${businessProfile['totalReviews']}",
-                    LucideIcons.messageSquare,
-                    cardColor,
-                    textColor,
-                    primaryColor,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildStatCard(
-                    "Total Ulasan",
-                    "$totalAllInteractions",
-                    LucideIcons.users,
-                    cardColor,
-                    textColor,
-                    primaryColor,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // 4. INFORMASI BISNIS
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 2,
-                  ),
-                ],
-              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Informasi Bisnis",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                      isEditing
-                          ? Row(
-                              children: [
-                                InkWell(
-                                  onTap: _toggleEdit,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.1),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      LucideIcons.x,
-                                      size: 16,
-                                      color: Colors.red,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                ElevatedButton.icon(
-                                  onPressed: isSaving ? null : _handleSave,
-                                  icon: isSaving
-                                      ? const SizedBox(
-                                          width: 12,
-                                          height: 12,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(LucideIcons.save, size: 14),
-                                  label: const Text(
-                                    "Simpan",
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green[600],
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : TextButton.icon(
-                              onPressed: _toggleEdit,
-                              icon: const Icon(LucideIcons.edit2, size: 14),
-                              label: const Text("Edit"),
-                              style: TextButton.styleFrom(
-                                foregroundColor: primaryColor,
-                              ),
-                            ),
-                    ],
-                  ),
                   const SizedBox(height: 16),
-
-                  if (isEditing) ...[
-                    // FORM EDIT
-                    _buildEditInput(
-                      "Nama Toko",
-                      _nameController,
-                      textColor: textColor,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildEditInput(
-                      "Deskripsi",
-                      _descController,
-                      maxLines: 3,
-                      textColor: textColor,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildEditInput(
-                      "Alamat",
-                      _addressController,
-                      icon: LucideIcons.mapPin,
-                      textColor: textColor,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildEditInput(
-                      "Telepon",
-                      _phoneController,
-                      icon: LucideIcons.phone,
-                      textColor: textColor,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildEditInput(
-                      "Email",
-                      _emailController,
-                      icon: LucideIcons.mail,
-                      textColor: textColor,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildEditInput(
-                      "Berdiri Sejak",
-                      _yearController,
-                      icon: LucideIcons.store,
-                      textColor: textColor,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white10 : Colors.brown[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isDark
-                              ? Colors.transparent
-                              : Colors.brown[100]!,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                LucideIcons.clock,
-                                size: 16,
-                                color: labelColor,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                "Atur Jam Operasional",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: labelColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: DAYS.map((day) {
-                              final isSelected = selectedDays.contains(day);
-                              return InkWell(
-                                onTap: () => _handleDayToggle(day),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? primaryColor.withOpacity(0.1)
-                                        : (isDark
-                                              ? Colors.black26
-                                              : Colors.white),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? primaryColor
-                                          : (isDark
-                                                ? Colors.transparent
-                                                : Colors.grey[300]!),
-                                    ),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    day.substring(0, 3),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: isSelected
-                                          ? primaryColor
-                                          : labelColor,
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildTimePickerButton(
-                                  "Buka",
-                                  openTime,
-                                  true,
-                                  isDark,
-                                  primaryColor,
-                                ),
-                              ),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 8),
-                                child: Text("-"),
-                              ),
-                              Expanded(
-                                child: _buildTimePickerButton(
-                                  "Tutup",
-                                  closeTime,
-                                  false,
-                                  isDark,
-                                  primaryColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Preview: ${_generateScheduleString().isEmpty ? 'Belum diatur' : _generateScheduleString()}",
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: labelColor,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ] else ...[
-                    // VIEW MODE
-                    _buildDescriptionView(isDark),
-                    const SizedBox(height: 20),
-                    _buildInfoRow(
-                      LucideIcons.mapPin,
-                      "Alamat",
-                      businessProfile['address'],
-                      textColor,
-                      labelColor,
-                    ),
-                    _buildInfoRow(
-                      LucideIcons.phone,
-                      "Telepon",
-                      businessProfile['phone'],
-                      textColor,
-                      labelColor,
-                    ),
-                    _buildInfoRow(
-                      LucideIcons.mail,
-                      "Email",
-                      businessProfile['email'],
-                      textColor,
-                      labelColor,
-                    ),
-                    _buildInfoRow(
-                      LucideIcons.clock,
-                      "Jam Operasional",
-                      businessProfile['openingHours'],
-                      textColor,
-                      labelColor,
-                    ),
-                    _buildInfoRow(
-                      LucideIcons.store,
-                      "Berdiri Sejak",
-                      businessProfile['established'],
-                      textColor,
-                      labelColor,
-                    ),
-                  ],
+                  _buildOrderSection(context),
+                  const SizedBox(height: 16),
+                  _buildStatsSection(context),
+                  const SizedBox(height: 16),
+                  _buildBusinessInfoSection(context),
+                  const SizedBox(height: 16),
+                  _buildReviewsSection(context),
+                  const SizedBox(height: 120),
                 ],
               ),
             ),
-
-            const SizedBox(height: 16),
-
-            // 5. LIST ULASAN (Realtime)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Ulasan Toko",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                      Text(
-                        "Terbaru",
-                        style: TextStyle(color: primaryColor, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('reviews')
-                        .where('shopId', isEqualTo: user?.uid)
-                        .orderBy('createdAt', descending: true)
-                        .limit(5)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return Center(
-                          child: Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: isDark
-                                      ? Colors.black26
-                                      : Colors.brown[50],
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  LucideIcons.star,
-                                  color: Colors.grey[400],
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "Belum ada ulasan toko.",
-                                style: TextStyle(
-                                  color: labelColor,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return Column(
-                        children: snapshot.data!.docs.map((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          bool isShopReview =
-                              (data['productId'] == null ||
-                              data['productId'] == "");
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.white10 : Colors.grey[50],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      LucideIcons.user,
-                                      size: 12,
-                                      color: labelColor,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      data['userName'] ?? "Pembeli",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                        color: textColor,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    Icon(
-                                      LucideIcons.star,
-                                      size: 12,
-                                      color: Colors.orange,
-                                    ),
-                                    Text(
-                                      " ${data['rating']}",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                        color: textColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-
-                                const SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  margin: const EdgeInsets.only(bottom: 6),
-                                  decoration: BoxDecoration(
-                                    color: isShopReview
-                                        ? Colors.purple.withOpacity(0.1)
-                                        : Colors.blue.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    isShopReview
-                                        ? "Ulasan Toko"
-                                        : "Ulasan Produk",
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: isShopReview
-                                          ? Colors.purple
-                                          : Colors.blue,
-                                    ),
-                                  ),
-                                ),
-
-                                Text(
-                                  data['comment'] ?? "",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: labelColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 120),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeaderIcon(
+  Widget _buildHeader(BuildContext context) {
+    String displayName = businessProfile['name'];
+    // if (displayName.isEmpty) displayName = "Nama Toko Anda"; // Removed as we use businessProfile['name'] directly in specific place
+    String image = businessProfile['image'];
+
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1976D2), Color(0xFF0D47A1)],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Avatar with Badge
+              Stack(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: CircleAvatar(
+                      radius: 35,
+                      backgroundColor: Colors.white,
+                      child: CircleAvatar(
+                        radius: 32,
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage:
+                            (image != "" && image.startsWith("http"))
+                            ? NetworkImage(image)
+                            : null,
+                        child: (image == "" || !image.startsWith("http"))
+                            ? Text(
+                                displayName.isNotEmpty
+                                    ? displayName[0].toUpperCase()
+                                    : "?",
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1976D2),
+                                ),
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: _handleImageUpload,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981), // Emerald
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: isUploading
+                            ? const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(
+                                LucideIcons.camera,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 16),
+
+              // Name and Role
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      businessProfile['name'] ?? "Nama Toko",
+                      style: const TextStyle(
+                        fontSize: 22, // Slightly larger
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      businessProfile['description'].isNotEmpty
+                          ? businessProfile['description']
+                          : "Deskripsi toko belum diisi",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            LucideIcons.store,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            businessProfile['owner'],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Action Buttons
+              Row(
+                children: [
+                  _buildActionButton(
+                    context,
+                    LucideIcons.bell,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationScreen(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildActionButton(
+                    context,
+                    LucideIcons.messageSquare,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ChatScreen()),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildActionButton(
+                    context,
+                    LucideIcons.settings,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(
     BuildContext context,
     IconData icon,
-    Widget destination,
+    VoidCallback onTap,
   ) {
     return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => destination),
-      ),
-      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
         child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }
 
-  // WIDGET BARU: Icon Status Pesanan dengan BADGE
-  Widget _buildQuickStatusIcon(
-    IconData icon,
+  Widget _buildOrderSection(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: MarketService().getMyOrders(),
+      builder: (context, snapshot) {
+        int pending = 0;
+        int packing = 0;
+        int shipping = 0;
+        int completed = 0;
+
+        if (snapshot.hasData) {
+          for (var doc in snapshot.data!.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final status = data['status'];
+            if (status == 'Menunggu')
+              pending++;
+            else if (status == 'Diproses')
+              packing++; // Assuming 'Diproses' maps to Packed
+            else if (status == 'Diantar')
+              shipping++;
+            else if (status == 'Selesai')
+              completed++;
+          }
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Pesanan Saya",
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const OrderHistoryScreen(),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Text(
+                            "Lihat Riwayat",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF2563EB),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            LucideIcons.chevronRight,
+                            size: 16,
+                            color: Color(0xFF2563EB),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Used Wrap with spaceEvenly alignment to bring icons closer but still distributed
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: _buildOrderIcon(
+                          context,
+                          "Menunggu",
+                          pending,
+                          LucideIcons.shoppingBag,
+                          Colors.amber,
+                          Colors.amber[50]!,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Center(
+                        child: _buildOrderIcon(
+                          context,
+                          "Dikemas",
+                          packing,
+                          LucideIcons.package,
+                          Colors.blue,
+                          Colors.blue[50]!,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Center(
+                        child: _buildOrderIcon(
+                          context,
+                          "Dikirim",
+                          shipping,
+                          LucideIcons.truck,
+                          Colors.purple,
+                          Colors.purple[50]!,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Center(
+                        child: _buildOrderIcon(
+                          context,
+                          "Selesai",
+                          completed,
+                          LucideIcons.checkCircle,
+                          Colors.green,
+                          Colors.green[50]!,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOrderIcon(
+    BuildContext context,
     String label,
-    VoidCallback onTap, {
-    int badgeCount = 0,
-  }) {
+    int count,
+    IconData icon,
+    Color color,
+    Color bgColor,
+  ) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+      ),
       child: Column(
         children: [
           Stack(
             clipBehavior: Clip.none,
             children: [
-              Icon(icon, size: 24, color: Colors.grey[700]),
-              if (badgeCount > 0)
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: bgColor.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              if (count > 0)
                 Positioned(
                   top: -6,
                   right: -6,
                   child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444),
                       shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.red.withOpacity(0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Text(
-                      badgeCount > 99 ? '99+' : '$badgeCount',
+                      count.toString(),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
@@ -1191,9 +783,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStatsSection(BuildContext context) {
+    return Row(
+      children: [
+        _buildStatCard(
+          "Penjualan",
+          "${businessProfile['totalSales']}",
+          LucideIcons.trendingUp,
+          Colors.blue,
+        ),
+        const SizedBox(width: 12),
+        _buildStatCard(
+          "Rating Toko",
+          "${businessProfile['rating']}",
+          LucideIcons.star,
+          Colors.amber,
+        ),
+        const SizedBox(width: 12),
+        _buildStatCard(
+          "Ulasan Toko",
+          "${businessProfile['totalReviews']}",
+          LucideIcons.messageCircle,
+          Colors.purple,
+        ),
+        const SizedBox(width: 12),
+        _buildStatCard(
+          "Total Ulasan",
+          "$totalAllInteractions",
+          LucideIcons.users,
+          Colors.green,
+        ),
+      ],
     );
   }
 
@@ -1201,37 +834,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String label,
     String value,
     IconData icon,
-    Color bg,
-    Color text,
-    Color iconColor,
+    Color color,
   ) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        height: 125, // Increased height for larger cards
+        padding: const EdgeInsets.all(16), // Increased padding
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(8),
+          color: color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white, width: 1),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4),
+            BoxShadow(
+              color: color.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 18, color: iconColor),
-            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [color.withOpacity(0.8), color],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Icon(icon, color: Colors.white, size: 16),
+            ),
+            const SizedBox(height: 8),
             Text(
               label,
-              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              value == "0" ? "-" : value,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 10,
+                color: Colors.grey[600],
                 fontWeight: FontWeight.bold,
-                color: text,
               ),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[900],
+              ),
             ),
           ],
         ),
@@ -1239,61 +899,495 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildDescriptionView(bool isDark) {
-    bool isEmpty =
-        businessProfile['description'] == null ||
-        businessProfile['description'].isEmpty;
+  Widget _buildBusinessInfoSection(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white10 : Colors.brown[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isDark ? Colors.transparent : Colors.brown[100]!,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Text(
-        isEmpty
-            ? "Deskripsi toko belum diisi."
-            : businessProfile['description'],
-        style: TextStyle(
-          fontSize: 13,
-          color: isEmpty
-              ? Colors.grey[400]
-              : (isDark ? Colors.grey[300] : Colors.black87),
-          fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Informasi Bisnis",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                isEditing
+                    ? Row(
+                        children: [
+                          InkWell(
+                            onTap: _toggleEdit,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                LucideIcons.x,
+                                size: 16,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            onPressed: isSaving ? null : _handleSave,
+                            icon: isSaving
+                                ? const SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(LucideIcons.save, size: 14),
+                            label: const Text(
+                              "Simpan",
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : TextButton.icon(
+                        onPressed: _toggleEdit,
+                        icon: const Icon(LucideIcons.edit2, size: 14),
+                        label: const Text("Edit"),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF2563EB),
+                        ),
+                      ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            if (isEditing) ...[
+              _buildEditInput("Nama Toko", _nameController),
+              const SizedBox(height: 12),
+              _buildEditInput("Deskripsi", _descController, maxLines: 3),
+              const SizedBox(height: 12),
+              _buildEditInput(
+                "Alamat",
+                _addressController,
+                icon: LucideIcons.mapPin,
+              ),
+              const SizedBox(height: 12),
+              _buildEditInput(
+                "Telepon",
+                _phoneController,
+                icon: LucideIcons.phone,
+              ),
+              const SizedBox(height: 12),
+              _buildEditInput(
+                "Email",
+                _emailController,
+                icon: LucideIcons.mail,
+              ),
+              const SizedBox(height: 12),
+              _buildEditInput(
+                "Berdiri Sejak",
+                _yearController,
+                icon: LucideIcons.store,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Jam Operasional",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: DAYS.map((day) {
+                  final isSelected = selectedDays.contains(day);
+                  return FilterChip(
+                    label: Text(day),
+                    selected: isSelected,
+                    onSelected: (_) => _handleDayToggle(day),
+                    selectedColor: const Color(0xFF2563EB).withOpacity(0.2),
+                    checkmarkColor: const Color(0xFF2563EB),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _selectTime(true),
+                      child: Text("Buka: ${openTime.format(context)}"),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _selectTime(false),
+                      child: Text("Tutup: ${closeTime.format(context)}"),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              const Padding(
+                padding: EdgeInsets.only(bottom: 6, left: 4),
+                child: Text(
+                  "Nama Toko dan Deskripsi",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      businessProfile['name'] ?? "",
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      businessProfile['description'].isNotEmpty
+                          ? businessProfile['description']
+                          : "Deskripsi toko belum diisi",
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildInfoRow(
+                LucideIcons.mapPin,
+                "Alamat",
+                businessProfile['address'],
+              ),
+              _buildInfoRow(
+                LucideIcons.phone,
+                "Telepon",
+                businessProfile['phone'],
+              ),
+              _buildInfoRow(
+                LucideIcons.mail,
+                "Email",
+                businessProfile['email'],
+              ),
+              _buildInfoRow(
+                LucideIcons.clock,
+                "Jam Operasional",
+                businessProfile['openingHours'],
+              ),
+              _buildInfoRow(
+                LucideIcons.calendar,
+                "Berdiri Sejak",
+                businessProfile['established'],
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(
-    IconData icon,
-    String label,
-    String value,
-    Color text,
-    Color labelColor,
-  ) {
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    if (value.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: labelColor),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: Colors.grey[600]),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 11, color: labelColor)),
                 Text(
-                  value.isEmpty ? "-" : value,
+                  label,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
+                    color: Colors.grey[500],
                     fontWeight: FontWeight.w500,
-                    color: text,
                   ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[900],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewsSection(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Ulasan Toko",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                InkWell(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => ReviewsModal(shopId: user!.uid),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      const Text(
+                        "Lihat Semua",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF2563EB),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        LucideIcons.chevronRight,
+                        size: 16,
+                        color: Color(0xFF2563EB),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const SizedBox(height: 16),
+
+            // Scrollable Reviews List
+            SizedBox(
+              height: 300,
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('reviews')
+                    .where('shopId', isEqualTo: user!.uid)
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return Center(
+                      child: Text(
+                        "Belum ada ulasan",
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: snapshot.data!.docs.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final doc = snapshot.data!.docs[index];
+                      final data = doc.data() as Map<String, dynamic>;
+
+                      // Handle date formatting
+                      String dateStr = "";
+                      if (data['createdAt'] != null) {
+                        final timestamp = data['createdAt'] as Timestamp;
+                        final now = DateTime.now();
+                        final diff = now.difference(timestamp.toDate());
+                        if (diff.inDays > 0) {
+                          dateStr = "${diff.inDays} hari lalu";
+                        } else if (diff.inHours > 0) {
+                          dateStr = "${diff.inHours} jam lalu";
+                        } else {
+                          dateStr = "${diff.inMinutes} menit lalu";
+                        }
+                      }
+
+                      return _buildReviewItem(
+                        data['userName'] ?? "Pengguna",
+                        data['userAvatar'] ?? "",
+                        (data['rating'] ?? 0).toInt(),
+                        data['comment'] ?? "",
+                        dateStr,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReviewItem(
+    String name,
+    String avatarUrl,
+    int rating,
+    String comment,
+    String date,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.grey[300],
+            backgroundImage: NetworkImage(avatarUrl),
+            onBackgroundImageError: (_, __) {},
+            child: const Icon(Icons.person, size: 16, color: Colors.grey),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[900],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.amber[50],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.star, size: 12, color: Colors.amber),
+                          const SizedBox(width: 2),
+                          Text(
+                            "$rating",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.purple[50],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    "Ulasan Toko",
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.purple[700],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  comment,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  date,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -1308,73 +1402,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     TextEditingController controller, {
     IconData? icon,
     int maxLines = 1,
-    String? placeholder,
-    required Color textColor,
-    required bool isDark,
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       maxLines: maxLines,
-      style: TextStyle(fontSize: 13, color: textColor),
+      style: const TextStyle(color: Colors.black87),
       decoration: InputDecoration(
         labelText: label,
-        hintText: placeholder,
-        labelStyle: TextStyle(
-          color: isDark ? Colors.grey[400] : Colors.grey[700],
-        ),
+        labelStyle: TextStyle(color: Colors.grey[600]),
         prefixIcon: icon != null
-            ? Icon(icon, size: 16, color: Colors.grey)
+            ? Icon(icon, size: 18, color: Colors.grey[600])
             : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[200]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: isDark ? Colors.grey[700]! : Colors.grey,
+            color: Theme.of(context).primaryColor,
+            width: 1.5,
           ),
         ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
+          horizontal: 16,
           vertical: 12,
-        ),
-        isDense: true,
-      ),
-    );
-  }
-
-  Widget _buildTimePickerButton(
-    String label,
-    TimeOfDay time,
-    bool isOpenTime,
-    bool isDark,
-    Color activeColor,
-  ) {
-    return InkWell(
-      onTap: () => _selectTime(isOpenTime),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          color: isDark ? Colors.white10 : Colors.white,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(fontSize: 10, color: Colors.grey[500]),
-            ),
-            Text(
-              "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: isDark ? Colors.white : activeColor,
-              ),
-            ),
-          ],
         ),
       ),
     );

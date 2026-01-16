@@ -3,7 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 import '../services/finance_service.dart';
 // Jika ingin menggunakan TransactionModel untuk passing data balik, uncomment baris bawah
-import '../models/transaction_model.dart';
+// removed unused import '../models/transaction_model.dart'
 
 class AddTransactionDialog extends StatefulWidget {
   const AddTransactionDialog({super.key});

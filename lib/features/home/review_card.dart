@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+// removed unused import 'package:lucide_icons/lucide_icons.dart'
 
 class ReviewCard extends StatelessWidget {
   final String productId; // Wajib ada agar bisa update rating saat dihapus

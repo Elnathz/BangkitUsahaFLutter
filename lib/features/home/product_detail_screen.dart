@@ -3,7 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:toastification/toastification.dart';
+// removed unused import 'package:toastification/toastification.dart'
 import '../inventory/checkout_screen.dart'; // Pastikan path relatifnya benar sesuai struktur folder
 // ATAU gunakan path absolut jika bingung:
 // import 'package:bangkit_usaha/features/inventory/checkout_screen.dart';
@@ -11,8 +11,8 @@ import '../../services/market_service.dart';
 import '../chat/chat_detail_screen.dart';
 import 'product_reviews_screen.dart';
 import '../shop/shop_profile_screen.dart';
-// --- IMPORT CHECKOUT SCREEN ---
-import '../inventory/checkout_screen.dart';
+// --- IMPORT CHECKOUT SCREEN (duplicate removal) ---
+// duplicate import removed
 
 class ProductDetailScreen extends StatefulWidget {
   final Map<String, dynamic> initialData;
@@ -574,7 +574,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       icon: Column(
                         children: [
                           Icon(
-                            LucideIcons.messageCircle,
+                            LucideIcons.messageSquare,
                             size: 20,
                             color: primaryColor,
                           ),

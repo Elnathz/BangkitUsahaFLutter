@@ -88,12 +88,11 @@ class ChatService {
           .get();
 
       if (doc.exists) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-
         // (Opsional) Hapus file dari Storage jika tipe bukan text
-        // Jika ingin hemat storage, aktifkan kode di bawah ini:
+        // Jika ingin hemat storage, aktifkan kode di bawah ini dengan mem-parsing doc.data()
         /*
-        if (data['type'] == 'image' || data['type'] == 'video') {
+        final data = doc.data();
+        if (data != null && (data['type'] == 'image' || data['type'] == 'video')) {
           try {
             await _storage.refFromURL(data['text']).delete();
           } catch (e) {

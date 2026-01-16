@@ -3,11 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
-import 'package:toastification/toastification.dart';
 import '../../account/order_history_screen.dart';
 
 import '../../home/product_detail_screen.dart';
-import '../../chat/chat_detail_screen.dart';
+// removed unused imports: toastification, chat_detail_screen
 
 class ShopProfileScreen extends StatefulWidget {
   final String shopId;
@@ -147,6 +146,14 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
                               " $rating / 5.0",
                               style: const TextStyle(
                                 color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "• $totalReviews ulasan",
+                              style: const TextStyle(
+                                color: Colors.white70,
                                 fontSize: 12,
                               ),
                             ),

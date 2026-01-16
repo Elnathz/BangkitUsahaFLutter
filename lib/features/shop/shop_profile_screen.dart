@@ -6,7 +6,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
-import 'package:intl/intl.dart';
 
 import '../account/settings_screen.dart';
 import '../notifications/notification_screen.dart';
@@ -489,7 +488,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                             const SizedBox(width: 8),
                             _buildHeaderIcon(
                               context,
-                              LucideIcons.messageCircle,
+                              LucideIcons.messageSquare,
                               const ChatScreen(),
                             ),
                             const SizedBox(width: 8),
@@ -1019,10 +1018,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
           ? Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    primaryColor,
-                    primaryColor.withOpacity(0.8),
-                  ],
+                  colors: [primaryColor, primaryColor.withOpacity(0.8)],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
@@ -1030,7 +1026,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                     color: primaryColor.withOpacity(0.4),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
-                  ), 
+                  ),
                 ],
               ),
               child: Material(
@@ -1081,12 +1077,13 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
         context,
         MaterialPageRoute(builder: (context) => destination),
       ),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
         child: Icon(icon, color: Colors.white, size: 20),
       ),

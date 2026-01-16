@@ -8,7 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/transaction_model.dart';
 import '../services/finance_service.dart';
 import 'finance_log_page.dart'; // Pastikan ini mengarah ke file di folder yang sama (screens/)
-import '../../home/main_wrapper.dart';
+// removed unused import '../../home/main_wrapper.dart'
 
 // Import Chat & Notification
 import '../../chat/chat_screen.dart';
@@ -141,7 +141,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
       // FAB: Catat Transaksi - Premium design with plus icon
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 10.0),
+        padding: const EdgeInsets.only(bottom: 30, right: 10),
         child: Container(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -228,81 +228,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
               Row(
                 children: [
-                  // 1. Notifikasi
-                  StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('notifications')
-                        .where('recipientId', isEqualTo: user?.uid)
-                        .where('isRead', isEqualTo: false)
-                        .limit(1)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      bool hasUnreadNotif = false;
-                      if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                        hasUnreadNotif = true;
-                      }
-
-                      return _buildHeaderIcon(
-                        context,
-                        LucideIcons.bell,
-                        const NotificationScreen(),
-                        showBadge: hasUnreadNotif,
-                      );
-                    },
+                  _buildHeaderIcon(
+                    context,
+                    LucideIcons.messageCircle,
+                    const ChatScreen(),
                   ),
                   const SizedBox(width: 8),
-                  // 2. Chat
-                  StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('chat_rooms')
-                        .where('participants', arrayContains: user?.uid)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      bool hasUnread = false;
-
-                      if (snapshot.hasData) {
-                        for (var doc in snapshot.data!.docs) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          final int unreadCount =
-                              data['unread_count_${user?.uid}'] ?? 0;
-
-                          if (unreadCount > 0) {
-                            hasUnread = true;
-
-                            final Timestamp? lastTime =
-                                data['last_message_time'];
-                            if (lastTime != null) {
-                              final now = DateTime.now();
-                              final messageTime = lastTime.toDate();
-                              final diff = now
-                                  .difference(messageTime)
-                                  .inSeconds;
-
-                              if (diff.abs() <= 10) {
-                                try {
-                                  NotificationService.showNotification(
-                                    id: doc.id.hashCode,
-                                    title: "Pesan Baru",
-                                    body:
-                                        data['last_message'] ??
-                                        "Anda mendapat pesan",
-                                  );
-                                } catch (e) {
-                                  print("Gagal menampilkan notif: $e");
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-
-                      return _buildHeaderIcon(
-                        context,
-                        LucideIcons.messageCircle,
-                        const ChatScreen(),
-                        showBadge: hasUnread,
-                      );
-                    },
+                  _buildHeaderIcon(
+                    context,
+                    LucideIcons.bell,
+                    const NotificationScreen(),
                   ),
                 ],
               ),
@@ -517,6 +452,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
+  // --- SCROLLABLE HEADER CONTENT (scrolls with content) ---
+
   Widget _buildPeriodButton(String period, String label) {
     final isSelected = _selectedPeriod == period;
     return GestureDetector(
@@ -654,182 +591,36 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Widget _buildHeaderIcon(
     BuildContext context,
     IconData icon,
-    Widget destination, {
-    bool showBadge = false,
-  }) {
+    Widget destination,
+  ) {
     return InkWell(
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => destination),
       ),
       borderRadius: BorderRadius.circular(12),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-            child: Icon(icon, color: Colors.white, size: 20),
-          ),
-          if (showBadge)
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
+        child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }
 
   // --- BALANCE CARD ---
-  Widget _buildBalanceCard(double balance, double income, double expense) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      transform: Matrix4.translationValues(0, -20, 0),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.white.withOpacity(0.95), const Color(0xFFECFDF5)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFF10B981).withOpacity(0.2),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF059669).withOpacity(0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Saldo Saat Ini',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _currencyFormat.format(balance),
-            style: const TextStyle(
-              color: Color(0xFF065F46),
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildIncomeExpenseBox(
-                  'Pemasukan',
-                  income,
-                  const Color(0xFF10B981),
-                  LucideIcons.arrowUpRight,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildIncomeExpenseBox(
-                  'Pengeluaran',
-                  expense,
-                  const Color(0xFFEF4444),
-                  LucideIcons.arrowDownRight,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIncomeExpenseBox(
-    String label,
-    double amount,
-    Color color,
-    IconData icon,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(icon, color: Colors.white, size: 12),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              _currencyFormat.format(amount),
-              style: TextStyle(
-                color: color == const Color(0xFF10B981)
-                    ? const Color(0xFF065F46)
-                    : const Color(0xFF991B1B),
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // _buildBalanceCard removed (not referenced)
+  // _buildIncomeExpenseBox removed (not referenced)
 
   // --- FINANCE ACTIVITY BUTTON ---
   Widget _buildFinanceActivityButton(List<TransactionModel> transactions) {

@@ -42,7 +42,7 @@ class BadgeService {
         .map((snapshot) {
           // Check if any chat room has unread messages
           for (var doc in snapshot.docs) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
             final int unreadCount = data['unread_count_$userId'] ?? 0;
             if (unreadCount > 0) {
               return true; // Ada unread message
@@ -90,7 +90,7 @@ class BadgeService {
           .get();
 
       for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final int unreadCount = data['unread_count_$userId'] ?? 0;
         if (unreadCount > 0) {
           return true;
