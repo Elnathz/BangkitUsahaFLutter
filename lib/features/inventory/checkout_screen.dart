@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 import '../../services/market_service.dart';
-import 'package:bangkit_usaha/features/inventory/address_selection_screen.dart';
+import '../../map_picker_screen.dart';
+import '../../shipping_calculator.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final List<Map<String, dynamic>> items;
@@ -27,6 +29,8 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   String _deliveryAddress = "";
+  LatLng? _userLocation;
+  int _shippingCost = 0;
   bool _isLoading = false;
 
   final currencyFormat = NumberFormat.currency(
@@ -37,16 +41,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   // Navigasi ke Halaman Pilih Alamat
   Future<void> _pickAddress() async {
-    final result = await Navigator.push(
+    await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const AddressSelectionScreen()),
+      MaterialPageRoute(
+        builder: (context) => MapPickerScreen(
+          onLocationPicked: (LatLng location, String address) {
+            setState(() {
+              _userLocation = location;
+              _deliveryAddress = address; // Gunakan alamat lengkap dari Maps
+              _calculateShipping();
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  void _calculateShipping() {
+    if (_userLocation == null || widget.items.isEmpty) return;
+
+    // Ambil koordinat toko dari item pertama (asumsi satu toko per checkout)
+    // Pastikan data item memiliki 'storeLat' dan 'storeLng'
+    double storeLat = (widget.items.first['storeLat'] ?? -6.200000).toDouble();
+    double storeLng = (widget.items.first['storeLng'] ?? 106.816666).toDouble();
+
+    double distance = ShippingCalculator.calculateDistance(
+      _userLocation!.latitude,
+      _userLocation!.longitude,
+      storeLat,
+      storeLng,
     );
 
-    if (result != null && result is String) {
-      setState(() {
-        _deliveryAddress = result;
-      });
-    }
+    setState(() {
+      _shippingCost = ShippingCalculator.calculateShippingCost(distance);
+    });
   }
 
   Future<void> _processOrder() async {
@@ -71,6 +99,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         sellerId: widget.sellerId,
         sellerName: widget.sellerName,
         deliveryAddress: _deliveryAddress,
+        shippingCost: _shippingCost, // Kirim ongkir ke backend
+        deliveryLat: _userLocation?.latitude,
+        deliveryLng: _userLocation?.longitude,
       );
 
       if (result == "SUCCESS") {
@@ -230,23 +261,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      "Total Pembayaran",
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    Text(
-                      currencyFormat.format(widget.totalPrice),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1565C0),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "Total (+Ongkir)",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
-                    ),
-                  ],
+                      Text(
+                        currencyFormat.format(
+                          widget.totalPrice + _shippingCost,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1565C0),
+                        ),
+                      ),
+                      if (_shippingCost > 0)
+                        Text(
+                          "(Ongkir: ${currencyFormat.format(_shippingCost)})",
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _processOrder,

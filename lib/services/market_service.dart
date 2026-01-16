@@ -99,6 +99,9 @@ class MarketService {
     required String sellerId,
     required String sellerName,
     required String deliveryAddress,
+    int shippingCost = 0,
+    double? deliveryLat,
+    double? deliveryLng,
   }) async {
     final user = _auth.currentUser;
     if (user == null) return "LOGIN_REQUIRED";
@@ -116,7 +119,10 @@ class MarketService {
         'items': items,
         'totalPrice': totalPrice,
         'status': 'Menunggu',
+        'shippingCost': shippingCost,
         'address': deliveryAddress,
+        'deliveryLat': deliveryLat,
+        'deliveryLng': deliveryLng,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });

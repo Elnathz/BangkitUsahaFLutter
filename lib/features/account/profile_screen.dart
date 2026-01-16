@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 // --- IMPORT HALAMAN LAIN ---
 import 'order_history_screen.dart';
@@ -14,6 +15,8 @@ import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
 import 'widgets/reviews_modal.dart';
 import '../../services/market_service.dart';
+import '../../map_picker_screen.dart';
+import '../../services/notification_service.dart';
 
 const List<String> DAYS = [
   'Senin',
@@ -68,10 +71,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   TimeOfDay openTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay closeTime = const TimeOfDay(hour: 17, minute: 0);
 
+  double? _storeLat;
+  double? _storeLng;
+
   @override
   void initState() {
     super.initState();
     _fetchUserData();
+    // Sinkronisasi Token FCM agar notifikasi masuk ke akun yang benar
+    NotificationService.syncFCMToken();
   }
 
   Future<void> _fetchUserData() async {
@@ -111,6 +119,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 'totalReviews': data['totalReviews'] ?? 0,
                 'totalSales': data['totalSales'] ?? 0,
                 'responseRate': data['responseRate'] ?? 0,
+                'storeLat': (data['storeLat'] as num?)?.toDouble(),
+                'storeLng': (data['storeLng'] as num?)?.toDouble(),
               };
               isLoading = false;
             });
@@ -130,6 +140,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 'totalReviews': 0,
                 'totalSales': 0,
                 'responseRate': 0,
+                'storeLat': null,
+                'storeLng': null,
               };
               isLoading = false;
             });
@@ -257,6 +269,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _emailController.text = businessProfile['email'];
       _yearController.text = businessProfile['established'];
       _parseSchedule(businessProfile['openingHours']);
+      _storeLat = businessProfile['storeLat'];
+      _storeLng = businessProfile['storeLng'];
     }
     setState(() => isEditing = !isEditing);
   }
@@ -274,6 +288,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'established': _yearController.text,
         'openingHours': scheduleString,
         'ownerName': user!.displayName ?? "Pemilik",
+        'storeLat': _storeLat,
+        'storeLng': _storeLng,
       }, SetOptions(merge: true));
 
       setState(() {
@@ -312,6 +328,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       title: Text(msg),
       type: type,
       autoCloseDuration: const Duration(seconds: 3),
+    );
+  }
+
+  Future<void> _pickLocation() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MapPickerScreen(
+          initialLocation: (_storeLat != null && _storeLng != null)
+              ? LatLng(_storeLat!, _storeLng!)
+              : const LatLng(-6.200000, 106.816666),
+          onLocationPicked: (LatLng loc, String address) {
+            setState(() {
+              _storeLat = loc.latitude;
+              _storeLng = loc.longitude;
+              _addressController.text = address; // Gunakan alamat lengkap
+            });
+          },
+        ),
+      ),
     );
   }
 
@@ -797,34 +833,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatsSection(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        _buildStatCard(
-          "Penjualan",
-          "${businessProfile['totalSales']}",
-          LucideIcons.trendingUp,
-          Colors.blue,
+        Row(
+          children: [
+            _buildStatCard(
+              "Penjualan",
+              "${businessProfile['totalSales']}",
+              LucideIcons.trendingUp,
+              Colors.blue,
+            ),
+            const SizedBox(width: 12),
+            _buildStatCard(
+              "Rating Toko",
+              "${businessProfile['rating']}",
+              LucideIcons.star,
+              Colors.amber,
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        _buildStatCard(
-          "Rating Toko",
-          "${businessProfile['rating']}",
-          LucideIcons.star,
-          Colors.amber,
-        ),
-        const SizedBox(width: 12),
-        _buildStatCard(
-          "Ulasan Toko",
-          "${businessProfile['totalReviews']}",
-          LucideIcons.messageCircle,
-          Colors.purple,
-        ),
-        const SizedBox(width: 12),
-        _buildStatCard(
-          "Total Ulasan",
-          "$totalAllInteractions",
-          LucideIcons.users,
-          Colors.green,
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _buildStatCard(
+              "Ulasan Toko",
+              "${businessProfile['totalReviews']}",
+              LucideIcons.messageCircle,
+              Colors.purple,
+            ),
+            const SizedBox(width: 12),
+            _buildStatCard(
+              "Total Ulasan",
+              "$totalAllInteractions",
+              LucideIcons.users,
+              Colors.green,
+            ),
+          ],
         ),
       ],
     );
@@ -838,8 +882,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ) {
     return Expanded(
       child: Container(
-        height: 125, // Increased height for larger cards
-        padding: const EdgeInsets.all(16), // Increased padding
+        // Removed fixed height to prevent overflow
+        padding: const EdgeInsets.all(12), // Reduced padding for compact screens
         decoration: BoxDecoration(
           color: color.withOpacity(0.05),
           borderRadius: BorderRadius.circular(16),
@@ -995,6 +1039,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 "Alamat",
                 _addressController,
                 icon: LucideIcons.mapPin,
+                readOnly: true,
+                onTap: _pickLocation,
+                suffixIcon: IconButton(
+                  icon: const Icon(LucideIcons.map),
+                  onPressed: _pickLocation,
+                ),
               ),
               const SizedBox(height: 12),
               _buildEditInput(
@@ -1402,6 +1452,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     TextEditingController controller, {
     IconData? icon,
     int maxLines = 1,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: controller,
@@ -1409,6 +1462,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       style: const TextStyle(color: Colors.black87),
       decoration: InputDecoration(
         labelText: label,
+        suffixIcon: suffixIcon,
         labelStyle: TextStyle(color: Colors.grey[600]),
         prefixIcon: icon != null
             ? Icon(icon, size: 18, color: Colors.grey[600])
@@ -1435,6 +1489,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           vertical: 12,
         ),
       ),
+      readOnly: readOnly,
+      onTap: onTap,
     );
   }
 }

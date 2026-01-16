@@ -27,7 +27,7 @@ exports.sendChatNotification = onDocumentCreated("chat_rooms/{roomId}/messages/{
     const receiverId = participants.find(id => id !== messageData.senderId);
     if (!receiverId) return null;
 
-    // 3. Ambil Token FCM milik penerima dari database users
+    // 3. Ambil Token FCM milik penerima
     const userSnap = await admin.firestore().collection('users').doc(receiverId).get();
     const userData = userSnap.data();
 
@@ -71,6 +71,60 @@ exports.sendChatNotification = onDocumentCreated("chat_rooms/{roomId}/messages/{
       data: {
         roomId: roomId,
         type: 'chat',
+        recipientId: receiverId, // PENTING: Untuk filter di sisi Client
+        click_action: 'FLUTTER_NOTIFICATION_CLICK'
+      }
+    };
+
+    return admin.messaging().sendEachForMulticast(message);
+});
+
+// BARU: Fungsi untuk Notifikasi Umum (Pesanan, Stok, Dompet, dll)
+exports.sendGeneralNotification = onDocumentCreated("notifications/{notificationId}", async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const data = snap.data();
+
+    const recipientId = data.recipientId;
+    if (!recipientId) return;
+
+    // Ambil Token User
+    const userSnap = await admin.firestore().collection('users').doc(recipientId).get();
+    const userData = userSnap.data();
+    if (!userData) return;
+
+    let tokens = [];
+    if (userData.fcmTokens && Array.isArray(userData.fcmTokens)) {
+        tokens = userData.fcmTokens;
+    } else if (userData.fcmToken) {
+        tokens = [userData.fcmToken];
+    }
+
+    if (tokens.length === 0) return;
+
+    const message = {
+      tokens: tokens,
+      notification: {
+        title: data.title || 'Info Baru',
+        body: data.body || '',
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'general_channel_id', // Channel khusus notifikasi umum
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+          sound: 'default',
+          priority: 'max',
+          defaultSound: true,
+          defaultVibrateTimings: true,
+          visibility: 'public',
+          icon: 'ic_launcher'
+        }
+      },
+      data: {
+        type: data.type || 'general',
+        relatedId: data.relatedId || '',
+        recipientId: recipientId, // PENTING: Untuk filter
         click_action: 'FLUTTER_NOTIFICATION_CLICK'
       }
     };

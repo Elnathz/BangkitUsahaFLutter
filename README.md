@@ -90,6 +90,39 @@ Ikuti langkah-langkah berikut untuk menjalankan project ini di komputer lokal An
     flutter run
     ```
 
+### 🌐 Konfigurasi Khusus Web
+
+Jika menjalankan di Chrome/Web, Anda **wajib** menambahkan script Google Maps ke dalam file `web/index.html` di bagian `<head>`:
+
+```html
+<script src="https://maps.googleapis.com/maps/api/js?key=MASUKKAN_API_KEY_GOOGLE_MAPS_ANDA"></script>
+```
+
+Tanpa ini, peta akan error (`cannot read properties of undefined`).
+
+### 📱 Konfigurasi Khusus Android
+
+Agar fitur **Peta**, **Lokasi**, dan **Share** berjalan di HP Android, edit file `android/app/src/main/AndroidManifest.xml`:
+
+1. **Tambahkan Permission & Queries** (sebelum tag `<application>`):
+   ```xml
+   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+   <!-- Agar bisa buka WhatsApp & Instagram -->
+   <queries>
+       <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="https" /></intent>
+       <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="instagram" /></intent>
+   </queries>
+   ```
+
+2. **Tambahkan API Key Maps** (di dalam tag `<application>`):
+   ```xml
+   <meta-data
+       android:name="com.google.android.geo.API_KEY"
+       android:value="MASUKKAN_API_KEY_GOOGLE_MAPS_ANDA" />
+   ```
+
 ---
 
 ## 📂 Struktur Folder

@@ -1,6 +1,8 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart'; // Ganti dart:io dengan ini agar aman di Web
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -50,6 +52,15 @@ class NotificationService {
           importance: Importance.max,
         ),
       );
+
+      await androidImplementation?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'general_channel_id', // Channel untuk notifikasi umum
+          'General Notifications',
+          description: 'Notifikasi pesanan dan info lainnya',
+          importance: Importance.max,
+        ),
+      );
     }
 
     // 3. Minta Izin (Hanya untuk Android, menggunakan pengecekan yang aman)
@@ -75,6 +86,15 @@ class NotificationService {
       // Jika ada notifikasi masuk saat aplikasi dibuka, kita tampilkan manual
       // menggunakan Local Notification agar muncul popup (heads-up)
       if (notification != null && android != null) {
+        // --- FILTER NOTIFIKASI GANDA ---
+        // Cek apakah notifikasi ini ditujukan untuk user yang sedang login
+        final currentUser = FirebaseAuth.instance.currentUser;
+        final recipientId = message.data['recipientId'];
+
+        if (currentUser != null && recipientId != null && recipientId != currentUser.uid) {
+          return; // Abaikan notifikasi jika bukan untuk user ini
+        }
+
         showNotification(
           id: notification.hashCode,
           title: notification.title ?? 'Notifikasi Baru',
@@ -100,7 +120,7 @@ class NotificationService {
 
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
-          'chat_channel_id',
+          'chat_channel_id', // Default channel, bisa disesuaikan
           'Chat Notifications',
           channelDescription: 'Notifikasi pesan masuk',
           importance: Importance.max,
@@ -119,6 +139,39 @@ class NotificationService {
   // Fungsi untuk mendapatkan Token FCM (Diperlukan untuk dikirim ke Database User)
   static Future<String?> getFCMToken() async {
     return await FirebaseMessaging.instance.getToken();
+  }
+
+  // --- MANAJEMEN TOKEN (Sync & Remove) ---
+
+  /// Panggil fungsi ini saat Login atau saat membuka halaman utama/profil
+  /// untuk memastikan token HP ini terdaftar di akun yang benar.
+  static Future<void> syncFCMToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    String? token = await getFCMToken();
+    if (token != null) {
+      // Simpan token ke array fcmTokens agar support multi-device
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'fcmTokens': FieldValue.arrayUnion([token]),
+        'fcmToken': token, // Fallback untuk backward compatibility
+      }, SetOptions(merge: true));
+    }
+  }
+
+  /// Panggil fungsi ini saat Logout agar HP ini tidak menerima notifikasi lagi
+  /// dari akun tersebut.
+  static Future<void> removeFCMToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    String? token = await getFCMToken();
+    if (token != null) {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'fcmTokens': FieldValue.arrayRemove([token]),
+        // Jangan hapus 'fcmToken' single field karena mungkin dipakai device lain (legacy)
+      });
+    }
   }
 }
 

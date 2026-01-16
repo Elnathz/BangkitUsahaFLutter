@@ -175,6 +175,8 @@ class CartScreen extends StatelessWidget {
                                   'price': safePrice,
                                   'qty': safeQty,
                                   'image': safeImage,
+                                  'storeLat': productData['storeLat'],
+                                  'storeLng': productData['storeLng'],
                                 };
 
                                 // HITUNG TOTAL

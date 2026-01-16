@@ -238,6 +238,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     final status = data['status'] ?? 'Menunggu';
     final isSeller = widget.isSellerMode;
     final int totalPrice = (data['totalPrice'] ?? 0).toInt();
+    final int shippingCost = (data['shippingCost'] ?? 0).toInt();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -306,71 +307,71 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
           ),
           const Divider(height: 1),
 
-          // LIST BARANG (Preview 1 Barang Utama + Info sisa)
+          // LIST BARANG (Menampilkan Semua Item)
           if (items.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(8),
-                      image:
-                          (items[0]['image'] != null && items[0]['image'] != "")
-                          ? DecorationImage(
-                              image: NetworkImage(items[0]['image']),
-                              fit: BoxFit.cover,
-                            )
+            ...items.map((item) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Foto Produk
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(8),
+                        image: (item['image'] != null && item['image'] != "")
+                            ? DecorationImage(
+                                image: NetworkImage(item['image']),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: (item['image'] == null || item['image'] == "")
+                          ? const Icon(LucideIcons.image, color: Colors.grey)
                           : null,
                     ),
-                    child:
-                        (items[0]['image'] == null || items[0]['image'] == "")
-                        ? const Icon(LucideIcons.image, color: Colors.grey)
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          items[0]['name'] ?? "Produk",
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "${items[0]['qty']} barang x ${currencyFormat.format(items[0]['price'])}",
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                        if (items.length > 1)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              "+ ${items.length - 1} produk lainnya",
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[500],
-                              ),
+                    const SizedBox(width: 12),
+
+                    // Nama & Qty
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item['name'] ?? "Produk",
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
                             ),
                           ),
-                      ],
+                          Text(
+                            "${item['qty']}x",
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
+
+                    // Harga Produk (Di Kanan)
+                    Text(
+                      currencyFormat.format(item['price'] ?? 0),
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
 
           const Divider(height: 1),
 
@@ -384,6 +385,23 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Ongkos Kirim
+                      Row(
+                        children: [
+                          const Text(
+                            "Ongkir: ",
+                            style: TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                          Text(
+                            currencyFormat.format(shippingCost),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
                       const Text(
                         "Total Pesanan",
                         style: TextStyle(fontSize: 10, color: Colors.grey),
