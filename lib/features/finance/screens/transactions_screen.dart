@@ -141,7 +141,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
       // FAB: Catat Transaksi - Premium design with plus icon
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 30, right: 10),
+        padding: const EdgeInsets.only(bottom: 100, right: 10),
         child: Container(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -230,14 +230,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 children: [
                   _buildHeaderIcon(
                     context,
-                    LucideIcons.messageCircle,
-                    const ChatScreen(),
+                    LucideIcons.bell,
+                    const NotificationScreen(),
                   ),
                   const SizedBox(width: 8),
                   _buildHeaderIcon(
                     context,
-                    LucideIcons.bell,
-                    const NotificationScreen(),
+                    LucideIcons.messageSquare,
+                    const ChatScreen(),
                   ),
                 ],
               ),

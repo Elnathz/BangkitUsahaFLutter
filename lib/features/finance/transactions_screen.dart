@@ -15,7 +15,7 @@ class TransactionsPage extends StatefulWidget {
 }
 
 class _TransactionsPageState extends State<TransactionsPage> {
-  String selectedPeriod = 'week';
+  final ValueNotifier<String> selectedPeriodNotifier = ValueNotifier('week');
 
   // --- MOCK DATA (Fixed to use TransactionModel) ---
   List<TransactionModel> transactions = [
@@ -79,8 +79,15 @@ class _TransactionsPageState extends State<TransactionsPage> {
       .where((t) => t.type == TransactionType.expense)
       .fold(0.0, (sum, t) => sum + t.amount);
   double get balance => totalIncome - totalExpense;
-  PeriodData get periodData =>
-      selectedPeriod == 'week' ? weeklyData : monthlyData;
+  
+  PeriodData _getPeriodData(String period) =>
+      period == 'week' ? weeklyData : monthlyData;
+
+  @override
+  void dispose() {
+    selectedPeriodNotifier.dispose();
+    super.dispose();
+  }
 
   void handleAddTransaction(TransactionModel transaction) {
     setState(() {
@@ -361,120 +368,136 @@ class _TransactionsPageState extends State<TransactionsPage> {
   }
 
   Widget _buildRevenueCard(Color primaryColor) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return ValueListenableBuilder<String>(
+      valueListenable: selectedPeriodNotifier,
+      builder: (context, selectedPeriod, child) {
+        final periodData = _getPeriodData(selectedPeriod);
+        
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Omzet ${selectedPeriod == 'week' ? 'Mingguan' : 'Bulanan'}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                    ),
-                    const SizedBox(height: 4),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Rp ${NumberFormat('#,###', 'id_ID').format(periodData.revenue)}',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Omzet ${selectedPeriod == 'week' ? 'Mingguan' : 'Bulanan'}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Rp ${NumberFormat('#,###', 'id_ID').format(periodData.revenue)}',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: periodData.revenueChange >= 0
-                      ? Colors.green.withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      periodData.revenueChange >= 0
-                          ? Icons.trending_up
-                          : Icons.trending_down,
-                      size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
                       color: periodData.revenueChange >= 0
-                          ? Colors.green
-                          : Colors.red,
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${periodData.revenueChange}%',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: periodData.revenueChange >= 0
-                            ? Colors.green
-                            : Colors.red,
-                      ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          periodData.revenueChange >= 0
+                              ? Icons.trending_up
+                              : Icons.trending_down,
+                          size: 16,
+                          color: periodData.revenueChange >= 0
+                              ? Colors.green
+                              : Colors.red,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${periodData.revenueChange}%',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: periodData.revenueChange >= 0
+                                ? Colors.green
+                                : Colors.red,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              LinearProgressIndicator(
+                value: 0.7,
+                backgroundColor: Colors.grey[100],
+                color: primaryColor,
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "${periodData.orders} pesanan berhasil",
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          LinearProgressIndicator(
-            value: 0.7,
-            backgroundColor: Colors.grey[100],
-            color: primaryColor,
-            minHeight: 6,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "${periodData.orders} pesanan berhasil",
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildPeriodSelector(Color primaryColor) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey[300]!), // Added border for clarity
-      ),
-      padding: const EdgeInsets.all(2),
-      child: Row(
-        children: [
-          _periodButton('week', 'Minggu', primaryColor),
-          _periodButton('month', 'Bulan', primaryColor),
-        ],
-      ),
+    return ValueListenableBuilder<String>(
+      valueListenable: selectedPeriodNotifier,
+      builder: (context, selectedPeriod, child) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey[300]!), // Added border for clarity
+          ),
+          padding: const EdgeInsets.all(2),
+          child: Row(
+            children: [
+              _periodButton('week', 'Minggu', primaryColor, selectedPeriod),
+              _periodButton('month', 'Bulan', primaryColor, selectedPeriod),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _periodButton(String value, String label, Color primaryColor) {
-    final isSelected = selectedPeriod == value;
+  Widget _periodButton(String value, String label, Color primaryColor, String currentSelection) {
+    final isSelected = currentSelection == value;
     return GestureDetector(
-      onTap: () => setState(() => selectedPeriod = value),
+      onTap: () {
+        if (!isSelected) {
+          selectedPeriodNotifier.value = value;
+        }
+      },
       child: AnimatedContainer( // Added animation for smooth transition
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

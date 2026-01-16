@@ -293,7 +293,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                             return _buildHeaderIconNew(
                               context,
-                              LucideIcons.messageCircle,
+                              LucideIcons.messageSquare,
                               const ChatScreen(),
                               badgeCount: totalUnreadChat,
                             );

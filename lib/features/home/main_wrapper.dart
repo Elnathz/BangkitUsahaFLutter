@@ -1,5 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Import Pages
 import '../account/profile_screen.dart';
@@ -15,95 +18,397 @@ class MainWrapper extends StatefulWidget {
   State<MainWrapper> createState() => _MainWrapperState();
 }
 
-class _MainWrapperState extends State<MainWrapper> {
+class _MainWrapperState extends State<MainWrapper> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
+  final user = FirebaseAuth.instance.currentUser;
+  
+  // PageController for smooth page transitions
+  late PageController _pageController;
+  
+  // Horizontal drag tracking for edge swipe
+  double _dragStartX = 0;
+  double _dragDelta = 0;
+  bool _isDragging = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 0);
+  }
+  
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   // Handle Community Page Navigation
   void _handleCommunityClose() {
-    setState(() {
-      _selectedIndex = 0; // Back to Dashboard
-    });
+    _animateToPage(0); // Back to Dashboard with animation
+  }
+  
+  // Animate to specific page with smooth curve
+  void _animateToPage(int index) {
+    if (index < 0) index = 0;
+    if (index > 4) index = 4;
+    setState(() => _selectedIndex = index);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+    );
+  }
+  
+  // Handle page changes from swipe
+  void _onPageChanged(int index) {
+    setState(() => _selectedIndex = index);
+  }
+  
+  // Handle horizontal drag start - detect edge swipe
+  void _onHorizontalDragStart(DragStartDetails details) {
+    _dragStartX = details.globalPosition.dx;
+    _dragDelta = 0;
+    _isDragging = true;
+  }
+  
+  // Handle horizontal drag update
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    if (!_isDragging) return;
+    _dragDelta = details.globalPosition.dx - _dragStartX;
+  }
+  
+  // Handle horizontal drag end - navigate if swipe is significant
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    if (!_isDragging) return;
+    _isDragging = false;
+    
+    // Minimum swipe distance (75 pixels) and velocity for navigation
+    final velocity = details.primaryVelocity ?? 0;
+    
+    if (_dragDelta.abs() > 75 || velocity.abs() > 500) {
+      if (_dragDelta > 0 || velocity > 500) {
+        // Swipe right -> go to previous page
+        if (_selectedIndex > 0) {
+          _animateToPage(_selectedIndex - 1);
+        }
+      } else if (_dragDelta < 0 || velocity < -500) {
+        // Swipe left -> go to next page
+        if (_selectedIndex < 4) {
+          _animateToPage(_selectedIndex + 1);
+        }
+      }
+    }
+    
+    _dragDelta = 0;
   }
 
-  // Get Current Screen based on selected index
-  Widget _getCurrentScreen() {
-    switch (_selectedIndex) {
-      case 0:
-        return const DashboardScreen();
-      case 1:
-        return const TransactionsScreen();
-      case 2:
-        return const ProductsScreen();
-      case 3:
-        return CommunityPage(onClose: _handleCommunityClose);
-      case 4:
-        return const ProfileScreen();
-      default:
-        return const DashboardScreen();
-    }
+  // Build pages list
+  List<Widget> _buildPages() {
+    return [
+      const DashboardScreen(),
+      const TransactionsScreen(),
+      const ProductsScreen(),
+      CommunityPage(onClose: _handleCommunityClose),
+      const ProfileScreen(),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _getCurrentScreen(),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(
-              color: Color(0xFFE5E7EB), // gray-200
-              width: 1,
+      // Stack untuk Floating Navigation
+      body: Stack(
+        children: [
+          // 1. CONTENT LAYER - PageView for smooth swipe navigation
+          Positioned.fill(
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: _onPageChanged,
+              physics: const NeverScrollableScrollPhysics(), // Disable default to use custom gesture
+              children: _buildPages(),
             ),
           ),
+          
+          // 3. EDGE SWIPE ZONES - Transparent gesture areas for navigation
+          // Left edge swipe zone
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 100, // Above nav bar
+            width: 60, // Edge zone width
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragStart: _onHorizontalDragStart,
+              onHorizontalDragUpdate: _onHorizontalDragUpdate,
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+            ),
+          ),
+          // Right edge swipe zone
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 100,
+            width: 60,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragStart: _onHorizontalDragStart,
+              onHorizontalDragUpdate: _onHorizontalDragUpdate,
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+            ),
+          ),
+          // Top swipe zone (header area)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 120, // Header + status bar area
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragStart: _onHorizontalDragStart,
+              onHorizontalDragUpdate: _onHorizontalDragUpdate,
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+            ),
+          ),
+
+          // 2. FLOATING LIQUID GLASS NAVIGATION BAR
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 20,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  height: 72,
+                  decoration: BoxDecoration(
+                    // Liquid Glass Effect - Multi-layer gradient
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withOpacity(0.25),
+                        Colors.white.withOpacity(0.10),
+                        Colors.white.withOpacity(0.05),
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
+                    borderRadius: BorderRadius.circular(28),
+                    // Glass border effect
+                    border: Border.all(
+                      width: 1.5,
+                      color: Colors.white.withOpacity(0.3),
+                    ),
+                    // Subtle shadow for depth
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 30,
+                        spreadRadius: -5,
+                        offset: const Offset(0, 10),
+                      ),
+                      // Inner glow effect
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.1),
+                        blurRadius: 10,
+                        spreadRadius: -2,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNavItem(0, LucideIcons.home, "Beranda"),
+                      _buildNavItem(1, LucideIcons.wallet, "Keuangan"),
+                      _buildNavItem(2, LucideIcons.store, "Toko"),
+                      _buildNavItem(3, LucideIcons.users, "Komunitas"),
+                      _buildProfileItem(4),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Navigation Item Widget - Liquid Glass Style
+  Widget _buildNavItem(int index, IconData icon, String label) {
+    bool isSelected = _selectedIndex == index;
+
+    return GestureDetector(
+      onTap: () => _animateToPage(index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        padding: isSelected
+            ? const EdgeInsets.symmetric(horizontal: 16, vertical: 10)
+            : const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          // Selected item - subtle glass highlight
+          gradient: isSelected
+              ? LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.35),
+                    Colors.white.withOpacity(0.15),
+                  ],
+                )
+              : null,
+          borderRadius: BorderRadius.circular(20),
+          border: isSelected
+              ? Border.all(
+                  color: Colors.white.withOpacity(0.4),
+                  width: 1,
+                )
+              : null,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
-        child: SafeArea(
-          child: SizedBox(
-            height: 64,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, LucideIcons.home, "Beranda"),
-                _buildNavItem(1, LucideIcons.wallet, "Keuangan"),
-                _buildNavItem(2, LucideIcons.store, "Toko"),
-                _buildNavItem(3, LucideIcons.users, "Komunitas"),
-                _buildNavItem(4, LucideIcons.user, "Akun"),
-              ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected
+                  ? const Color(0xFF1976D2) // Blue when selected
+                  : Colors.grey[600],
+              size: 22,
             ),
-          ),
+            if (isSelected) ...[
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFF1976D2),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
-  // Navigation Item Widget - Simple TSX Style
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  // Profile Item with Dynamic Photo - Liquid Glass Style
+  Widget _buildProfileItem(int index) {
     bool isSelected = _selectedIndex == index;
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedIndex = index),
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return GestureDetector(
+      onTap: () => _animateToPage(index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        padding: isSelected
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+            : const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.35),
+                    Colors.white.withOpacity(0.15),
+                  ],
+                )
+              : null,
+          borderRadius: BorderRadius.circular(20),
+          border: isSelected
+              ? Border.all(
+                  color: Colors.white.withOpacity(0.4),
+                  width: 1,
+                )
+              : null,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? const Color(0xFF2563EB) // blue-600
-                  : const Color(0xFF6B7280), // gray-500
-              size: 24,
+            // Dynamic Profile Photo
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user?.uid)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                String? imageUrl;
+                if (snapshot.hasData && snapshot.data!.exists) {
+                  final data = snapshot.data!.data() as Map<String, dynamic>?;
+                  imageUrl = data?['image'];
+                }
+
+                // Display Photo or User Icon
+                if (imageUrl != null && imageUrl.isNotEmpty) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF1976D2)
+                            : Colors.white.withOpacity(0.5),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 12,
+                      backgroundImage: NetworkImage(imageUrl),
+                      backgroundColor: Colors.grey[300],
+                    ),
+                  );
+                } else {
+                  return Icon(
+                    LucideIcons.user,
+                    color: isSelected
+                        ? const Color(0xFF1976D2)
+                        : Colors.grey[600],
+                    size: 22,
+                  );
+                }
+              },
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: isSelected
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF6B7280),
+
+            // "Akun" Label (Only when selected)
+            if (isSelected) ...[
+              const SizedBox(width: 6),
+              const Text(
+                "Akun",
+                style: TextStyle(
+                  color: Color(0xFF1976D2),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
