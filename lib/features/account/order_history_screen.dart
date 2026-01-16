@@ -106,6 +106,206 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     }
   }
 
+  // --- LOGIC PEMBELI: BATALKAN PESANAN ---
+  // Common cancellation reasons from e-commerce research
+  static const List<String> _cancellationReasons = [
+    'Salah pilih ukuran/warna/model',
+    'Menemukan harga lebih murah di tempat lain',
+    'Berubah pikiran, tidak jadi membeli',
+    'Salah memasukkan alamat pengiriman',
+    'Ingin mengubah metode pembayaran',
+    'Terlalu lama menunggu konfirmasi',
+    'Pesanan ganda / tidak sengaja',
+    'Lainnya (tulis alasan)',
+  ];
+
+  Future<void> _showCancelOrderDialog(String orderId, Map<String, dynamic> data) async {
+    // Check if order is within 2 minutes (instant cancel allowed)
+    final createdAt = data['createdAt'] as Timestamp?;
+    final bool canInstantCancel;
+    
+    if (createdAt != null) {
+      final orderTime = createdAt.toDate();
+      final now = DateTime.now();
+      final difference = now.difference(orderTime);
+      canInstantCancel = difference.inMinutes < 2;
+    } else {
+      canInstantCancel = false;
+    }
+
+    String? selectedReason;
+    String customReason = '';
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text("Batalkan Pesanan"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Info about cancellation type
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: canInstantCancel 
+                        ? Colors.green.shade50 
+                        : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: canInstantCancel 
+                          ? Colors.green.shade200 
+                          : Colors.orange.shade200,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        canInstantCancel 
+                            ? LucideIcons.checkCircle 
+                            : LucideIcons.clock,
+                        size: 20,
+                        color: canInstantCancel 
+                            ? Colors.green.shade700 
+                            : Colors.orange.shade700,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          canInstantCancel
+                              ? "Pembatalan langsung (dalam 2 menit)"
+                              : "Perlu persetujuan penjual",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: canInstantCancel 
+                                ? Colors.green.shade700 
+                                : Colors.orange.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Pilih alasan pembatalan:",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                // Radio options
+                ..._cancellationReasons.map((reason) => RadioListTile<String>(
+                  title: Text(reason, style: const TextStyle(fontSize: 14)),
+                  value: reason,
+                  groupValue: selectedReason,
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  onChanged: (value) {
+                    setDialogState(() => selectedReason = value);
+                  },
+                )),
+                // Custom reason input if "Lainnya" selected
+                if (selectedReason == 'Lainnya (tulis alasan)')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: TextField(
+                      decoration: const InputDecoration(
+                        hintText: "Tulis alasan pembatalan...",
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12, 
+                          vertical: 8,
+                        ),
+                      ),
+                      maxLines: 2,
+                      onChanged: (value) => customReason = value,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Batal"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              onPressed: selectedReason == null
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      final reason = selectedReason == 'Lainnya (tulis alasan)'
+                          ? customReason
+                          : selectedReason!;
+                      
+                      if (canInstantCancel) {
+                        // Instant cancel
+                        await _cancelOrderInstant(orderId, reason);
+                      } else {
+                        // Request cancellation (needs seller approval)
+                        await _requestCancelOrder(orderId, reason, data);
+                      }
+                    },
+              child: Text(
+                canInstantCancel ? "Batalkan Sekarang" : "Ajukan Pembatalan",
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Instant cancel (within 2 minutes)
+  Future<void> _cancelOrderInstant(String orderId, String reason) async {
+    try {
+      await MarketService().cancelOrderByBuyer(orderId, reason, needsApproval: false);
+      if (mounted) {
+        toastification.show(
+          context: context,
+          title: const Text("Pesanan Dibatalkan"),
+          description: const Text("Pesanan berhasil dibatalkan."),
+          type: ToastificationType.success,
+          autoCloseDuration: const Duration(seconds: 3),
+        );
+      }
+    } catch (e) {
+      toastification.show(
+        context: context,
+        title: Text("Gagal: $e"),
+        type: ToastificationType.error,
+      );
+    }
+  }
+
+  // Request cancellation (after 2 minutes, needs seller approval)
+  Future<void> _requestCancelOrder(String orderId, String reason, Map<String, dynamic> data) async {
+    try {
+      await MarketService().cancelOrderByBuyer(orderId, reason, needsApproval: true);
+      if (mounted) {
+        toastification.show(
+          context: context,
+          title: const Text("Pengajuan Pembatalan Terkirim"),
+          description: const Text("Menunggu persetujuan penjual."),
+          type: ToastificationType.info,
+          autoCloseDuration: const Duration(seconds: 3),
+        );
+      }
+    } catch (e) {
+      toastification.show(
+        context: context,
+        title: Text("Gagal: $e"),
+        type: ToastificationType.error,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFF1565C0);
@@ -499,7 +699,19 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 ),
 
                 // TOMBOL AKSI BERDASARKAN STATUS
-                if (!isSeller && status == 'Diantar')
+                
+                // === BUYER ACTIONS ===
+                // Buyer can cancel order when status is "Menunggu"
+                if (!isSeller && status == 'Menunggu')
+                  OutlinedButton(
+                    onPressed: () => _showCancelOrderDialog(orderId, data),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                      foregroundColor: Colors.red,
+                    ),
+                    child: const Text("Batalkan"),
+                  )
+                else if (!isSeller && status == 'Diantar')
                   ElevatedButton(
                     onPressed: () => _confirmOrderReceived(orderId),
                     style: ElevatedButton.styleFrom(
@@ -515,8 +727,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 else if (!isSeller && status == 'Selesai')
                   OutlinedButton(
                     onPressed: () {
-                      // Logic beri ulasan bisa diarahkan ke halaman detail produk
-                      // Untuk sementara tampilkan toast saja
                       toastification.show(
                         context: context,
                         title: const Text("Terima kasih!"),
@@ -529,7 +739,34 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                     ),
                     child: const Text("Beri Ulasan"),
                   )
-                // --- TOMBOL AKSI PENJUAL ---
+                  
+                // === SELLER ACTIONS ===
+                // Handle cancellation request from buyer
+                else if (isSeller && data['cancelRequested'] == true)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => _handleCancelRequest(orderId, false),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.grey),
+                          foregroundColor: Colors.grey.shade700,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                        child: const Text("Tolak", style: TextStyle(fontSize: 12)),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => _handleCancelRequest(orderId, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                        child: const Text("Setuju Batal", style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  )
                 else if (isSeller && status == 'Menunggu')
                   ElevatedButton(
                     onPressed: () => _updateOrderStatus(orderId, 'Diproses'),
@@ -554,13 +791,60 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                     style: TextStyle(color: Colors.orange, fontSize: 12),
                   )
                 else
-                  // Status Menunggu/Diproses tidak ada tombol aksi
                   const SizedBox(),
               ],
             ),
           ),
+          
+          // Show cancel request indicator for buyer
+          if (!isSeller && data['cancelRequested'] == true)
+            Container(
+              margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(LucideIcons.clock, size: 16, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Menunggu persetujuan pembatalan dari penjual",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  // Handle seller approve/reject cancellation request
+  Future<void> _handleCancelRequest(String orderId, bool approve) async {
+    try {
+      await MarketService().handleCancelRequest(orderId, approve);
+      if (mounted) {
+        toastification.show(
+          context: context,
+          title: Text(approve ? "Pembatalan Disetujui" : "Pembatalan Ditolak"),
+          type: approve ? ToastificationType.success : ToastificationType.info,
+          autoCloseDuration: const Duration(seconds: 2),
+        );
+      }
+    } catch (e) {
+      toastification.show(
+        context: context,
+        title: Text("Gagal: $e"),
+        type: ToastificationType.error,
+      );
+    }
   }
 }

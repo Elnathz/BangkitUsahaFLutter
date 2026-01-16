@@ -278,6 +278,152 @@ class MarketService {
   }
 
   // ==========================================
+  // BUYER CANCELLATION (2-minute rule)
+  // ==========================================
+  
+  /// Cancel order by buyer
+  /// - Within 2 minutes: instant cancel (needsApproval = false)
+  /// - After 2 minutes: needs seller approval (needsApproval = true)
+  Future<void> cancelOrderByBuyer(String orderId, String reason, {required bool needsApproval}) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception("Login required");
+    
+    try {
+      final orderRef = _firestore.collection('orders').doc(orderId);
+      final orderSnap = await orderRef.get();
+      
+      if (!orderSnap.exists) throw Exception("Order not found");
+      
+      final data = orderSnap.data()!;
+      final sellerId = data['sellerId'];
+      final items = data['items'] as List<dynamic>? ?? [];
+      final productName = items.isNotEmpty ? items[0]['name'] ?? 'Pesanan' : 'Pesanan';
+      
+      if (needsApproval) {
+        // Request cancellation - needs seller approval
+        await orderRef.update({
+          'cancelRequested': true,
+          'cancelRequestReason': reason,
+          'cancelRequestedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        // Notify seller about cancellation request
+        await _sendNotification(
+          recipientId: sellerId,
+          title: "Permintaan Pembatalan 📝",
+          body: "Pembeli mengajukan pembatalan pesanan '$productName'. Alasan: $reason",
+          type: "cancel_request",
+          relatedId: orderId,
+        );
+      } else {
+        // Instant cancel - within 2 minutes
+        await orderRef.update({
+          'status': 'Dibatalkan',
+          'cancelReason': reason,
+          'cancelledBy': 'buyer',
+          'cancelledAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        // Restore product stock
+        for (var item in items) {
+          if (item['productId'] != null) {
+            await _firestore
+                .collection('products')
+                .doc(item['productId'])
+                .update({
+              'stock': FieldValue.increment(item['qty'] ?? 1),
+              'sold': FieldValue.increment(-(item['qty'] ?? 1)),
+            });
+          }
+        }
+        
+        // Notify seller about cancellation
+        await _sendNotification(
+          recipientId: sellerId,
+          title: "Pesanan Dibatalkan ❌",
+          body: "Pembeli membatalkan pesanan '$productName'. Alasan: $reason",
+          type: "order_cancelled",
+          relatedId: orderId,
+        );
+      }
+    } catch (e) {
+      print("Error cancelling order: $e");
+      rethrow;
+    }
+  }
+
+  /// Seller approves or rejects cancellation request
+  Future<void> handleCancelRequest(String orderId, bool approve) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception("Login required");
+    
+    try {
+      final orderRef = _firestore.collection('orders').doc(orderId);
+      final orderSnap = await orderRef.get();
+      
+      if (!orderSnap.exists) throw Exception("Order not found");
+      
+      final data = orderSnap.data()!;
+      final buyerId = data['buyerId'];
+      final items = data['items'] as List<dynamic>? ?? [];
+      final productName = items.isNotEmpty ? items[0]['name'] ?? 'Pesanan' : 'Pesanan';
+      
+      if (approve) {
+        // Approve cancellation
+        await orderRef.update({
+          'status': 'Dibatalkan',
+          'cancelReason': data['cancelRequestReason'] ?? 'Disetujui penjual',
+          'cancelledBy': 'buyer_approved',
+          'cancelledAt': FieldValue.serverTimestamp(),
+          'cancelRequested': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        // Restore stock
+        for (var item in items) {
+          if (item['productId'] != null) {
+            await _firestore
+                .collection('products')
+                .doc(item['productId'])
+                .update({
+              'stock': FieldValue.increment(item['qty'] ?? 1),
+              'sold': FieldValue.increment(-(item['qty'] ?? 1)),
+            });
+          }
+        }
+        
+        await _sendNotification(
+          recipientId: buyerId,
+          title: "Pembatalan Disetujui ✅",
+          body: "Penjual menyetujui pembatalan pesanan '$productName'.",
+          type: "cancel_approved",
+          relatedId: orderId,
+        );
+      } else {
+        // Reject cancellation
+        await orderRef.update({
+          'cancelRequested': false,
+          'cancelRejectedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        await _sendNotification(
+          recipientId: buyerId,
+          title: "Pembatalan Ditolak ❌",
+          body: "Penjual menolak pembatalan pesanan '$productName'. Pesanan akan tetap diproses.",
+          type: "cancel_rejected",
+          relatedId: orderId,
+        );
+      }
+    } catch (e) {
+      print("Error handling cancel request: $e");
+      rethrow;
+    }
+  }
+
+  // ==========================================
   // AUTO-CANCEL STALE ORDERS
   // - Menunggu: 3 days without response
   // - Diproses: 7 days without shipping
