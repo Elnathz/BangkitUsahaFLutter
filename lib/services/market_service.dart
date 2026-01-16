@@ -572,4 +572,107 @@ class MarketService {
       print("Gagal kirim notif: $e");
     }
   }
+
+  // ==========================================
+  // FEEDBACK & RE-ORDER
+  // ==========================================
+
+  // Submit Review & Update Product Rating
+  Future<String> submitReview({
+    required String productId,
+    required String shopId,
+    required double rating,
+    required String comment,
+    required List<String> images,
+    required String orderId, // NEW: Need orderId to mark as reviewed
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return "LOGIN_REQUIRED";
+
+    try {
+      await _firestore.runTransaction((transaction) async {
+        final productRef = _firestore.collection('products').doc(productId);
+        final orderRef = _firestore.collection('orders').doc(orderId); // Order Ref
+
+        final productSnap = await transaction.get(productRef);
+        final orderSnap = await transaction.get(orderRef); // Get Order
+
+        if (!productSnap.exists) throw Exception("Produk tidak ditemukan");
+        if (!orderSnap.exists) throw Exception("Pesanan tidak ditemukan");
+
+        // Update Product Rating
+        final data = productSnap.data() as Map<String, dynamic>;
+        double currentRating = (data['rating'] ?? 0).toDouble();
+        int totalReviews = (data['totalReviews'] ?? 0).toInt();
+        double newRating = ((currentRating * totalReviews) + rating) / (totalReviews + 1);
+
+        transaction.update(productRef, {
+          'rating': newRating,
+          'totalReviews': FieldValue.increment(1),
+        });
+
+        // Add Review
+        final reviewRef = _firestore.collection('reviews').doc();
+        transaction.set(reviewRef, {
+          'productId': productId,
+          'shopId': shopId,
+          'userId': user.uid,
+          'userName': user.displayName ?? "Pengguna",
+          'userImage': user.photoURL ?? "",
+          'rating': rating,
+          'comment': comment,
+          'images': images,
+          'createdAt': FieldValue.serverTimestamp(),
+          'likes': 0,
+        });
+
+        // Mark item as reviewed in Order
+        // Note: Array update is tricky, we need to read modify write.
+        List<dynamic> items = orderSnap.data()?['items'] ?? [];
+        List<dynamic> newItems = items.map((item) {
+          if (item['productId'] == productId) {
+            Map<String, dynamic> newItem = Map.from(item);
+            newItem['reviewed'] = true; // Mark as reviewed
+            return newItem;
+          }
+          return item;
+        }).toList();
+
+        transaction.update(orderRef, {'items': newItems}); 
+      });
+
+      return "SUCCESS";
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  // Re-order Items (Add all to cart)
+  Future<String> reorderItems(List<dynamic> items) async {
+    final user = _auth.currentUser;
+    if (user == null) return "LOGIN_REQUIRED";
+
+    try {
+      // Use Future.wait to add all items in parallel
+      await Future.wait(items.map((item) async {
+        if (item['productId'] != null) {
+          await addToCart(
+            item['productId'],
+            item['name'] ?? "Produk",
+            item['price'] is int ? item['price'] : (item['price'] as num).toInt(),
+            item['image'] ?? "",
+            sellerId: item['sellerId'] ?? "",
+            sellerName: item['sellerName'] ?? "Toko",
+          );
+          // Optional: Update qty if you want exact re-order amount in cart
+          // But addToCart adds +1 by default. 
+          // If we want exact qty, we might need a specific parameter or separate call.
+          // For now, let's just add them to cart (increment existing or set new).
+        }
+      }));
+      return "SUCCESS";
+    } catch (e) {
+      return e.toString();
+    }
+  }
 }

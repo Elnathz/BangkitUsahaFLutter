@@ -659,6 +659,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     final status = data['status'] ?? 'Menunggu';
     final isSeller = widget.isSellerMode;
     final int totalPrice = (data['totalPrice'] ?? 0).toInt();
+    // Calculate if all items are reviewed
+    bool allReviewed = items.every((item) => item['reviewed'] == true);
 
     // Status Configuration (matching reference)
     late final Color themeColor;
@@ -1191,7 +1193,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 ),
                 
                 // === ACTION BUTTONS ===
-                if (status != 'Dibatalkan') ...[
+
+                  
+                  if (status != 'Dibatalkan') ...[
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -1246,7 +1250,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                         else if (status == 'Selesai')
                           Expanded( // Pesan Lagi
                             child: OutlinedButton(
-                              onPressed: () => toastification.show(context: context, title: const Text("Fitur Pesan Lagi..."), autoCloseDuration: const Duration(seconds: 2)),
+                              onPressed: () => _handleReorder(items),
                               style: OutlinedButton.styleFrom(
                                 side: BorderSide(color: Colors.grey.shade300),
                                 foregroundColor: Colors.grey.shade700,
@@ -1256,7 +1260,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                               child: const Text("Pesan Lagi", style: TextStyle(fontSize: 12)),
                             ),
                           ),
-                      ] else ...[ 
+                      ] else ...[  
                         // SELLER LEFT BUTTONS
                         if (data['cancelRequested'] == true)
                           Expanded(
@@ -1268,72 +1272,76 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                           )
                       ],
 
-                      const SizedBox(width: 8),
-
-                      // --- RIGHT BUTTON ---
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: (status == 'Selesai' && !isSeller)
-                                  ? [Colors.orange.shade500, Colors.orange.shade600] // Orange for Review
-                                  : (isSeller && data['cancelRequested'] == true) 
-                                      ? [Colors.red.shade500, Colors.red.shade600] // Red for Seller Approve Cancel
-                                      : (status == 'Diantar' && !isSeller)
-                                         ? [Colors.green.shade600, Colors.green.shade700] // Green for Receive
-                                         : [Colors.blue.shade600, Colors.blue.shade700], // Blue for others
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: (status == 'Selesai' && !isSeller) ? Colors.orange.withOpacity(0.2) : Colors.blue.withOpacity(0.2),
-                                blurRadius: 4, offset: const Offset(0, 2),
+                      // --- RIGHT BUTTON (Review / Hubungi / Terima) ---
+                      // Only show if NOT (Selesai AND allReviewed AND !isSeller)
+                      // Because if Selesai & allReviewed (and buyer), we only want Pesan Lagi (which is already expanded above)
+                      // If Selesai & !allReviewed (and buyer), we show Review button.
+                      if (!(status == 'Selesai' && !isSeller && allReviewed)) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: (status == 'Selesai' && !isSeller)
+                                    ? [Colors.orange.shade500, Colors.orange.shade600] // Orange for Review
+                                    : (isSeller && data['cancelRequested'] == true) 
+                                        ? [Colors.red.shade500, Colors.red.shade600] // Red for Seller Approve Cancel
+                                        : (status == 'Diantar' && !isSeller)
+                                           ? [Colors.green.shade600, Colors.green.shade700] // Green for Receive
+                                           : [Colors.blue.shade600, Colors.blue.shade700], // Blue for others
                               ),
-                            ],
-                          ),
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              if (isSeller) {
-                                if (data['cancelRequested'] == true) _handleCancelRequest(orderId, true);
-                                else if (status == 'Menunggu') _updateOrderStatus(orderId, 'Diproses');
-                                else if (status == 'Diproses') _updateOrderStatus(orderId, 'Diantar');
-                                else if (status == 'Diantar') toastification.show(context: context, title: const Text("Menunggu konfirmasi Buyer"));
-                              } else {
-                                // Buyer Actions
-                                if (status == 'Menunggu' || status == 'Diproses') {
-                                  _navigateToChat(data); // Hubungi
-                                } else if (status == 'Diantar') {
-                                  _confirmOrderReceived(orderId);
-                                } else if (status == 'Selesai') {
-                                  _handleReviewAction(items, data['shopId'] ?? data['sellerId'] ?? "");
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (status == 'Selesai' && !isSeller) ? Colors.orange.withOpacity(0.2) : Colors.blue.withOpacity(0.2),
+                                  blurRadius: 4, offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                if (isSeller) {
+                                  if (data['cancelRequested'] == true) _handleCancelRequest(orderId, true);
+                                  else if (status == 'Menunggu') _updateOrderStatus(orderId, 'Diproses');
+                                  else if (status == 'Diproses') _updateOrderStatus(orderId, 'Diantar');
+                                  else if (status == 'Diantar') toastification.show(context: context, title: const Text("Menunggu konfirmasi Buyer"));
+                                } else {
+                                  // Buyer Actions
+                                  if (status == 'Menunggu' || status == 'Diproses') {
+                                    _navigateToChat(data); // Hubungi
+                                  } else if (status == 'Diantar') {
+                                    _confirmOrderReceived(orderId);
+                                  } else if (status == 'Selesai') {
+                                    _handleReviewAction(items, data['shopId'] ?? data['sellerId'] ?? "", orderId);
+                                  }
                                 }
-                              }
-                            },
-                            icon: Icon(
-                                (status == 'Selesai' && !isSeller) ? LucideIcons.star :
-                                (status == 'Diantar' && !isSeller) ? LucideIcons.check :
-                                (isSeller && data['cancelRequested'] == true) ? LucideIcons.check :
-                                LucideIcons.messageSquare, // Default icon
-                                size: 14, color: Colors.white
-                            ),
-                            label: Text(
-                              isSeller 
-                                  ? (data['cancelRequested'] == true ? "Setuju Batal" : 
-                                     status == 'Menunggu' ? "Proses Pesanan" : 
-                                     status == 'Diproses' ? "Kirim Barang" : "Hubungi Buyer")
-                                  : (status == 'Diantar' ? "Terima" : 
-                                     status == 'Selesai' ? "Beri Ulasan" :
-                                     "Hubungi"), 
-                              style: const TextStyle(fontSize: 11)
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent, foregroundColor: Colors.white, shadowColor: Colors.transparent,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              },
+                              icon: Icon(
+                                  (status == 'Selesai' && !isSeller) ? LucideIcons.star :
+                                  (status == 'Diantar' && !isSeller) ? LucideIcons.check :
+                                  (isSeller && data['cancelRequested'] == true) ? LucideIcons.check :
+                                  LucideIcons.messageSquare, // Default icon
+                                  size: 14, color: Colors.white
+                              ),
+                              label: Text(
+                                isSeller 
+                                    ? (data['cancelRequested'] == true ? "Setuju Batal" : 
+                                       status == 'Menunggu' ? "Proses Pesanan" : 
+                                       status == 'Diproses' ? "Kirim Barang" : "Hubungi Buyer")
+                                    : (status == 'Diantar' ? "Terima" : 
+                                       status == 'Selesai' ? "Beri Ulasan" :
+                                       "Hubungi"), 
+                                style: const TextStyle(fontSize: 11)
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent, foregroundColor: Colors.white, shadowColor: Colors.transparent,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ],
@@ -1426,9 +1434,176 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Tutup")),
         ],
       ),
+    );
+  }
+
+  // Handle Re-order (Pesan Lagi)
+  Future<void> _handleReorder(List<dynamic> items) async {
+    try {
+      await MarketService().reorderItems(items);
+      if (mounted) {
+        toastification.show(
+          context: context,
+          title: const Text("Berhasil Ditambahkan"),
+          description: const Text("Item telah dimasukkan ke keranjang."),
+          type: ToastificationType.success,
+          autoCloseDuration: const Duration(seconds: 3),
+        );
+        // Optional: Navigate to Cart
+        // Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen()));
+      }
+    } catch (e) {
+      if (mounted) {
+        toastification.show(
+            context: context, 
+            title: Text("Gagal: $e"), 
+            type: ToastificationType.error
+        );
+      }
+    }
+  }
+
+  // Handle Review Action (Beri Ulasan)
+  void _handleReviewAction(List<dynamic> items, String shopId, String orderId) {
+    if (items.isEmpty) return;
+
+    // Filter out already reviewed items
+    final unreviewedItems = items.where((item) => item['reviewed'] != true).toList();
+    
+    if (unreviewedItems.isEmpty) {
+       toastification.show(context: context, title: const Text("Semua produk sudah diulas"));
+       return;
+    }
+
+    if (unreviewedItems.length == 1) {
+      // Direct Review
+      _showReviewDialog(unreviewedItems[0], shopId, orderId);
+    } else {
+      // Select Product to Review
+      showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+        builder: (ctx) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Pilih Produk untuk Diulas", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 12),
+                ...unreviewedItems.map((item) => ListTile(
+                  leading: Container(
+                     width: 48, height: 48,
+                     decoration: BoxDecoration(
+                       color: Colors.grey[200], borderRadius: BorderRadius.circular(8),
+                       image: (item['image'] != null && item['image'] != "")
+                           ? DecorationImage(image: NetworkImage(item['image']), fit: BoxFit.cover)
+                           : null
+                     ),
+                  ),
+                  title: Text(item['name'] ?? "Produk", maxLines: 1, overflow: TextOverflow.ellipsis),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showReviewDialog(item, shopId, orderId);
+                  },
+                )),
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  // Show Review Dialog Form
+  void _showReviewDialog(Map<String, dynamic> item, String shopId, String orderId) {
+    double rating = 5.0;
+    final commentController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateSB) {
+            return AlertDialog(
+              title: const Text("Beri Ulasan"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(item['name'] ?? "Produk", style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  
+                  // Stars
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return IconButton(
+                        onPressed: () => setStateSB(() => rating = index + 1.0),
+                        icon: Icon(
+                          index < rating ? LucideIcons.star : LucideIcons.star,
+                          color: index < rating ? Colors.orange : Colors.grey[300],
+                          size: 32,
+                        ),
+                      );
+                    }),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: commentController,
+                    decoration: const InputDecoration(
+                      labelText: "Tulis ulasan Anda...",
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    // Submit
+                    String res = await MarketService().submitReview(
+                      productId: item['productId'],
+                      shopId: shopId,
+                      rating: rating,
+                      comment: commentController.text,
+                      images: [],
+                      orderId: orderId, // Passed orderId
+                    );
+                    
+                    if (mounted) {
+                      if (res == "SUCCESS") {
+                        toastification.show(
+                          context: context, 
+                          title: const Text("Ulasan Terkirim!"), 
+                          description: const Text("Terima kasih atas ulasan Anda."),
+                          type: ToastificationType.success
+                        );
+                      } else {
+                        toastification.show(
+                          context: context, 
+                          title: const Text("Gagal kirim ulasan"), 
+                          description: Text(res),
+                          type: ToastificationType.error
+                        );
+                      }
+                    }
+                  },
+                  child: const Text("Kirim"),
+                ),
+              ],
+            );
+          }
+        );
+      },
     );
   }
 
@@ -1466,134 +1641,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     );
   }
 
-  void _showReviewDialog(String reviewProductId, String shopId, Map<String, dynamic> itemData) {
-    final commentCtrl = TextEditingController();
-    double rating = 5.0;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateSB) {
-            return AlertDialog(
-              title: const Text("Tulis Ulasan"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (itemData['name'] != null)
-                     Text(itemData['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (index) {
-                      return IconButton(
-                        onPressed: () => setStateSB(() => rating = index + 1.0),
-                        icon: Icon(
-                          LucideIcons.star,
-                          color: index < rating ? Colors.orange : Colors.grey[300],
-                          size: 32,
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: commentCtrl,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      hintText: "Bagaimana kualitas produk ini?",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
-                ElevatedButton(
-                  onPressed: () {
-                    if (commentCtrl.text.trim().isEmpty) return;
-                    _submitReview(reviewProductId, shopId, rating, commentCtrl.text);
-                    Navigator.pop(context);
-                  },
-                  child: const Text("Kirim"),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-  
-  void _handleReviewAction(List items, String shopId) {
-    if (items.isEmpty) return;
-
-    if (items.length == 1) {
-      _showReviewDialog(items[0]['productId'], shopId, items[0]);
-    } else {
-      // Show bottom sheet to select product
-      showModalBottomSheet(
-        context: context,
-        builder: (ctx) => Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Pilih Produk untuk Diulas", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 12),
-              ...items.map((item) => ListTile(
-                leading: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(4),
-                    image: (item['image'] != null && item['image'] != "") 
-                        ? DecorationImage(image: NetworkImage(item['image']), fit: BoxFit.cover) 
-                        : null,
-                  ),
-                ),
-                title: Text(item['name'] ?? "Produk", maxLines: 1, overflow: TextOverflow.ellipsis),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showReviewDialog(item['productId'], shopId, item);
-                },
-              )).toList(),
-            ],
-          ),
-        ),
-      );
-    }
-  }
-
-  Future<void> _submitReview(String productId, String shopId, double rating, String comment) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    
-    try {
-      await FirebaseFirestore.instance.collection('reviews').add({
-        'productId': productId,
-        'shopId': shopId,
-        'userId': user.uid,
-        'userName': user.displayName ?? "Pembeli",
-        'userImage': user.photoURL ?? "",
-        'rating': rating,
-        'comment': comment,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      
-      if (mounted) {
-        toastification.show(
-          context: context, 
-          title: const Text("Ulasan berhasil dikirim!"), 
-          type: ToastificationType.success,
-          autoCloseDuration: const Duration(seconds: 3),
-        );
-      }
-    } catch (e) {
-      debugPrint("Error submit review: $e");
-    }
-  }
   String _getRelativeDeadline(Map<String, dynamic> data) {
     // Default deadline: 2 days (48 hours) from creation or cancel request
     // If 'cancelRequested' is true, base it on 'cancelRequestedAt' (if exists) or 'updatedAt'
