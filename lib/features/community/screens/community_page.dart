@@ -154,7 +154,7 @@ class _CommunityPageState extends State<CommunityPage>
       floatingActionButton: Tooltip(
         message: 'Buat Postingan',
         child: Padding(
-          padding: const EdgeInsets.only(bottom: 100),
+          padding: const EdgeInsets.only(bottom: 25, right: 10),
           child: Container(
             decoration: BoxDecoration(
               gradient: const LinearGradient(
