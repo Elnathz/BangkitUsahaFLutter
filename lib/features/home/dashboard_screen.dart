@@ -211,7 +211,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           const OrderHistoryScreen(
                                             isSellerMode: true,
                                           ),
-                                          badgeCount: incomingCount,
                                         ),
                                         const SizedBox(width: 8),
                                       ],
@@ -224,97 +223,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           },
                         ),
                         // Notifikasi
-                        StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('notifications')
-                              .where('recipientId', isEqualTo: user?.uid)
-                              .where('isRead', isEqualTo: false)
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            int unreadNotifCount = 0;
-                            if (snapshot.hasData) {
-                              unreadNotifCount = snapshot.data!.docs.length;
-                            }
-                            return _buildHeaderIconNew(
-                              context,
-                              LucideIcons.bell,
-                              const NotificationScreen(),
-                              badgeCount: unreadNotifCount,
-                            );
-                          },
+                        _buildHeaderIconNew(
+                          context,
+                          LucideIcons.bell,
+                          const NotificationScreen(),
                         ),
                         const SizedBox(width: 8),
                         // Chat
-                        StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('chat_rooms')
-                              .where(
-                                'participants',
-                                arrayContains: user?.uid,
-                              )
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            int totalUnreadChat = 0;
-                            if (snapshot.hasData) {
-                              for (var doc in snapshot.data!.docs) {
-                                final data =
-                                    doc.data() as Map<String, dynamic>;
-                                final int unreadCount =
-                                    data['unread_count_${user?.uid}'] ?? 0;
-                                totalUnreadChat += unreadCount;
-                                if (unreadCount > 0) {
-                                  final Timestamp? lastTime =
-                                      data['last_message_time'];
-                                  if (lastTime != null) {
-                                    final now = DateTime.now();
-                                    final messageTime = lastTime.toDate();
-                                    final diff = now
-                                        .difference(messageTime)
-                                        .inSeconds;
-                                    if (diff.abs() <= 10) {
-                                      try {
-                                        NotificationService.showNotification(
-                                          id: doc.id.hashCode,
-                                          title: "Pesan Baru",
-                                          body:
-                                              data['last_message'] ??
-                                              "Anda mendapat pesan",
-                                        );
-                                      } catch (e) {
-                                        print(
-                                          "Gagal menampilkan notif: $e",
-                                        );
-                                      }
-                                    }
-                                    }
-                                  }
-                                }
-                              }
-
-                            return _buildHeaderIconNew(
-                              context,
-                              LucideIcons.messageSquare,
-                              const ChatScreen(),
-                              badgeCount: totalUnreadChat,
-                            );
-                          },
+                        _buildHeaderIconNew(
+                          context,
+                          LucideIcons.messageSquare,
+                          const ChatScreen(),
                         ),
                         const SizedBox(width: 8),
                         // Cart
-                        StreamBuilder<QuerySnapshot>(
-                          stream: MarketService().getUserCart(),
-                          builder: (context, snapshot) {
-                            int cartItemCount = 0;
-                            if (snapshot.hasData) {
-                              cartItemCount = snapshot.data!.docs.length;
-                            }
-                            return _buildHeaderIconNew(
-                              context,
-                              LucideIcons.shoppingCart,
-                              CartScreen(),
-                              badgeCount: cartItemCount,
-                            );
-                          },
+                        _buildHeaderIconNew(
+                          context,
+                          LucideIcons.shoppingCart,
+                          CartScreen(),
                         ),
                       ],
                     ),
@@ -473,7 +399,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     cardColor,
                                     textColor,
                                     isDark,
-                                    isPopular: index < 3,
                                   ),
                                 );
                               },
@@ -562,9 +487,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHeaderIconNew(
     BuildContext context,
     IconData icon,
-    Widget? destination, {
-    int badgeCount = 0,
-  }) {
+    Widget? destination,
+  ) {
     return InkWell(
       onTap: destination != null
           ? () => Navigator.push(
@@ -573,49 +497,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             )
           : () {},
       borderRadius: BorderRadius.circular(10),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: Colors.white, size: 20),
-          ),
-          if (badgeCount > 0)
-            Positioned(
-              top: -4,
-              right: -4,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(
-                  minWidth: 18,
-                  minHeight: 18,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 1.5,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    badgeCount > 99 ? '99+' : badgeCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }
@@ -685,9 +574,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Map<String, dynamic> item,
     Color cardColor,
     Color textColor,
-    bool isDark, {
-    bool isPopular = false,
-  }) {
+    bool isDark,
+  ) {
     String getValidImage() {
       if (item['imageUrl'] != null && item['imageUrl'] != "")
         return item['imageUrl'];
@@ -781,42 +669,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 ),
-                // Popular Badge
-                if (isPopular)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFFBBF24), // Amber-400
-                            Color(0xFFF97316), // Orange-500
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.orange.withOpacity(0.4),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Text(
-                        "🔥 Popular",
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
