@@ -267,6 +267,143 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
               ],
             ),
           ),
+          
+          // AUTO-CANCEL DEADLINE WARNING (for "Menunggu" and "Diproses" status)
+          if ((status == 'Menunggu' || status == 'Diproses') && 
+              (data['createdAt'] != null || data['updatedAt'] != null))
+            Builder(builder: (context) {
+              // Menunggu uses createdAt (3 days), Diproses uses updatedAt (7 days)
+              final bool isMenunggu = status == 'Menunggu';
+              final int deadlineDays = isMenunggu ? 3 : 7;
+              
+              final DateTime baseTime;
+              if (isMenunggu && data['createdAt'] != null) {
+                baseTime = (data['createdAt'] as Timestamp).toDate();
+              } else if (data['updatedAt'] != null) {
+                baseTime = (data['updatedAt'] as Timestamp).toDate();
+              } else {
+                return const SizedBox();
+              }
+              
+              final deadline = baseTime.add(Duration(days: deadlineDays));
+              final now = DateTime.now();
+              final remaining = deadline.difference(now);
+              
+              // Calculate remaining time
+              final days = remaining.inDays;
+              final hours = remaining.inHours % 24;
+              final minutes = remaining.inMinutes % 60;
+              
+              // Determine urgency color
+              final isUrgent = remaining.inHours < 24;
+              final isExpired = remaining.isNegative;
+              
+              // Color scheme based on urgency
+              final Color bgColor;
+              final Color borderColor;
+              final Color textColor;
+              final Color badgeColor;
+              
+              if (isExpired) {
+                bgColor = Colors.red.shade50;
+                borderColor = Colors.red.shade200;
+                textColor = Colors.red.shade700;
+                badgeColor = Colors.red;
+              } else if (isUrgent) {
+                bgColor = Colors.orange.shade50;
+                borderColor = Colors.orange.shade200;
+                textColor = Colors.orange.shade700;
+                badgeColor = Colors.orange;
+              } else {
+                bgColor = Colors.amber.shade50;
+                borderColor = Colors.amber.shade200;
+                textColor = Colors.amber.shade800;
+                badgeColor = Colors.amber.shade700;
+              }
+              
+              String timeText;
+              if (isExpired) {
+                timeText = "Akan segera dibatalkan";
+              } else if (days > 0) {
+                timeText = "$days hari $hours jam lagi";
+              } else if (hours > 0) {
+                timeText = "$hours jam $minutes menit lagi";
+              } else {
+                timeText = "$minutes menit lagi";
+              }
+              
+              // Different messages based on status
+              final String statusMessage;
+              if (isMenunggu) {
+                statusMessage = isSeller 
+                    ? "Segera proses pesanan ini"
+                    : "Menunggu konfirmasi penjual";
+              } else {
+                statusMessage = isSeller 
+                    ? "Segera kirim pesanan ini"
+                    : "Menunggu pengiriman dari penjual";
+              }
+              
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isMenunggu ? LucideIcons.clock : LucideIcons.package,
+                      size: 16,
+                      color: textColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            statusMessage,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: textColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            "Batas waktu: $timeText",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: textColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isUrgent && !isExpired)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: badgeColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          "⚠️ Urgent",
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          
           const Divider(height: 1),
 
           // LIST BARANG (Preview 1 Barang Utama + Info sisa)

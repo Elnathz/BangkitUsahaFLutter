@@ -277,6 +277,113 @@ class MarketService {
         .snapshots();
   }
 
+  // ==========================================
+  // AUTO-CANCEL STALE ORDERS
+  // - Menunggu: 3 days without response
+  // - Diproses: 7 days without shipping
+  // ==========================================
+  
+  /// Check and cancel orders that have been waiting too long
+  /// This runs on app initialization and periodically
+  Future<int> checkAndCancelStaleOrders() async {
+    int cancelledCount = 0;
+    
+    try {
+      // 1. Check "Menunggu" orders older than 3 days
+      final threeDaysAgo = DateTime.now().subtract(const Duration(days: 3));
+      final menungguOrders = await _firestore
+          .collection('orders')
+          .where('status', isEqualTo: 'Menunggu')
+          .where('createdAt', isLessThan: Timestamp.fromDate(threeDaysAgo))
+          .get();
+      
+      for (var doc in menungguOrders.docs) {
+        await _cancelStaleOrder(
+          doc.id, 
+          doc.data(), 
+          'Penjual tidak merespon dalam 3 hari',
+        );
+        cancelledCount++;
+      }
+      
+      // 2. Check "Diproses" orders older than 7 days (from updatedAt)
+      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+      final diprosesOrders = await _firestore
+          .collection('orders')
+          .where('status', isEqualTo: 'Diproses')
+          .where('updatedAt', isLessThan: Timestamp.fromDate(sevenDaysAgo))
+          .get();
+      
+      for (var doc in diprosesOrders.docs) {
+        await _cancelStaleOrder(
+          doc.id, 
+          doc.data(), 
+          'Pesanan tidak dikirim dalam 7 hari',
+        );
+        cancelledCount++;
+      }
+      
+      print("Auto-cancelled $cancelledCount stale orders");
+      return cancelledCount;
+    } catch (e) {
+      print("Error checking stale orders: $e");
+      return cancelledCount;
+    }
+  }
+  
+  /// Cancel a single stale order - restore stock and notify both parties
+  Future<void> _cancelStaleOrder(String orderId, Map<String, dynamic> orderData, String cancelReason) async {
+    try {
+      final buyerId = orderData['buyerId'];
+      final sellerId = orderData['sellerId'];
+      final items = orderData['items'] as List<dynamic>? ?? [];
+      final productName = items.isNotEmpty ? items[0]['name'] ?? 'Pesanan' : 'Pesanan';
+      
+      // 1. Update order status to cancelled
+      await _firestore.collection('orders').doc(orderId).update({
+        'status': 'Dibatalkan',
+        'cancelReason': 'Otomatis dibatalkan - $cancelReason',
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      
+      // 2. Restore product stock
+      for (var item in items) {
+        if (item['productId'] != null) {
+          await _firestore
+              .collection('products')
+              .doc(item['productId'])
+              .update({
+            'stock': FieldValue.increment(item['qty'] ?? 1),
+            'sold': FieldValue.increment(-(item['qty'] ?? 1)),
+          });
+        }
+      }
+      
+      // 3. Notify buyer about cancellation
+      await _sendNotification(
+        recipientId: buyerId,
+        title: "Pesanan Dibatalkan ⚠️",
+        body: "Pesanan '$productName' dibatalkan karena $cancelReason.",
+        type: "order_cancelled",
+        relatedId: orderId,
+      );
+      
+      // 4. Notify seller about cancellation
+      await _sendNotification(
+        recipientId: sellerId,
+        title: "Pesanan Terlewat ⚠️",
+        body: "Pesanan '$productName' dibatalkan otomatis - $cancelReason.",
+        type: "order_cancelled",
+        relatedId: orderId,
+      );
+      
+      print("Cancelled stale order: $orderId");
+    } catch (e) {
+      print("Error cancelling order $orderId: $e");
+    }
+  }
+
   Future<String> processPayment(String productId, int qty) async {
     return "SUCCESS";
   }
