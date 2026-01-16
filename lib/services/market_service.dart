@@ -27,8 +27,10 @@ class MarketService {
     String productId,
     String name,
     int price,
-    String image,
-  ) async {
+    String image, {
+    String sellerId = "",
+    String sellerName = "Toko",
+  }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception("Harus login");
     final cartRef = _firestore
@@ -38,7 +40,12 @@ class MarketService {
         .doc(productId);
     final doc = await cartRef.get();
     if (doc.exists) {
-      await cartRef.update({'qty': FieldValue.increment(1)});
+      await cartRef.update({
+        'qty': FieldValue.increment(1),
+        // Update seller info if missing/changed (optional)
+        'sellerId': sellerId, 
+        'sellerName': sellerName,
+      });
     } else {
       await cartRef.set({
         'productId': productId,
@@ -46,6 +53,8 @@ class MarketService {
         'price': price,
         'image': image,
         'qty': 1,
+        'sellerId': sellerId, // NEW
+        'sellerName': sellerName, // NEW
         'addedAt': FieldValue.serverTimestamp(),
       });
     }
@@ -496,13 +505,18 @@ class MarketService {
       // 2. Restore product stock
       for (var item in items) {
         if (item['productId'] != null) {
-          await _firestore
-              .collection('products')
-              .doc(item['productId'])
-              .update({
-            'stock': FieldValue.increment(item['qty'] ?? 1),
-            'sold': FieldValue.increment(-(item['qty'] ?? 1)),
-          });
+          try {
+            final productRef = _firestore.collection('products').doc(item['productId']);
+            final productSnap = await productRef.get();
+            if (productSnap.exists) {
+               await productRef.update({
+                'stock': FieldValue.increment(item['qty'] ?? 1),
+                'sold': FieldValue.increment(-(item['qty'] ?? 1)),
+              });
+            }
+          } catch (e) {
+            print("Skipping stock restore for missing product: ${item['productId']}");
+          }
         }
       }
       
