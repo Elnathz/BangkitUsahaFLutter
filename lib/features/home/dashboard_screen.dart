@@ -589,7 +589,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     int price = (item['price'] ?? 0).toInt();
     int stock = (item['stock'] ?? 0).toInt();
     double rating = (item['rating'] ?? 0).toDouble();
-    int totalSold = item['totalSold'] ?? 0;
+    int totalSold = item['sold'] ?? item['totalSold'] ?? 0;
 
     return Container(
       decoration: BoxDecoration(

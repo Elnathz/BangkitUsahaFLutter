@@ -220,30 +220,62 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
 
                   // --- 2. GAMBAR PRODUK ---
-                  Container(
-                    width: double.infinity,
-                    height: 350,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      image:
-                          (productData['image'] != null &&
-                              productData['image'] != "")
-                          ? DecorationImage(
-                              image: NetworkImage(productData['image']),
-                              fit: BoxFit.cover,
-                              onError: (exception, stackTrace) {},
+                  GestureDetector(
+                    onTap: () {
+                       if (productData['image'] != null && productData['image'] != "") {
+                         showDialog(
+                           context: context,
+                           builder: (ctx) => Dialog(
+                             backgroundColor: Colors.transparent,
+                             insetPadding: EdgeInsets.zero,
+                             child: Stack(
+                               children: [
+                                 InteractiveViewer(
+                                   child: Image.network(
+                                     productData['image'],
+                                     fit: BoxFit.contain,
+                                     width: double.infinity,
+                                     height: double.infinity,
+                                   ),
+                                 ),
+                                 Positioned(
+                                   top: 40, right: 20,
+                                   child: IconButton(
+                                     icon: const Icon(LucideIcons.x, color: Colors.white, size: 30),
+                                     onPressed: () => Navigator.pop(ctx),
+                                   ),
+                                 ),
+                               ],
+                             ),
+                           ),
+                         );
+                       }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 350,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        image:
+                            (productData['image'] != null &&
+                                productData['image'] != "")
+                            ? DecorationImage(
+                                image: NetworkImage(productData['image']),
+                                fit: BoxFit.cover,
+                                onError: (exception, stackTrace) {},
+                              )
+                            : null,
+                      ),
+                      child:
+                          (productData['image'] == null ||
+                              productData['image'] == "")
+                          ? Icon(
+                              LucideIcons.image,
+                              size: 64,
+                              color: Colors.grey[400],
                             )
                           : null,
                     ),
-                    child:
-                        (productData['image'] == null ||
-                            productData['image'] == "")
-                        ? Icon(
-                            LucideIcons.image,
-                            size: 64,
-                            color: Colors.grey[400],
-                          )
-                        : null,
                   ),
 
                   // --- 3. INFO HARGA & RATING ---
@@ -259,7 +291,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: primaryColor,
+                            color: Colors.green.shade600,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -357,82 +389,136 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       }
 
                       return Container(
-                        color: cardColor,
-                        padding: const EdgeInsets.all(16),
+                        width: double.infinity,
                         margin: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 24,
-                              backgroundColor: Colors.grey[200],
-                              backgroundImage:
-                                  (shopImage != null && shopImage != "")
-                                  ? NetworkImage(shopImage!)
-                                  : null,
-                              child: (shopImage == null || shopImage == "")
-                                  ? Text(
-                                      shopName.isNotEmpty &&
-                                              shopName != "Memuat..."
-                                          ? shopName[0]
-                                          : "?",
-                                      style: TextStyle(color: primaryColor),
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    shopName,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: textColor,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                               Color(0xFF1976D2),
+                               Color(0xFF0D47A1),
+                            ],
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Avatar
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 28,
+                                    backgroundColor: Colors.white,
+                                    child: CircleAvatar(
+                                      radius: 26,
+                                      backgroundColor: Colors.grey[200],
+                                      backgroundImage: (shopImage != null && shopImage != "")
+                                          ? NetworkImage(shopImage!)
+                                          : null,
+                                      child: (shopImage == null || shopImage == "")
+                                          ? Text(
+                                              shopName.isNotEmpty
+                                                  ? shopName[0].toUpperCase()
+                                                  : "?",
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF1976D2),
+                                              ),
+                                            )
+                                          : null,
                                     ),
                                   ),
-                                  Text(
-                                    isOnline
-                                        ? "Aktif"
-                                        : (ownerUid.isEmpty ? "-" : "..."),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isOnline
-                                          ? Colors.green
-                                          : Colors.grey,
+                                ),
+                              const SizedBox(width: 16),
+                              
+                              // Name and Role
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      shopName,
+                                      style: const TextStyle(
+                                        fontSize: 20, 
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            OutlinedButton(
-                              onPressed: () {
-                                if (ownerUid.isNotEmpty) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          ShopProfileScreen(shopId: ownerUid),
-                                    ),
-                                  );
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        "Data toko tidak tersedia untuk produk ini",
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(color: Colors.white.withOpacity(0.3)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            LucideIcons.store,
+                                            size: 12,
+                                            color: Colors.white,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            isOnline ? "Online" : "Offline",
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  );
-                                }
-                              },
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: primaryColor),
-                                foregroundColor: primaryColor,
+                                  ],
+                                ),
                               ),
-                              child: const Text("Kunjungi"),
-                            ),
-                          ],
+
+                              // Visit Button
+                              InkWell(
+                                onTap: () {
+                                  if (ownerUid.isNotEmpty) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            ShopProfileScreen(shopId: ownerUid),
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Data toko tidak tersedia"),
+                                      ),
+                                    );
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                                  ),
+                                  child: const Icon(LucideIcons.externalLink, color: Colors.white, size: 20),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
