@@ -285,7 +285,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Background decorations (simulated with opacity)
-                  
+                  const SizedBox(height: 25),
                   // Logo/Brand Section
                   Container(
                     width: 80,
@@ -301,6 +301,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
+                  
                     child: const Icon(
                       LucideIcons.logIn,
                       size: 40,
