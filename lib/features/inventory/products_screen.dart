@@ -737,7 +737,7 @@ class _ProductsScreenState extends State<ProductsScreen>
       // FAB: Tambah Produk - Premium design with plus icon
       floatingActionButton: _tabController.index == 0
           ? Padding(
-              padding: const EdgeInsets.only(bottom: 30, right: 10),
+              padding: const EdgeInsets.only(bottom: 100, right: 10),
               child: Container(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(

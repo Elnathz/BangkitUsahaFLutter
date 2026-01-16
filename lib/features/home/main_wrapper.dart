@@ -18,33 +18,99 @@ class MainWrapper extends StatefulWidget {
   State<MainWrapper> createState() => _MainWrapperState();
 }
 
-class _MainWrapperState extends State<MainWrapper> {
+class _MainWrapperState extends State<MainWrapper> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   final user = FirebaseAuth.instance.currentUser;
+  
+  // PageController for smooth page transitions
+  late PageController _pageController;
+  
+  // Horizontal drag tracking for edge swipe
+  double _dragStartX = 0;
+  double _dragDelta = 0;
+  bool _isDragging = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 0);
+  }
+  
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   // Handle Community Page Navigation
   void _handleCommunityClose() {
-    setState(() {
-      _selectedIndex = 0; // Back to Dashboard
-    });
+    _animateToPage(0); // Back to Dashboard with animation
+  }
+  
+  // Animate to specific page with smooth curve
+  void _animateToPage(int index) {
+    if (index < 0) index = 0;
+    if (index > 4) index = 4;
+    setState(() => _selectedIndex = index);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+    );
+  }
+  
+  // Handle page changes from swipe
+  void _onPageChanged(int index) {
+    setState(() => _selectedIndex = index);
+  }
+  
+  // Handle horizontal drag start - detect edge swipe
+  void _onHorizontalDragStart(DragStartDetails details) {
+    _dragStartX = details.globalPosition.dx;
+    _dragDelta = 0;
+    _isDragging = true;
+  }
+  
+  // Handle horizontal drag update
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    if (!_isDragging) return;
+    _dragDelta = details.globalPosition.dx - _dragStartX;
+  }
+  
+  // Handle horizontal drag end - navigate if swipe is significant
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    if (!_isDragging) return;
+    _isDragging = false;
+    
+    // Minimum swipe distance (75 pixels) and velocity for navigation
+    final velocity = details.primaryVelocity ?? 0;
+    
+    if (_dragDelta.abs() > 75 || velocity.abs() > 500) {
+      if (_dragDelta > 0 || velocity > 500) {
+        // Swipe right -> go to previous page
+        if (_selectedIndex > 0) {
+          _animateToPage(_selectedIndex - 1);
+        }
+      } else if (_dragDelta < 0 || velocity < -500) {
+        // Swipe left -> go to next page
+        if (_selectedIndex < 4) {
+          _animateToPage(_selectedIndex + 1);
+        }
+      }
+    }
+    
+    _dragDelta = 0;
   }
 
-  // Get Current Screen based on selected index
-  Widget _getCurrentScreen() {
-    switch (_selectedIndex) {
-      case 0:
-        return const DashboardScreen();
-      case 1:
-        return const TransactionsScreen();
-      case 2:
-        return const ProductsScreen();
-      case 3:
-        return CommunityPage(onClose: _handleCommunityClose);
-      case 4:
-        return const ProfileScreen();
-      default:
-        return const DashboardScreen();
-    }
+  // Build pages list
+  List<Widget> _buildPages() {
+    return [
+      const DashboardScreen(),
+      const TransactionsScreen(),
+      const ProductsScreen(),
+      CommunityPage(onClose: _handleCommunityClose),
+      const ProfileScreen(),
+    ];
   }
 
   @override
@@ -53,12 +119,55 @@ class _MainWrapperState extends State<MainWrapper> {
       // Stack untuk Floating Navigation
       body: Stack(
         children: [
-          // 1. CONTENT LAYER
+          // 1. CONTENT LAYER - PageView for smooth swipe navigation
           Positioned.fill(
-            child: _getCurrentScreen(),
-
-
-
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: _onPageChanged,
+              physics: const NeverScrollableScrollPhysics(), // Disable default to use custom gesture
+              children: _buildPages(),
+            ),
+          ),
+          
+          // 3. EDGE SWIPE ZONES - Transparent gesture areas for navigation
+          // Left edge swipe zone
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 100, // Above nav bar
+            width: 60, // Edge zone width
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragStart: _onHorizontalDragStart,
+              onHorizontalDragUpdate: _onHorizontalDragUpdate,
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+            ),
+          ),
+          // Right edge swipe zone
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 100,
+            width: 60,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragStart: _onHorizontalDragStart,
+              onHorizontalDragUpdate: _onHorizontalDragUpdate,
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+            ),
+          ),
+          // Top swipe zone (header area)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 120, // Header + status bar area
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragStart: _onHorizontalDragStart,
+              onHorizontalDragUpdate: _onHorizontalDragUpdate,
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+            ),
           ),
 
           // 2. FLOATING LIQUID GLASS NAVIGATION BAR
@@ -132,7 +241,7 @@ class _MainWrapperState extends State<MainWrapper> {
     bool isSelected = _selectedIndex == index;
 
     return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
+      onTap: () => _animateToPage(index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
@@ -200,7 +309,7 @@ class _MainWrapperState extends State<MainWrapper> {
     bool isSelected = _selectedIndex == index;
 
     return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
+      onTap: () => _animateToPage(index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
