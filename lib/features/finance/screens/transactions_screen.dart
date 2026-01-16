@@ -31,13 +31,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   );
   final user = FirebaseAuth.instance.currentUser;
 
-  // Period selector state
-  String _selectedPeriod = 'week'; // 'week' or 'month'
+  // Period selector state with ValueNotifier for localized rebuild
+  final ValueNotifier<String> _selectedPeriodNotifier = ValueNotifier('week');
 
   @override
   void initState() {
     super.initState();
     _saveDeviceToken();
+  }
+
+  @override
+  void dispose() {
+    _selectedPeriodNotifier.dispose();
+    super.dispose();
   }
 
   Future<void> _saveDeviceToken() async {
@@ -284,17 +290,31 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 ],
               ),
               padding: const EdgeInsets.all(4),
-              child: Row(
-                children: [
-                  Expanded(child: _buildPeriodButton('week', 'Mingguan')),
-                  Expanded(child: _buildPeriodButton('month', 'Bulanan')),
-                ],
+              child: ValueListenableBuilder<String>(
+                valueListenable: _selectedPeriodNotifier,
+                builder: (context, selectedPeriod, _) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _buildPeriodButton('week', 'Mingguan', selectedPeriod),
+                      ),
+                      Expanded(
+                        child: _buildPeriodButton('month', 'Bulanan', selectedPeriod),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             const SizedBox(height: 16),
 
-            // Revenue Summary Card
-            _buildRevenueSummaryCard(),
+            // Revenue Summary Card - Only this rebuilds on period change
+            ValueListenableBuilder<String>(
+              valueListenable: _selectedPeriodNotifier,
+              builder: (context, selectedPeriod, _) {
+                return _buildRevenueSummaryCard(selectedPeriod);
+              },
+            ),
             const SizedBox(height: 12),
 
             // Balance Card - Glassmorphism style like TSX
@@ -452,12 +472,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  // --- SCROLLABLE HEADER CONTENT (scrolls with content) ---
-
-  Widget _buildPeriodButton(String period, String label) {
-    final isSelected = _selectedPeriod == period;
+  Widget _buildPeriodButton(String period, String label, String selectedPeriod) {
+    final isSelected = selectedPeriod == period;
     return GestureDetector(
-      onTap: () => setState(() => _selectedPeriod = period),
+      onTap: () => _selectedPeriodNotifier.value = period,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -486,11 +504,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  Widget _buildRevenueSummaryCard() {
+  Widget _buildRevenueSummaryCard(String selectedPeriod) {
     // Mock data like TSX
     final weeklyData = {'revenue': 4850000, 'change': 12.5, 'orders': 28};
     final monthlyData = {'revenue': 18500000, 'change': 15.3, 'orders': 95};
-    final data = _selectedPeriod == 'week' ? weeklyData : monthlyData;
+    final data = selectedPeriod == 'week' ? weeklyData : monthlyData;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -576,7 +594,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${_selectedPeriod == 'week' ? '7 hari terakhir' : '30 hari terakhir'} • ${data['orders']} pesanan',
+              '${selectedPeriod == 'week' ? '7 hari terakhir' : '30 hari terakhir'} • ${data['orders']} pesanan',
               style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
                 fontSize: 12,

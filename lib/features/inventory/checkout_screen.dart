@@ -10,16 +10,16 @@ import '../../shipping_calculator.dart';
 class CheckoutScreen extends StatefulWidget {
   final List<Map<String, dynamic>> items;
   final int totalPrice;
-  final String sellerId;
-  final String sellerName;
+  final String sellerId; // Optional if multi-seller
+  final String sellerName; // Optional if multi-seller
   final bool isFromCart;
 
   const CheckoutScreen({
     super.key,
     required this.items,
     required this.totalPrice,
-    required this.sellerId,
-    required this.sellerName,
+    this.sellerId = "",
+    this.sellerName = "",
     this.isFromCart = false,
   });
 
@@ -39,7 +39,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     decimalDigits: 0,
   );
 
-  // Navigasi ke Halaman Pilih Alamat
+  // Helper to group items by seller
+  Map<String, List<Map<String, dynamic>>> _groupItemsBySeller() {
+    Map<String, List<Map<String, dynamic>>> grouped = {};
+    for (var item in widget.items) {
+      String sId = item['sellerId'] ?? widget.sellerId;
+      if (sId.isEmpty) sId = "unknown";
+      
+      if (!grouped.containsKey(sId)) {
+        grouped[sId] = [];
+      }
+      grouped[sId]!.add(item);
+    }
+    return grouped;
+  }
+
   Future<void> _pickAddress() async {
     await Navigator.push(
       context,
@@ -77,6 +91,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
   }
 
+  int _computeTotalShipping(Map<String, List<Map<String, dynamic>>> groupedItems) {
+    if (_userLocation == null) return 0;
+    int total = 0;
+    for (var entry in groupedItems.entries) {
+      final sellerItems = entry.value;
+      double storeLat = (sellerItems.first['storeLat'] ?? -6.200000).toDouble();
+      double storeLng = (sellerItems.first['storeLng'] ?? 106.816666).toDouble();
+      double distance = ShippingCalculator.calculateDistance(
+        _userLocation!.latitude,
+        _userLocation!.longitude,
+        storeLat,
+        storeLng,
+      );
+      total += ShippingCalculator.calculateShippingCost(distance);
+    }
+    return total;
+  }
+
   Future<void> _processOrder() async {
     if (_deliveryAddress.isEmpty) {
       toastification.show(
@@ -92,20 +124,58 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Panggil Service untuk Buat Order
-      String result = await MarketService().createOrder(
-        items: widget.items,
-        totalPrice: widget.totalPrice,
-        sellerId: widget.sellerId,
-        sellerName: widget.sellerName,
-        deliveryAddress: _deliveryAddress,
-        shippingCost: _shippingCost, // Kirim ongkir ke backend
-        deliveryLat: _userLocation?.latitude,
-        deliveryLng: _userLocation?.longitude,
-      );
+      final groupedItems = _groupItemsBySeller();
+      bool allSuccess = true;
+      String errorMessage = "";
 
-      if (result == "SUCCESS") {
-        // Jika dari keranjang, hapus item yang dibeli
+      // Create One Order per Seller
+      for (var entry in groupedItems.entries) {
+        String sId = entry.key;
+        List<Map<String, dynamic>> sellerItems = entry.value;
+
+        // Calculate subtotal for this seller
+        int sellerTotal = 0;
+        for (var i in sellerItems) {
+          sellerTotal += ((i['price'] as num) * (i['qty'] as num)).toInt();
+        }
+
+        String sName = sellerItems.first['sellerName'] ?? widget.sellerName;
+        if (sName.isEmpty) sName = "Toko";
+
+        // Calculate shipping for this seller (based on first store coordinates)
+        int sellerShipping = 0;
+        if (_userLocation != null) {
+          double storeLat = (sellerItems.first['storeLat'] ?? -6.200000).toDouble();
+          double storeLng = (sellerItems.first['storeLng'] ?? 106.816666).toDouble();
+          double distance = ShippingCalculator.calculateDistance(
+            _userLocation!.latitude,
+            _userLocation!.longitude,
+            storeLat,
+            storeLng,
+          );
+          sellerShipping = ShippingCalculator.calculateShippingCost(distance);
+        }
+
+        String result = await MarketService().createOrder(
+          items: sellerItems,
+          totalPrice: sellerTotal,
+          sellerId: sId,
+          sellerName: sName,
+          deliveryAddress: _deliveryAddress,
+          shippingCost: sellerShipping,
+          deliveryLat: _userLocation?.latitude,
+          deliveryLng: _userLocation?.longitude,
+        );
+
+        if (result != "SUCCESS") {
+          allSuccess = false;
+          errorMessage = result;
+          break; // Stop if one fails
+        }
+      }
+
+      if (allSuccess) {
+        // If from cart, remove ALL purchased items
         if (widget.isFromCart) {
           for (var item in widget.items) {
             await MarketService().removeFromCart(item['productId']);
@@ -117,14 +187,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             context: context,
             type: ToastificationType.success,
             title: const Text("Pesanan Berhasil!"),
-            description: const Text("Pesanan diteruskan ke penjual."),
+            description: const Text("Semua pesanan telah diteruskan ke penjual."),
             autoCloseDuration: const Duration(seconds: 3),
           );
-          // Kembali ke Dashboard (Hapus semua route sampai home)
           Navigator.popUntil(context, (route) => route.isFirst);
         }
       } else {
-        throw Exception(result);
+        throw Exception(errorMessage);
       }
     } catch (e) {
       if (mounted) {
@@ -142,6 +211,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final groupedItems = _groupItemsBySeller();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Checkout"),
@@ -157,11 +228,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // BAGIAN ALAMAT
-                  const Text(
-                    "Alamat Pengiriman",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  // ADDRESS
+                  const Text("Alamat Pengiriman", style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   InkWell(
                     onTap: _pickAddress,
@@ -176,28 +244,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            LucideIcons.mapPin,
-                            color: Color(0xFF1565C0),
-                          ),
+                          const Icon(LucideIcons.mapPin, color: Color(0xFF1565C0)),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _deliveryAddress.isEmpty
-                                ? const Text(
-                                    "Pilih Alamat Pengiriman...",
-                                    style: TextStyle(color: Colors.grey),
-                                  )
-                                : Text(
-                                    _deliveryAddress,
-                                    style: const TextStyle(
-                                      color: Colors.black87,
-                                    ),
-                                  ),
+                                ? const Text("Pilih Alamat Pengiriman...", style: TextStyle(color: Colors.grey))
+                                : Text(_deliveryAddress, style: const TextStyle(color: Colors.black87)),
                           ),
-                          const Icon(
-                            LucideIcons.chevronRight,
-                            color: Colors.grey,
-                          ),
+                          const Icon(LucideIcons.chevronRight, color: Colors.grey),
                         ],
                       ),
                     ),
@@ -205,26 +259,37 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                   const SizedBox(height: 24),
 
-                  // BAGIAN ITEM
-                  const Text(
-                    "Rincian Pesanan",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  // ITEMS GROUPED BY STORE
+                  const Text("Rincian Pesanan", style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  ...widget.items
-                      .map(
-                        (item) => Card(
+                  
+                  ...groupedItems.entries.map((entry) {
+                    final items = entry.value;
+                    final sellerName = items.first['sellerName'] ?? widget.sellerName;
+                    
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Store Header inside Checkout
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              const Icon(LucideIcons.store, size: 14, color: Colors.grey),
+                              const SizedBox(width: 6),
+                              Text("Toko: $sellerName", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        ...items.map((item) => Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: Container(
-                              width: 50,
-                              height: 50,
+                              width: 50, height: 50,
                               decoration: BoxDecoration(
                                 color: Colors.grey[200],
                                 borderRadius: BorderRadius.circular(8),
-                                image:
-                                    (item['image'] != null &&
-                                        item['image'] != "")
+                                image: (item['image'] != null && item['image'] != "")
                                     ? DecorationImage(
                                         image: NetworkImage(item['image']),
                                         fit: BoxFit.cover,
@@ -233,13 +298,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               ),
                             ),
                             title: Text(item['name'] ?? "Produk"),
-                            subtitle: Text(
-                              "${item['qty']} x ${currencyFormat.format(item['price'])}",
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("${item['qty']} x ${currencyFormat.format(item['price'])}"),
+                                if (item['note'] != null && item['note'].toString().isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      "Catatan: ${item['note']}",
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                        ),
-                      )
-                      .toList(),
+                        )),
+                      ],
+                    );
+                  }),
                 ],
               ),
             ),
@@ -266,27 +347,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        "Total (+Ongkir)",
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
+                      const Text("Total (+Ongkir)", style: TextStyle(fontSize: 12, color: Colors.grey)),
                       Text(
-                        currencyFormat.format(
-                          widget.totalPrice + _shippingCost,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1565C0),
-                        ),
+                        currencyFormat.format(widget.totalPrice + _computeTotalShipping(groupedItems)),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1565C0)),
                       ),
-                      if (_shippingCost > 0)
+                      if (_computeTotalShipping(groupedItems) > 0)
                         Text(
-                          "(Ongkir: ${currencyFormat.format(_shippingCost)})",
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey,
-                          ),
+                          "(Ongkir: ${currencyFormat.format(_computeTotalShipping(groupedItems))})",
+                          style: const TextStyle(fontSize: 10, color: Colors.grey),
                         ),
                     ],
                   ),
@@ -295,24 +364,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   onPressed: _isLoading ? null : _processOrder,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1565C0),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                   ),
                   child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          "Buat Pesanan",
-                          style: TextStyle(color: Colors.white),
-                        ),
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text("Buat Pesanan", style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),

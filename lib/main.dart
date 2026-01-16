@@ -9,6 +9,7 @@ import 'theme_manager.dart';
 import 'features/auth/login_screen.dart';
 import 'features/home/main_wrapper.dart';
 import 'services/notification_service.dart';
+import 'services/market_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,22 @@ void main() async {
   } catch (e) {
     runApp(ErrorApp(error: e.toString()));
   }
+}
+
+// Client-side fallback: Check for stale orders on login
+// This runs once per app session as a fallback to Cloud Functions
+void _checkStaleOrdersOnLogin() {
+  // Run in background without blocking UI
+  Future.delayed(const Duration(seconds: 3), () async {
+    try {
+      final cancelledCount = await MarketService().checkAndCancelStaleOrders();
+      if (cancelledCount > 0) {
+        print("[Auto-Cancel] Cancelled $cancelledCount stale orders");
+      }
+    } catch (e) {
+      print("[Auto-Cancel] Error: $e");
+    }
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -149,6 +166,8 @@ class MyApp extends StatelessWidget {
 
                 // User logged in
                 if (snapshot.hasData) {
+                  // Run stale order check in background (client-side fallback)
+                  _checkStaleOrdersOnLogin();
                   return const MainWrapper();
                 }
 

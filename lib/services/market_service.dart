@@ -27,8 +27,10 @@ class MarketService {
     String productId,
     String name,
     int price,
-    String image,
-  ) async {
+    String image, {
+    String sellerId = "",
+    String sellerName = "Toko",
+  }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception("Harus login");
     final cartRef = _firestore
@@ -38,7 +40,12 @@ class MarketService {
         .doc(productId);
     final doc = await cartRef.get();
     if (doc.exists) {
-      await cartRef.update({'qty': FieldValue.increment(1)});
+      await cartRef.update({
+        'qty': FieldValue.increment(1),
+        // Update seller info if missing/changed (optional)
+        'sellerId': sellerId, 
+        'sellerName': sellerName,
+      });
     } else {
       await cartRef.set({
         'productId': productId,
@@ -46,6 +53,8 @@ class MarketService {
         'price': price,
         'image': image,
         'qty': 1,
+        'sellerId': sellerId, // NEW
+        'sellerName': sellerName, // NEW
         'addedAt': FieldValue.serverTimestamp(),
       });
     }
@@ -283,6 +292,264 @@ class MarketService {
         .snapshots();
   }
 
+  // ==========================================
+  // BUYER CANCELLATION (2-minute rule)
+  // ==========================================
+  
+  /// Cancel order by buyer
+  /// - Within 2 minutes: instant cancel (needsApproval = false)
+  /// - After 2 minutes: needs seller approval (needsApproval = true)
+  Future<void> cancelOrderByBuyer(String orderId, String reason, {required bool needsApproval}) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception("Login required");
+    
+    try {
+      final orderRef = _firestore.collection('orders').doc(orderId);
+      final orderSnap = await orderRef.get();
+      
+      if (!orderSnap.exists) throw Exception("Order not found");
+      
+      final data = orderSnap.data()!;
+      final sellerId = data['sellerId'];
+      final items = data['items'] as List<dynamic>? ?? [];
+      final productName = items.isNotEmpty ? items[0]['name'] ?? 'Pesanan' : 'Pesanan';
+      
+      if (needsApproval) {
+        // Request cancellation - needs seller approval
+        await orderRef.update({
+          'cancelRequested': true,
+          'cancelRequestReason': reason,
+          'cancelRequestedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        // Notify seller about cancellation request
+        await _sendNotification(
+          recipientId: sellerId,
+          title: "Permintaan Pembatalan 📝",
+          body: "Pembeli mengajukan pembatalan pesanan '$productName'. Alasan: $reason",
+          type: "cancel_request",
+          relatedId: orderId,
+        );
+      } else {
+        // Instant cancel - within 2 minutes
+        await orderRef.update({
+          'status': 'Dibatalkan',
+          'cancelReason': reason,
+          'cancelledBy': 'buyer',
+          'cancelledAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        // Restore product stock
+        for (var item in items) {
+          if (item['productId'] != null) {
+            await _firestore
+                .collection('products')
+                .doc(item['productId'])
+                .update({
+              'stock': FieldValue.increment(item['qty'] ?? 1),
+              'sold': FieldValue.increment(-(item['qty'] ?? 1)),
+            });
+          }
+        }
+        
+        // Notify seller about cancellation
+        await _sendNotification(
+          recipientId: sellerId,
+          title: "Pesanan Dibatalkan ❌",
+          body: "Pembeli membatalkan pesanan '$productName'. Alasan: $reason",
+          type: "order_cancelled",
+          relatedId: orderId,
+        );
+      }
+    } catch (e) {
+      print("Error cancelling order: $e");
+      rethrow;
+    }
+  }
+
+  /// Seller approves or rejects cancellation request
+  Future<void> handleCancelRequest(String orderId, bool approve) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception("Login required");
+    
+    try {
+      final orderRef = _firestore.collection('orders').doc(orderId);
+      final orderSnap = await orderRef.get();
+      
+      if (!orderSnap.exists) throw Exception("Order not found");
+      
+      final data = orderSnap.data()!;
+      final buyerId = data['buyerId'];
+      final items = data['items'] as List<dynamic>? ?? [];
+      final productName = items.isNotEmpty ? items[0]['name'] ?? 'Pesanan' : 'Pesanan';
+      
+      if (approve) {
+        // Approve cancellation
+        await orderRef.update({
+          'status': 'Dibatalkan',
+          'cancelReason': data['cancelRequestReason'] ?? 'Disetujui penjual',
+          'cancelledBy': 'buyer_approved',
+          'cancelledAt': FieldValue.serverTimestamp(),
+          'cancelRequested': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        // Restore stock
+        for (var item in items) {
+          if (item['productId'] != null) {
+            await _firestore
+                .collection('products')
+                .doc(item['productId'])
+                .update({
+              'stock': FieldValue.increment(item['qty'] ?? 1),
+              'sold': FieldValue.increment(-(item['qty'] ?? 1)),
+            });
+          }
+        }
+        
+        await _sendNotification(
+          recipientId: buyerId,
+          title: "Pembatalan Disetujui ✅",
+          body: "Penjual menyetujui pembatalan pesanan '$productName'.",
+          type: "cancel_approved",
+          relatedId: orderId,
+        );
+      } else {
+        // Reject cancellation
+        await orderRef.update({
+          'cancelRequested': false,
+          'cancelRejectedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        await _sendNotification(
+          recipientId: buyerId,
+          title: "Pembatalan Ditolak ❌",
+          body: "Penjual menolak pembatalan pesanan '$productName'. Pesanan akan tetap diproses.",
+          type: "cancel_rejected",
+          relatedId: orderId,
+        );
+      }
+    } catch (e) {
+      print("Error handling cancel request: $e");
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // AUTO-CANCEL STALE ORDERS
+  // - Menunggu: 3 days without response
+  // - Diproses: 7 days without shipping
+  // ==========================================
+  
+  /// Check and cancel orders that have been waiting too long
+  /// This runs on app initialization and periodically
+  Future<int> checkAndCancelStaleOrders() async {
+    int cancelledCount = 0;
+    
+    try {
+      // 1. Check "Menunggu" orders older than 3 days
+      final threeDaysAgo = DateTime.now().subtract(const Duration(days: 3));
+      final menungguOrders = await _firestore
+          .collection('orders')
+          .where('status', isEqualTo: 'Menunggu')
+          .where('createdAt', isLessThan: Timestamp.fromDate(threeDaysAgo))
+          .get();
+      
+      for (var doc in menungguOrders.docs) {
+        await _cancelStaleOrder(
+          doc.id, 
+          doc.data(), 
+          'Penjual tidak merespon dalam 3 hari',
+        );
+        cancelledCount++;
+      }
+      
+      // 2. Check "Diproses" orders older than 7 days (from updatedAt)
+      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+      final diprosesOrders = await _firestore
+          .collection('orders')
+          .where('status', isEqualTo: 'Diproses')
+          .where('updatedAt', isLessThan: Timestamp.fromDate(sevenDaysAgo))
+          .get();
+      
+      for (var doc in diprosesOrders.docs) {
+        await _cancelStaleOrder(
+          doc.id, 
+          doc.data(), 
+          'Pesanan tidak dikirim dalam 7 hari',
+        );
+        cancelledCount++;
+      }
+      
+      print("Auto-cancelled $cancelledCount stale orders");
+      return cancelledCount;
+    } catch (e) {
+      print("Error checking stale orders: $e");
+      return cancelledCount;
+    }
+  }
+  
+  /// Cancel a single stale order - restore stock and notify both parties
+  Future<void> _cancelStaleOrder(String orderId, Map<String, dynamic> orderData, String cancelReason) async {
+    try {
+      final buyerId = orderData['buyerId'];
+      final sellerId = orderData['sellerId'];
+      final items = orderData['items'] as List<dynamic>? ?? [];
+      final productName = items.isNotEmpty ? items[0]['name'] ?? 'Pesanan' : 'Pesanan';
+      
+      // 1. Update order status to cancelled
+      await _firestore.collection('orders').doc(orderId).update({
+        'status': 'Dibatalkan',
+        'cancelReason': 'Otomatis dibatalkan - $cancelReason',
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      
+      // 2. Restore product stock
+      for (var item in items) {
+        if (item['productId'] != null) {
+          try {
+            final productRef = _firestore.collection('products').doc(item['productId']);
+            final productSnap = await productRef.get();
+            if (productSnap.exists) {
+               await productRef.update({
+                'stock': FieldValue.increment(item['qty'] ?? 1),
+                'sold': FieldValue.increment(-(item['qty'] ?? 1)),
+              });
+            }
+          } catch (e) {
+            print("Skipping stock restore for missing product: ${item['productId']}");
+          }
+        }
+      }
+      
+      // 3. Notify buyer about cancellation
+      await _sendNotification(
+        recipientId: buyerId,
+        title: "Pesanan Dibatalkan ⚠️",
+        body: "Pesanan '$productName' dibatalkan karena $cancelReason.",
+        type: "order_cancelled",
+        relatedId: orderId,
+      );
+      
+      // 4. Notify seller about cancellation
+      await _sendNotification(
+        recipientId: sellerId,
+        title: "Pesanan Terlewat ⚠️",
+        body: "Pesanan '$productName' dibatalkan otomatis - $cancelReason.",
+        type: "order_cancelled",
+        relatedId: orderId,
+      );
+      
+      print("Cancelled stale order: $orderId");
+    } catch (e) {
+      print("Error cancelling order $orderId: $e");
+    }
+  }
+
   Future<String> processPayment(String productId, int qty) async {
     return "SUCCESS";
   }
@@ -309,6 +576,109 @@ class MarketService {
       });
     } catch (e) {
       print("Gagal kirim notif: $e");
+    }
+  }
+
+  // ==========================================
+  // FEEDBACK & RE-ORDER
+  // ==========================================
+
+  // Submit Review & Update Product Rating
+  Future<String> submitReview({
+    required String productId,
+    required String shopId,
+    required double rating,
+    required String comment,
+    required List<String> images,
+    required String orderId, // NEW: Need orderId to mark as reviewed
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return "LOGIN_REQUIRED";
+
+    try {
+      await _firestore.runTransaction((transaction) async {
+        final productRef = _firestore.collection('products').doc(productId);
+        final orderRef = _firestore.collection('orders').doc(orderId); // Order Ref
+
+        final productSnap = await transaction.get(productRef);
+        final orderSnap = await transaction.get(orderRef); // Get Order
+
+        if (!productSnap.exists) throw Exception("Produk tidak ditemukan");
+        if (!orderSnap.exists) throw Exception("Pesanan tidak ditemukan");
+
+        // Update Product Rating
+        final data = productSnap.data() as Map<String, dynamic>;
+        double currentRating = (data['rating'] ?? 0).toDouble();
+        int totalReviews = (data['totalReviews'] ?? 0).toInt();
+        double newRating = ((currentRating * totalReviews) + rating) / (totalReviews + 1);
+
+        transaction.update(productRef, {
+          'rating': newRating,
+          'totalReviews': FieldValue.increment(1),
+        });
+
+        // Add Review
+        final reviewRef = _firestore.collection('reviews').doc();
+        transaction.set(reviewRef, {
+          'productId': productId,
+          'shopId': shopId,
+          'userId': user.uid,
+          'userName': user.displayName ?? "Pengguna",
+          'userImage': user.photoURL ?? "",
+          'rating': rating,
+          'comment': comment,
+          'images': images,
+          'createdAt': FieldValue.serverTimestamp(),
+          'likes': 0,
+        });
+
+        // Mark item as reviewed in Order
+        // Note: Array update is tricky, we need to read modify write.
+        List<dynamic> items = orderSnap.data()?['items'] ?? [];
+        List<dynamic> newItems = items.map((item) {
+          if (item['productId'] == productId) {
+            Map<String, dynamic> newItem = Map.from(item);
+            newItem['reviewed'] = true; // Mark as reviewed
+            return newItem;
+          }
+          return item;
+        }).toList();
+
+        transaction.update(orderRef, {'items': newItems}); 
+      });
+
+      return "SUCCESS";
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  // Re-order Items (Add all to cart)
+  Future<String> reorderItems(List<dynamic> items) async {
+    final user = _auth.currentUser;
+    if (user == null) return "LOGIN_REQUIRED";
+
+    try {
+      // Use Future.wait to add all items in parallel
+      await Future.wait(items.map((item) async {
+        if (item['productId'] != null) {
+          await addToCart(
+            item['productId'],
+            item['name'] ?? "Produk",
+            item['price'] is int ? item['price'] : (item['price'] as num).toInt(),
+            item['image'] ?? "",
+            sellerId: item['sellerId'] ?? "",
+            sellerName: item['sellerName'] ?? "Toko",
+          );
+          // Optional: Update qty if you want exact re-order amount in cart
+          // But addToCart adds +1 by default. 
+          // If we want exact qty, we might need a specific parameter or separate call.
+          // For now, let's just add them to cart (increment existing or set new).
+        }
+      }));
+      return "SUCCESS";
+    } catch (e) {
+      return e.toString();
     }
   }
 }

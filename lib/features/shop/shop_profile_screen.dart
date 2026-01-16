@@ -331,177 +331,219 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 1. HEADER (Diperbaiki)
             Container(
-              padding: const EdgeInsets.only(
-                top: 50,
-                bottom: 24,
-                left: 20,
-                right: 20,
-              ),
-              decoration: BoxDecoration(
+              width: double.infinity,
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [primaryColor, const Color(0xFF503C37)],
+                  colors: [
+                     Color(0xFF1976D2),
+                     Color(0xFF0D47A1),
+                  ],
                 ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+                    color: Colors.black26,
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
                   ),
                 ],
               ),
-              child: Column(
-                children: [
-                  // --- TAMBAHAN: Tombol Back jika lihat profil orang lain ---
-                  if (!isMyProfile)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-
-                  Row(
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                  child: Column(
                     children: [
-                      Stack(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: CircleAvatar(
-                              radius: 32,
-                              backgroundColor: Colors.grey[300],
-                              backgroundImage:
-                                  (image != "" && image.startsWith("http"))
-                                  ? NetworkImage(image)
-                                  : null,
-                              child: (image == "" || !image.startsWith("http"))
-                                  ? Text(
-                                      displayName.isNotEmpty
-                                          ? displayName[0].toUpperCase()
-                                          : "?",
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: primaryColor,
-                                      ),
-                                    )
-                                  : null,
+                       // Back Button for Visitor
+                       if (!isMyProfile)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: InkWell(
+                              onTap: () => Navigator.pop(context),
+                              borderRadius: BorderRadius.circular(50),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.arrow_back, color: Colors.white),
+                              ),
                             ),
                           ),
-                          if (isMyProfile)
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: GestureDetector(
-                                onTap: _handleImageUpload,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: primaryColor,
-                                      width: 1,
+                        ),
+
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Avatar with Badge
+                          Stack(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: CircleAvatar(
+                                  radius: 35,
+                                  backgroundColor: Colors.white,
+                                  child: CircleAvatar(
+                                    radius: 32,
+                                    backgroundColor: Colors.grey[200],
+                                    backgroundImage: (image != "" && image.startsWith("http"))
+                                        ? NetworkImage(image)
+                                        : null,
+                                    child: (image == "" || !image.startsWith("http"))
+                                        ? Text(
+                                            displayName.isNotEmpty
+                                                ? displayName[0].toUpperCase()
+                                                : "?",
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF1976D2),
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                              if (isMyProfile)
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: GestureDetector(
+                                    onTap: _handleImageUpload,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF10B981), // Emerald
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.white, width: 2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.2),
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                      child: isUploading
+                                          ? const SizedBox(
+                                              width: 12,
+                                              height: 12,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Icon(
+                                              LucideIcons.camera,
+                                              size: 14,
+                                              color: Colors.white,
+                                            ),
                                     ),
                                   ),
-                                  child: isUploading
-                                      ? SizedBox(
-                                          width: 10,
-                                          height: 10,
-                                          child: CircularProgressIndicator(
-                                            color: primaryColor,
-                                            strokeWidth: 2,
+                                ),
+                            ],
+                          ),
+                          const SizedBox(width: 16),
+                          
+                          // Name and Role
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  displayName,
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  businessProfile['description'].isNotEmpty 
+                                      ? businessProfile['description'] 
+                                      : "Deskripsi toko belum diisi",
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        LucideIcons.store,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          businessProfile['owner'],
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
                                           ),
-                                        )
-                                      : const Icon(
-                                          LucideIcons.camera,
-                                          size: 12,
-                                          color: Colors.brown,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+            
+                          // Action Buttons (Settings Only)
+                          if (isMyProfile)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: InkWell(
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                                  ),
+                                  child: const Icon(LucideIcons.settings, color: Colors.white, size: 20),
                                 ),
                               ),
                             ),
                         ],
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              displayName,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(
-                                  LucideIcons.user,
-                                  size: 12,
-                                  color: Colors.white70,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    businessProfile['owner'],
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Tombol Aksi (Hanya muncul jika profil sendiri)
-                      if (isMyProfile)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildHeaderIcon(
-                              context,
-                              LucideIcons.bell,
-                              const NotificationScreen(),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildHeaderIcon(
-                              context,
-                              LucideIcons.messageSquare,
-                              const ChatScreen(),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildHeaderIcon(
-                              context,
-                              LucideIcons.settings,
-                              const SettingsScreen(),
-                            ),
-                          ],
-                        ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
 
