@@ -1015,6 +1015,59 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
           ],
         ),
       ),
+      floatingActionButton: isMyProfile
+          ? Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    primaryColor,
+                    primaryColor.withOpacity(0.8),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryColor.withOpacity(0.4),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ), 
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    // TODO: Navigasi ke halaman tambah produk
+                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const AddProductScreen()));
+                    _showToast("Fitur Tambah Produk", ToastificationType.info);
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(LucideIcons.plus, color: Colors.white, size: 22),
+                        SizedBox(width: 10),
+                        Text(
+                          "Tambah Produk",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            )
+          : null,
     );
   }
 

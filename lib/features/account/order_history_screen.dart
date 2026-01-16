@@ -7,7 +7,21 @@ import '../../services/market_service.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   final bool isSellerMode;
-  const OrderHistoryScreen({super.key, this.isSellerMode = false});
+  final int initialIndex;
+
+  const OrderHistoryScreen({
+    super.key,
+    this.isSellerMode = false,
+    this.initialIndex = 0,
+  });
+
+  // Helper untuk mendapatkan index tab berdasarkan status pesanan
+  static int getTabIndex(String status) {
+    if (status == 'Diproses') return 1; // Tab Dikemas
+    if (status == 'Diantar') return 2; // Tab Dikirim
+    if (status == 'Selesai') return 3; // Tab Selesai
+    return 0; // Default: Menunggu
+  }
 
   @override
   State<OrderHistoryScreen> createState() => _OrderHistoryScreenState();
@@ -26,7 +40,21 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
   void initState() {
     super.initState();
     // Inisialisasi 4 Tab
-    _tabController = TabController(length: 4, vsync: this);
+    // Safety check: Pastikan index valid (0-3) agar tidak crash
+    int safeIndex = widget.initialIndex;
+    if (safeIndex < 0 || safeIndex > 3) safeIndex = 0;
+
+    _tabController = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: safeIndex,
+    );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose(); // Wajib didispose agar tidak memory leak
+    super.dispose();
   }
 
   // --- LOGIC KONFIRMASI TERIMA BARANG ---
@@ -240,22 +268,28 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      isSeller ? LucideIcons.user : LucideIcons.store,
-                      size: 16,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      isSeller
-                          ? (data['buyerName'] ?? "Pembeli")
-                          : (data['sellerName'] ?? "Toko"),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSeller ? LucideIcons.user : LucideIcons.store,
+                        size: 16,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          isSeller
+                              ? (data['buyerName'] ?? "Pembeli")
+                              : (data['sellerName'] ?? "Toko"),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   status,
                   style: TextStyle(
@@ -343,23 +377,30 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Total Pesanan",
-                      style: TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
-                    Text(
-                      currencyFormat.format(totalPrice),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: primaryColor,
-                        fontSize: 14,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Total Pesanan",
+                        style: TextStyle(fontSize: 10, color: Colors.grey),
                       ),
-                    ),
-                  ],
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          currencyFormat.format(totalPrice),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
 
                 // TOMBOL AKSI BERDASARKAN STATUS
                 if (!isSeller && status == 'Diantar')

@@ -150,7 +150,7 @@ class _CommunityPageState extends State<CommunityPage>
         ],
       ),
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 100),
+        padding: const EdgeInsets.only(bottom: 10),
         child: FloatingActionButton(
           onPressed: _showCreatePostModal,
           backgroundColor: primaryBrown,

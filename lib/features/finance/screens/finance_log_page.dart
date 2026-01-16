@@ -75,7 +75,9 @@ class FinanceLogPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    ...dayTransactions.map((t) => _buildTransactionCard(t, currencyFormat)),
+                    ...dayTransactions.map(
+                      (t) => _buildTransactionCard(t, currencyFormat),
+                    ),
                   ],
                 );
               },
@@ -83,7 +85,10 @@ class FinanceLogPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionCard(TransactionModel t, NumberFormat currencyFormat) {
+  Widget _buildTransactionCard(
+    TransactionModel t,
+    NumberFormat currencyFormat,
+  ) {
     final isIncome = t.type == TransactionType.income;
     final timeStr = DateFormat('HH:mm').format(t.date);
 
@@ -142,12 +147,15 @@ class FinanceLogPage extends StatelessWidget {
             ),
           ],
         ),
-        trailing: Text(
-          '${isIncome ? '+' : '-'} ${currencyFormat.format(t.amount)}',
-          style: TextStyle(
-            color: isIncome ? Colors.green : Colors.red,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
+        trailing: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            '${isIncome ? '+' : '-'} ${currencyFormat.format(t.amount)}',
+            style: TextStyle(
+              color: isIncome ? Colors.green : Colors.red,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
           ),
         ),
       ),
@@ -155,7 +163,9 @@ class FinanceLogPage extends StatelessWidget {
   }
 
   // Helper: Group transactions by Date String (e.g., "Hari Ini", "Kemarin", "12 Okt 2023")
-  Map<String, List<TransactionModel>> _groupTransactionsByDate(List<TransactionModel> transactions) {
+  Map<String, List<TransactionModel>> _groupTransactionsByDate(
+    List<TransactionModel> transactions,
+  ) {
     final Map<String, List<TransactionModel>> grouped = {};
 
     for (var t in transactions) {

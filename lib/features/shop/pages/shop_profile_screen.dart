@@ -133,6 +133,8 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                         Row(
                           children: [
@@ -307,12 +309,16 @@ class _ShopProfileScreenState extends State<ShopProfileScreen>
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            currencyFormat.format(data['price'] ?? 0),
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue[600],
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              currencyFormat.format(data['price'] ?? 0),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[600],
+                              ),
                             ),
                           ),
                           const SizedBox(height: 4),

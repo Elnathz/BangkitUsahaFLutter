@@ -141,7 +141,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
       // FAB: Catat Transaksi - Premium design with plus icon
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 100.0),
+        padding: const EdgeInsets.only(bottom: 10.0),
         child: Container(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -214,13 +214,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "Keuangan",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
+              const Expanded(
+                child: Text(
+                  "Keuangan",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Row(
@@ -584,12 +587,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    _currencyFormat.format(data['revenue']),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _currencyFormat.format(data['revenue']),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -739,6 +745,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               fontSize: 28,
               fontWeight: FontWeight.bold,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 16),
           Row(
@@ -804,14 +812,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            _currencyFormat.format(amount),
-            style: TextStyle(
-              color: color == const Color(0xFF10B981)
-                  ? const Color(0xFF065F46)
-                  : const Color(0xFF991B1B),
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _currencyFormat.format(amount),
+              style: TextStyle(
+                color: color == const Color(0xFF10B981)
+                    ? const Color(0xFF065F46)
+                    : const Color(0xFF991B1B),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -1046,14 +1058,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ],
             ),
           ),
-          Text(
-            '${isIncome ? '+' : '-'}${_currencyFormat.format(t.amount)}',
-            style: TextStyle(
-              color: isIncome
-                  ? const Color(0xFF059669)
-                  : const Color(0xFFDC2626),
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '${isIncome ? '+' : '-'}${_currencyFormat.format(t.amount)}',
+              style: TextStyle(
+                color: isIncome
+                    ? const Color(0xFF059669)
+                    : const Color(0xFFDC2626),
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
             ),
           ),
         ],

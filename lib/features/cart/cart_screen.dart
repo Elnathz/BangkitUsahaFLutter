@@ -127,74 +127,78 @@ class CartScreen extends StatelessWidget {
                           Text("Qty: ${cartData['qty'] ?? 1}"),
                         ],
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Tombol Hapus Item
-                          IconButton(
-                            icon: const Icon(
-                              LucideIcons.trash2,
-                              color: Colors.red,
-                              size: 20,
-                            ),
-                            onPressed: () {
-                              MarketService().removeFromCart(productId);
-                            },
-                          ),
-                          // Tombol Checkout
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1565C0),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
+                      trailing: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Tombol Hapus Item
+                            IconButton(
+                              icon: const Icon(
+                                LucideIcons.trash2,
+                                color: Colors.red,
+                                size: 20,
                               ),
+                              onPressed: () {
+                                MarketService().removeFromCart(productId);
+                              },
                             ),
-                            child: const Text("Beli"),
-                            onPressed: () {
-                              // --- PROTEKSI SAAT KLIK BELI ---
-                              String safeProductId = productId;
-                              String safeName = cartData['name'] ?? 'Produk';
-                              // Gunakan .toInt() agar aman jika data dari Firestore berupa double
-                              int safePrice = (cartData['price'] ?? 0).toInt();
-                              int safeQty = (cartData['qty'] ?? 1).toInt();
-
-                              // Cek image di cart, kalau null cek di product, kalau null pakai string kosong
-                              String safeImage =
-                                  (cartData['image'] ??
-                                          productData['image'] ??
-                                          "")
-                                      as String;
-
-                              final item = {
-                                'productId': safeProductId,
-                                'name': safeName,
-                                'price': safePrice,
-                                'qty': safeQty,
-                                'image': safeImage,
-                              };
-
-                              // HITUNG TOTAL
-                              int total = safePrice * safeQty;
-
-                              // KE HALAMAN CHECKOUT
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => CheckoutScreen(
-                                    items: [item],
-                                    totalPrice: total,
-                                    sellerId:
-                                        sellerId, // Ini sudah aman (?? "")
-                                    sellerName:
-                                        sellerName, // Ini sudah aman (?? "Toko")
-                                    isFromCart: true,
-                                  ),
+                            // Tombol Checkout
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1565C0),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
                                 ),
-                              );
-                            },
-                          ),
-                        ],
+                              ),
+                              child: const Text("Beli"),
+                              onPressed: () {
+                                // --- PROTEKSI SAAT KLIK BELI ---
+                                String safeProductId = productId;
+                                String safeName = cartData['name'] ?? 'Produk';
+                                // Gunakan .toInt() agar aman jika data dari Firestore berupa double
+                                int safePrice = (cartData['price'] ?? 0)
+                                    .toInt();
+                                int safeQty = (cartData['qty'] ?? 1).toInt();
+
+                                // Cek image di cart, kalau null cek di product, kalau null pakai string kosong
+                                String safeImage =
+                                    (cartData['image'] ??
+                                            productData['image'] ??
+                                            "")
+                                        as String;
+
+                                final item = {
+                                  'productId': safeProductId,
+                                  'name': safeName,
+                                  'price': safePrice,
+                                  'qty': safeQty,
+                                  'image': safeImage,
+                                };
+
+                                // HITUNG TOTAL
+                                int total = safePrice * safeQty;
+
+                                // KE HALAMAN CHECKOUT
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CheckoutScreen(
+                                      items: [item],
+                                      totalPrice: total,
+                                      sellerId:
+                                          sellerId, // Ini sudah aman (?? "")
+                                      sellerName:
+                                          sellerName, // Ini sudah aman (?? "Toko")
+                                      isFromCart: true,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
