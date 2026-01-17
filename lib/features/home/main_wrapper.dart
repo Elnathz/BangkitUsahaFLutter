@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:toastification/toastification.dart';
 
 // Import Pages
 import '../account/profile_screen.dart';
@@ -18,35 +19,141 @@ class MainWrapper extends StatefulWidget {
   State<MainWrapper> createState() => _MainWrapperState();
 }
 
-class _MainWrapperState extends State<MainWrapper> with SingleTickerProviderStateMixin {
+class _MainWrapperState extends State<MainWrapper>
+    with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   final user = FirebaseAuth.instance.currentUser;
-  
+
   // PageController for smooth page transitions
   late PageController _pageController;
-  
+
   // Horizontal drag tracking for edge swipe
   double _dragStartX = 0;
   double _dragDelta = 0;
   bool _isDragging = false;
-  
+
   @override
   void initState() {
     super.initState();
+    _checkSecurityRequirement(); // Cek apakah user wajib buat password
     _pageController = PageController(initialPage: 0);
   }
-  
+
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
   }
 
+  // --- LOGIK BLOKIR AKUN TANPA PASSWORD ---
+  Future<void> _checkSecurityRequirement() async {
+    // Tunggu frame selesai dirender agar bisa menampilkan dialog
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (user != null) {
+        // Cek provider login
+        bool isPhoneLogin = user!.providerData.any((p) => p.providerId == 'phone');
+        // Cek apakah sudah punya password (provider 'password')
+        // Catatan: user.providerData mungkin tidak langsung update, tapi ini cara standar cek link credential
+        bool hasPassword = user!.providerData.any((p) => p.providerId == 'password');
+
+        // Jika login HP dan belum ada password, paksa buat password
+        if (isPhoneLogin && !hasPassword) {
+          _showForcePasswordDialog();
+        }
+      }
+    });
+  }
+
+  void _showForcePasswordDialog() {
+    final passwordController = TextEditingController();
+    final confirmController = TextEditingController();
+    bool isObscure = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // TIDAK BISA DITUTUP (BLOKIR)
+      builder: (ctx) => PopScope(
+        canPop: false, // Tombol back tidak berfungsi
+        child: StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("Keamanan Diperlukan"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(LucideIcons.shieldAlert, size: 48, color: Colors.orange),
+                const SizedBox(height: 16),
+                const Text(
+                  "Anda login menggunakan Nomor Telepon. Demi keamanan dan kemudahan akses berikutnya, Anda WAJIB membuat kata sandi sekarang.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passwordController,
+                  obscureText: isObscure,
+                  decoration: InputDecoration(
+                    labelText: "Kata Sandi Baru",
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(isObscure ? LucideIcons.eye : LucideIcons.eyeOff),
+                      onPressed: () => setState(() => isObscure = !isObscure),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: confirmController,
+                  obscureText: isObscure,
+                  decoration: const InputDecoration(
+                    labelText: "Konfirmasi Kata Sandi",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () async {
+                  if (passwordController.text.length < 6) {
+                    return; // Validasi sederhana
+                  }
+                  if (passwordController.text != confirmController.text) {
+                    return;
+                  }
+
+                  try {
+                    // Buat email dummy dari no HP agar bisa dipasangkan dengan password
+                    if (user?.email == null && user?.phoneNumber != null) {
+                      String dummyEmail = "${user!.phoneNumber!.replaceAll('+', '')}@bangkit.usaha";
+                      await user?.updateEmail(dummyEmail);
+                    }
+                    
+                    await user?.updatePassword(passwordController.text);
+                    
+                    if (context.mounted) {
+                      Navigator.pop(ctx); // Tutup dialog jika sukses
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Kata sandi berhasil dibuat!")),
+                      );
+                    }
+                  } catch (e) {
+                    // Handle error
+                  }
+                },
+                child: const Text("Simpan & Lanjutkan"),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
   // Handle Community Page Navigation
   void _handleCommunityClose() {
     _animateToPage(0); // Back to Dashboard with animation
   }
-  
+
   // Animate to specific page with smooth curve
   void _animateToPage(int index) {
     if (index < 0) index = 0;
@@ -58,33 +165,33 @@ class _MainWrapperState extends State<MainWrapper> with SingleTickerProviderStat
       curve: Curves.easeOutCubic,
     );
   }
-  
+
   // Handle page changes from swipe
   void _onPageChanged(int index) {
     setState(() => _selectedIndex = index);
   }
-  
+
   // Handle horizontal drag start - detect edge swipe
   void _onHorizontalDragStart(DragStartDetails details) {
     _dragStartX = details.globalPosition.dx;
     _dragDelta = 0;
     _isDragging = true;
   }
-  
+
   // Handle horizontal drag update
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
     if (!_isDragging) return;
     _dragDelta = details.globalPosition.dx - _dragStartX;
   }
-  
+
   // Handle horizontal drag end - navigate if swipe is significant
   void _onHorizontalDragEnd(DragEndDetails details) {
     if (!_isDragging) return;
     _isDragging = false;
-    
+
     // Minimum swipe distance (75 pixels) and velocity for navigation
     final velocity = details.primaryVelocity ?? 0;
-    
+
     if (_dragDelta.abs() > 75 || velocity.abs() > 500) {
       if (_dragDelta > 0 || velocity > 500) {
         // Swipe right -> go to previous page
@@ -98,7 +205,7 @@ class _MainWrapperState extends State<MainWrapper> with SingleTickerProviderStat
         }
       }
     }
-    
+
     _dragDelta = 0;
   }
 
@@ -124,11 +231,12 @@ class _MainWrapperState extends State<MainWrapper> with SingleTickerProviderStat
             child: PageView(
               controller: _pageController,
               onPageChanged: _onPageChanged,
-              physics: const NeverScrollableScrollPhysics(), // Disable default to use custom gesture
+              physics:
+                  const NeverScrollableScrollPhysics(), // Disable default to use custom gesture
               children: _buildPages(),
             ),
           ),
-          
+
           // 3. EDGE SWIPE ZONES - Transparent gesture areas for navigation
           // Left edge swipe zone
           Positioned(
@@ -262,10 +370,7 @@ class _MainWrapperState extends State<MainWrapper> with SingleTickerProviderStat
               : null,
           borderRadius: BorderRadius.circular(20),
           border: isSelected
-              ? Border.all(
-                  color: Colors.white.withOpacity(0.4),
-                  width: 1,
-                )
+              ? Border.all(color: Colors.white.withOpacity(0.4), width: 1)
               : null,
           boxShadow: isSelected
               ? [
@@ -329,10 +434,7 @@ class _MainWrapperState extends State<MainWrapper> with SingleTickerProviderStat
               : null,
           borderRadius: BorderRadius.circular(20),
           border: isSelected
-              ? Border.all(
-                  color: Colors.white.withOpacity(0.4),
-                  width: 1,
-                )
+              ? Border.all(color: Colors.white.withOpacity(0.4), width: 1)
               : null,
           boxShadow: isSelected
               ? [
@@ -355,9 +457,16 @@ class _MainWrapperState extends State<MainWrapper> with SingleTickerProviderStat
                   .snapshots(),
               builder: (context, snapshot) {
                 String? imageUrl;
+                String displayName = user?.displayName ?? "User";
+
                 if (snapshot.hasData && snapshot.data!.exists) {
                   final data = snapshot.data!.data() as Map<String, dynamic>?;
                   imageUrl = data?['image'];
+                  if (data?['name'] != null && data!['name'].toString().isNotEmpty) {
+                    displayName = data['name'];
+                  } else if (data?['storeName'] != null && data!['storeName'].toString().isNotEmpty) {
+                    displayName = data['storeName'];
+                  }
                 }
 
                 // Display Photo or User Icon

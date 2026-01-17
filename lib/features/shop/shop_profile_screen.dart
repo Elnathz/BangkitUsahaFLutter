@@ -12,6 +12,7 @@ import '../account/settings_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
 import '../../map_picker_screen.dart';
+import '../../services/connectivity_service.dart';
 
 const List<String> DAYS = [
   'Senin',
@@ -134,8 +135,16 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
   Future<void> _handleImageUpload() async {
     if (!isMyProfile) return; // Hanya pemilik yang bisa upload
 
+    if (!ConnectivityService().hasConnection) {
+      _showToast("Perlu koneksi internet untuk ganti foto", ToastificationType.warning);
+      return;
+    }
+
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 40, // KOMPRESI GAMBAR: Turunkan kualitas ke 40%
+    );
     if (image == null) return;
 
     setState(() => isUploading = true);

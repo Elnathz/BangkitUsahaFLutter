@@ -61,6 +61,7 @@ dependencies:
     chewie: ^1.7.1
     firebase_messaging: ^15.2.10
     rxdart: ^0.28.0
+    image_cropper: ^8.0.2
 
 dev_dependencies:
     flutter_test:
@@ -122,5 +123,5 @@ flutter:
 flutter_launcher_icons:
   android: "ic_launcher"
   ios: true
-  image_path: "assets/icon/iconAPK.jpeg"
+  image_path: "assets/icon/iconAPK.png"
   min_sdk_android: 21

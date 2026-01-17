@@ -19,19 +19,14 @@ class StoreProfileScreen extends StatefulWidget {
   State<StoreProfileScreen> createState() => _StoreProfileScreenState();
 }
 
-class _StoreProfileScreenState extends State<StoreProfileScreen>
-    with SingleTickerProviderStateMixin {
+class _StoreProfileScreenState extends State<StoreProfileScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final currencyFormat = NumberFormat.currency(
-    locale: 'id_ID',
-    symbol: 'Rp ',
-    decimalDigits: 0,
-  );
+  final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -45,7 +40,9 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
     return Scaffold(
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [_buildSliverAppBar()];
+          return [
+            _buildSliverAppBar(),
+          ];
         },
         body: Column(
           children: [
@@ -60,6 +57,7 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
                 indicatorWeight: 3,
                 tabs: const [
                   Tab(text: "Produk"),
+                  Tab(text: "Lokasi"),
                   Tab(text: "Penilaian"),
                 ],
               ),
@@ -67,7 +65,11 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [_buildProductTab(), _buildReviewsTab()],
+                children: [
+                  _buildProductTab(),
+                  _buildLocationTab(),
+                  _buildReviewsTab(),
+                ],
               ),
             ),
           ],
@@ -85,17 +87,13 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
       backgroundColor: const Color(0xFF1976D2),
       flexibleSpace: FlexibleSpaceBar(
         background: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.sellerId)
-              .snapshots(),
+          stream: FirebaseFirestore.instance.collection('users').doc(widget.sellerId).snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) return Container(color: Colors.grey[200]);
-
+            
             final data = snapshot.data!.data() as Map<String, dynamic>?;
             final image = data?['image'] ?? '';
-            final coverImage =
-                data?['coverImage'] ?? ''; // Jika ada cover image
+            final coverImage = data?['coverImage'] ?? ''; // Jika ada cover image
             final location = data?['address'] ?? 'Lokasi belum diatur';
 
             return Stack(
@@ -115,7 +113,7 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
                       ),
                 // Overlay Gelap
                 Container(color: Colors.black.withOpacity(0.4)),
-
+                
                 // Info Toko
                 Positioned(
                   bottom: 20,
@@ -131,16 +129,9 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
                         ),
                         child: CircleAvatar(
                           radius: 30,
-                          backgroundImage: image.isNotEmpty
-                              ? NetworkImage(image)
-                              : null,
+                          backgroundImage: image.isNotEmpty ? NetworkImage(image) : null,
                           backgroundColor: Colors.grey[300],
-                          child: image.isEmpty
-                              ? const Icon(
-                                  LucideIcons.store,
-                                  color: Colors.grey,
-                                )
-                              : null,
+                          child: image.isEmpty ? const Icon(LucideIcons.store, color: Colors.grey) : null,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -160,26 +151,14 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(
-                                  LucideIcons.mapPin,
-                                  color: Colors.white70,
-                                  size: 12,
-                                ),
+                                const Icon(LucideIcons.mapPin, color: Colors.white70, size: 12),
                                 const SizedBox(width: 4),
                                 Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => _showLocationSheet(data),
-                                    child: Text(
-                                      location,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        decoration: TextDecoration.underline,
-                                        decorationColor: Colors.white,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                  child: Text(
+                                    location,
+                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
@@ -190,12 +169,9 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
                               children: [
                                 _buildStatBadge(LucideIcons.star, "4.8"),
                                 const SizedBox(width: 8),
-                                _buildStatBadge(
-                                  LucideIcons.users,
-                                  "1.2k Pengikut",
-                                ),
+                                _buildStatBadge(LucideIcons.users, "1.2k Pengikut"),
                               ],
-                            ),
+                            )
                           ],
                         ),
                       ),
@@ -232,7 +208,7 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('products')
-          .where('uid', isEqualTo: widget.sellerId) // Ubah sellerId jadi uid
+          .where('sellerId', isEqualTo: widget.sellerId)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -276,15 +252,9 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(8),
-                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
                 image: DecorationImage(
-                  image: NetworkImage(
-                    data['imageUrl'] ??
-                        data['image'] ??
-                        'https://via.placeholder.com/150',
-                  ),
+                  image: NetworkImage(data['imageUrl'] ?? data['image'] ?? 'https://via.placeholder.com/150'),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -299,19 +269,12 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
                   data['name'] ?? 'Produk',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   currencyFormat.format(data['price'] ?? 0),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1976D2),
-                  ),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1976D2)),
                 ),
               ],
             ),
@@ -321,127 +284,73 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
     );
   }
 
-  // --- BOTTOM SHEET LOKASI ---
-  void _showLocationSheet(Map<String, dynamic>? data) {
-    // Cek apakah ada koordinat (latitude/longitude)
-    double? lat = data?['latitude'];
-    double? lng = data?['longitude'];
+  // --- TAB 2: LOKASI (MAPS) ---
+  Widget _buildLocationTab() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(widget.sellerId).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+        // Cek apakah ada koordinat (latitude/longitude)
+        double? lat = data?['latitude'];
+        double? lng = data?['longitude'];
+        
+        // Default ke Monas jika tidak ada lokasi
+        final LatLng position = (lat != null && lng != null) 
+            ? LatLng(lat, lng) 
+            : const LatLng(-6.175392, 106.827153);
 
-    // Default ke Monas jika tidak ada lokasi
-    final LatLng position = (lat != null && lng != null)
-        ? LatLng(lat, lng)
-        : const LatLng(-6.175392, 106.827153);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return SizedBox(
-          height: MediaQuery.of(context).size.height * 0.7,
-          child: Column(
-            children: [
-              // Handle Bar
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+        return Column(
+          children: [
+            Expanded(
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: position,
+                  zoom: 15,
                 ),
-              ),
-              Expanded(
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: position,
-                    zoom: 15,
+                markers: {
+                  Marker(
+                    markerId: const MarkerId('storeLocation'),
+                    position: position,
+                    infoWindow: InfoWindow(title: widget.sellerName),
                   ),
-                  markers: {
-                    Marker(
-                      markerId: const MarkerId('storeLocation'),
-                      position: position,
-                      infoWindow: InfoWindow(title: widget.sellerName),
-                    ),
-                  },
-                ),
+                },
               ),
-              Container(
-                padding: const EdgeInsets.all(16),
-                color: Colors.white,
-                child: Row(
-                  children: [
-                    const Icon(LucideIcons.mapPin, color: Colors.red),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        data?['address'] ??
-                            'Alamat lengkap belum diatur oleh penjual.',
-                        style: const TextStyle(fontSize: 14),
-                      ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.mapPin, color: Colors.red),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      data?['address'] ?? 'Alamat lengkap belum diatur oleh penjual.',
+                      style: const TextStyle(fontSize: 14),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
   }
 
-  // --- TAB 2: PENILAIAN (Hanya Ulasan Toko) ---
+  // --- TAB 3: PENILAIAN ---
   Widget _buildReviewsTab() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('reviews')
-          .where('shopId', isEqualTo: widget.sellerId)
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        // Filter: Hanya ambil ulasan yang TIDAK punya productId (Ulasan Toko)
-        final reviews =
-            snapshot.data?.docs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              return data['productId'] == null || data['productId'] == "";
-            }).toList() ??
-            [];
-
-        if (reviews.isEmpty) {
-          return _buildEmptyState(
-            "Belum ada ulasan toko",
-            LucideIcons.messageSquare,
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: reviews.length,
-          itemBuilder: (context, index) {
-            final data = reviews[index].data() as Map<String, dynamic>;
-
-            // Format Tanggal
-            String dateStr = "Baru saja";
-            if (data['createdAt'] != null) {
-              final date = (data['createdAt'] as Timestamp).toDate();
-              dateStr = DateFormat('dd MMM yyyy').format(date);
-            }
-
-            return _buildReviewItem(
-              data['userName'] ?? "Pengguna",
-              (data['rating'] ?? 0).toInt(),
-              data['comment'] ?? "",
-              dateStr,
-            );
-          },
-        );
-      },
+    // Mockup data ulasan (karena belum ada koleksi reviews di context)
+    // Nanti bisa diganti dengan StreamBuilder ke collection('reviews')
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _buildReviewItem("Budi Santoso", 5, "Barang sangat bagus, pengiriman cepat!", "2 hari lalu"),
+        _buildReviewItem("Siti Aminah", 4, "Kualitas oke, tapi packing agak penyok.", "1 minggu lalu"),
+        _buildReviewItem("Ahmad Dani", 5, "Recommended seller! Pasti beli lagi.", "2 minggu lalu"),
+      ],
     );
   }
 
@@ -462,33 +371,21 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
               CircleAvatar(
                 radius: 12,
                 backgroundColor: Colors.grey[300],
-                child: Text(user[0], style: const TextStyle(fontSize: 12)),
+                child: const Icon(LucideIcons.user, size: 14, color: Colors.grey),
               ),
               const SizedBox(width: 8),
-              Text(
-                user,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
+              Text(user, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
               const Spacer(),
-              Text(
-                date,
-                style: TextStyle(color: Colors.grey[500], fontSize: 10),
-              ),
+              Text(date, style: TextStyle(color: Colors.grey[500], fontSize: 10)),
             ],
           ),
           const SizedBox(height: 8),
           Row(
-            children: List.generate(
-              5,
-              (index) => Icon(
-                Icons.star,
-                size: 14,
-                color: index < stars ? Colors.amber : Colors.grey[300],
-              ),
-            ),
+            children: List.generate(5, (index) => Icon(
+              Icons.star, 
+              size: 14, 
+              color: index < stars ? Colors.amber : Colors.grey[300]
+            )),
           ),
           const SizedBox(height: 8),
           Text(comment, style: const TextStyle(fontSize: 13)),
@@ -515,13 +412,7 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
       ),
       child: Row(
         children: [
@@ -565,20 +456,12 @@ class _StoreProfileScreenState extends State<StoreProfileScreen>
       builder: (context) => AlertDialog(
         title: const Text("Beri Ulasan Toko"),
         content: const TextField(
-          decoration: InputDecoration(
-            hintText: "Tulis pengalamanmu berbelanja di sini...",
-          ),
+          decoration: InputDecoration(hintText: "Tulis pengalamanmu berbelanja di sini..."),
           maxLines: 3,
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Batal"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Kirim"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
+          ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text("Kirim")),
         ],
       ),
     );

@@ -23,21 +23,53 @@ class _LoginScreenState extends State<LoginScreen> {
   // Login Email/Password
   Future<void> _handleEmailLogin() async {
     if (_emailController.text.isEmpty || _passController.text.isEmpty) {
-      _showToast("Email dan password harus diisi", ToastificationType.warning);
+      _showToast("Email/No HP dan password harus diisi", ToastificationType.warning);
       return;
     }
 
     setState(() => _isLoading = true);
+
+    String emailInput = _emailController.text.trim();
+    String passwordInput = _passController.text.trim();
+
+    // LOGIKA LOGIN NO HP (Konversi ke Email Dummy)
+    // Cek jika input hanya angka atau diawali + (format HP)
+    if (RegExp(r'^[0-9+]+$').hasMatch(emailInput)) {
+      // Normalisasi nomor HP ke format 628... (Sesuai format di SettingsScreen)
+      String cleanPhone = emailInput.replaceAll('+', '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = "62${cleanPhone.substring(1)}";
+      } else if (!cleanPhone.startsWith('62')) {
+        cleanPhone = "62$cleanPhone";
+      }
+      
+      emailInput = "$cleanPhone@bangkit.usaha"; 
+    }
+
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passController.text.trim(),
+        email: emailInput,
+        password: passwordInput,
       );
       _showToast("Berhasil masuk!", ToastificationType.success);
     } on FirebaseAuthException catch (e) {
-      _showToast(e.message ?? "Email atau password salah", ToastificationType.error);
+      String message = "Gagal masuk.";
+      if (e.code == 'user-not-found' || e.code == 'invalid-email') {
+        message = "Nomor HP atau Email tidak terdaftar.";
+      } else if (e.code == 'wrong-password') {
+        message = "Password salah.";
+      } else if (e.code == 'invalid-credential') {
+        message = "Kombinasi Email/No HP dan Password tidak cocok.";
+      } else if (e.code == 'user-disabled') {
+        message = "Akun ini telah dinonaktifkan.";
+      } else if (e.code == 'too-many-requests') {
+        message = "Terlalu banyak percobaan gagal. Coba lagi nanti.";
+      } else {
+        message = e.message ?? "Terjadi kesalahan saat login.";
+      }
+      _showToast(message, ToastificationType.error);
     } catch (e) {
-      _showToast("Email atau password salah", ToastificationType.error);
+      _showToast("Terjadi kesalahan: $e", ToastificationType.error);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -61,7 +93,8 @@ class _LoginScreenState extends State<LoginScreen> {
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      await _checkAndCreateUser(userCred.user);
       _showToast("Berhasil masuk dengan Google!", ToastificationType.success);
     } catch (e, stackTrace) {
       debugPrint('Google Sign-In Error: $e');
@@ -84,15 +117,21 @@ class _LoginScreenState extends State<LoginScreen> {
       final doc = await userRef.get();
       
       if (!doc.exists) {
+        String name = user.displayName ?? 'User';
+        // Jika nama default dan ada nomor HP, gunakan format User XXXX
+        if (name == 'User' && user.phoneNumber != null && user.phoneNumber!.length >= 4) {
+           name = 'User ${user.phoneNumber!.substring(user.phoneNumber!.length - 4)}';
+        }
+
         // Jika user baru (Register Otomatis), buat data default
         await userRef.set({
           'uid': user.uid,
           'email': user.email ?? '',
           'phoneNumber': user.phoneNumber ?? '',
           'role': 'buyer', // Default role pembeli
-          'name': 'User ${user.phoneNumber?.substring(user.phoneNumber!.length - 4) ?? ''}',
+          'name': name,
           'createdAt': FieldValue.serverTimestamp(),
-          'image': '',
+          'image': user.photoURL ?? '',
         });
       }
     } catch (e) {
@@ -369,7 +408,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         // Email Input
                         const Text(
-                          "Email",
+                          "Email / No. HP",
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -382,7 +421,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           enabled: !_isLoading,
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
-                            hintText: "nama@email.com",
+                            hintText: "Email atau Nomor HP",
                             hintStyle: TextStyle(color: Colors.grey[400]),
                             filled: true,
                             fillColor: const Color(0xFFF9FAFB), // gray-50

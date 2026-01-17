@@ -45,7 +45,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     for (var item in widget.items) {
       String sId = item['sellerId'] ?? widget.sellerId;
       if (sId.isEmpty) sId = "unknown";
-      
+
       if (!grouped.containsKey(sId)) {
         grouped[sId] = [];
       }
@@ -71,6 +71,53 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  // FITUR BARU: Input Alamat Manual (Untuk kondisi Offline/Low Signal)
+  void _showManualAddressDialog() {
+    final addressCtrl = TextEditingController(text: _deliveryAddress);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Input Alamat Manual"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Gunakan ini jika peta tidak memuat.",
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: addressCtrl,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: "Contoh: Jl. Merdeka No. 10, Jakarta Pusat",
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _deliveryAddress = addressCtrl.text;
+                // Reset lokasi koordinat karena manual
+                _userLocation = null;
+                _shippingCost = 0; // Ongkir 0 atau bisa diset flat rate nanti
+              });
+              Navigator.pop(ctx);
+            },
+            child: const Text("Simpan"),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _calculateShipping() {
     if (_userLocation == null || widget.items.isEmpty) return;
 
@@ -91,13 +138,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
   }
 
-  int _computeTotalShipping(Map<String, List<Map<String, dynamic>>> groupedItems) {
+  int _computeTotalShipping(
+    Map<String, List<Map<String, dynamic>>> groupedItems,
+  ) {
     if (_userLocation == null) return 0;
     int total = 0;
     for (var entry in groupedItems.entries) {
       final sellerItems = entry.value;
       double storeLat = (sellerItems.first['storeLat'] ?? -6.200000).toDouble();
-      double storeLng = (sellerItems.first['storeLng'] ?? 106.816666).toDouble();
+      double storeLng = (sellerItems.first['storeLng'] ?? 106.816666)
+          .toDouble();
       double distance = ShippingCalculator.calculateDistance(
         _userLocation!.latitude,
         _userLocation!.longitude,
@@ -145,8 +195,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         // Calculate shipping for this seller (based on first store coordinates)
         int sellerShipping = 0;
         if (_userLocation != null) {
-          double storeLat = (sellerItems.first['storeLat'] ?? -6.200000).toDouble();
-          double storeLng = (sellerItems.first['storeLng'] ?? 106.816666).toDouble();
+          double storeLat = (sellerItems.first['storeLat'] ?? -6.200000)
+              .toDouble();
+          double storeLng = (sellerItems.first['storeLng'] ?? 106.816666)
+              .toDouble();
           double distance = ShippingCalculator.calculateDistance(
             _userLocation!.latitude,
             _userLocation!.longitude,
@@ -187,7 +239,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             context: context,
             type: ToastificationType.success,
             title: const Text("Pesanan Berhasil!"),
-            description: const Text("Semua pesanan telah diteruskan ke penjual."),
+            description: const Text(
+              "Semua pesanan telah diteruskan ke penjual.",
+            ),
             autoCloseDuration: const Duration(seconds: 3),
           );
           Navigator.popUntil(context, (route) => route.isFirst);
@@ -229,7 +283,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ADDRESS
-                  const Text("Alamat Pengiriman", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    "Alamat Pengiriman",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   InkWell(
                     onTap: _pickAddress,
@@ -244,14 +301,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(LucideIcons.mapPin, color: Color(0xFF1565C0)),
+                          const Icon(
+                            LucideIcons.mapPin,
+                            color: Color(0xFF1565C0),
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _deliveryAddress.isEmpty
-                                ? const Text("Pilih Alamat Pengiriman...", style: TextStyle(color: Colors.grey))
-                                : Text(_deliveryAddress, style: const TextStyle(color: Colors.black87)),
+                                ? const Text(
+                                    "Pilih Alamat Pengiriman...",
+                                    style: TextStyle(color: Colors.grey),
+                                  )
+                                : Text(
+                                    _deliveryAddress,
+                                    style: const TextStyle(
+                                      color: Colors.black87,
+                                    ),
+                                  ),
                           ),
-                          const Icon(LucideIcons.chevronRight, color: Colors.grey),
+                          // Tombol Edit Manual
+                          IconButton(
+                            icon: const Icon(
+                              LucideIcons.edit,
+                              color: Colors.grey,
+                            ),
+                            onPressed: _showManualAddressDialog,
+                          ),
                         ],
                       ),
                     ),
@@ -260,13 +335,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   const SizedBox(height: 24),
 
                   // ITEMS GROUPED BY STORE
-                  const Text("Rincian Pesanan", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    "Rincian Pesanan",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
-                  
+
                   ...groupedItems.entries.map((entry) {
                     final items = entry.value;
-                    final sellerName = items.first['sellerName'] ?? widget.sellerName;
-                    
+                    final sellerName =
+                        items.first['sellerName'] ?? widget.sellerName;
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -275,49 +354,68 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Row(
                             children: [
-                              const Icon(LucideIcons.store, size: 14, color: Colors.grey),
+                              const Icon(
+                                LucideIcons.store,
+                                size: 14,
+                                color: Colors.grey,
+                              ),
                               const SizedBox(width: 6),
-                              Text("Toko: $sellerName", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                              Text(
+                                "Toko: $sellerName",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Colors.grey,
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                        ...items.map((item) => Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: Container(
-                              width: 50, height: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8),
-                                image: (item['image'] != null && item['image'] != "")
-                                    ? DecorationImage(
-                                        image: NetworkImage(item['image']),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : null,
+                        ...items.map(
+                          (item) => Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(8),
+                                  image:
+                                      (item['image'] != null &&
+                                          item['image'] != "")
+                                      ? DecorationImage(
+                                          image: NetworkImage(item['image']),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                ),
                               ),
-                            ),
-                            title: Text(item['name'] ?? "Produk"),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("${item['qty']} x ${currencyFormat.format(item['price'])}"),
-                                if (item['note'] != null && item['note'].toString().isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(
-                                      "Catatan: ${item['note']}",
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                        fontStyle: FontStyle.italic,
+                              title: Text(item['name'] ?? "Produk"),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "${item['qty']} x ${currencyFormat.format(item['price'])}",
+                                  ),
+                                  if (item['note'] != null &&
+                                      item['note'].toString().isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        "Catatan: ${item['note']}",
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                          fontStyle: FontStyle.italic,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        )),
+                        ),
                       ],
                     );
                   }),
@@ -347,15 +445,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text("Total (+Ongkir)", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      const Text(
+                        "Total (+Ongkir)",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
                       Text(
-                        currencyFormat.format(widget.totalPrice + _computeTotalShipping(groupedItems)),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1565C0)),
+                        currencyFormat.format(
+                          widget.totalPrice +
+                              _computeTotalShipping(groupedItems),
+                        ),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1565C0),
+                        ),
                       ),
                       if (_computeTotalShipping(groupedItems) > 0)
                         Text(
                           "(Ongkir: ${currencyFormat.format(_computeTotalShipping(groupedItems))})",
-                          style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
+                          ),
                         ),
                     ],
                   ),
@@ -364,11 +475,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   onPressed: _isLoading ? null : _processOrder,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1565C0),
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 12,
+                    ),
                   ),
                   child: _isLoading
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text("Buat Pesanan", style: TextStyle(color: Colors.white)),
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Buat Pesanan",
+                          style: TextStyle(color: Colors.white),
+                        ),
                 ),
               ],
             ),

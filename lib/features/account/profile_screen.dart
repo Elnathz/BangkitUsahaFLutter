@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 // --- IMPORT HALAMAN LAIN ---
 import 'order_history_screen.dart';
@@ -151,11 +153,124 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
   }
 
-  Future<void> _handleImageUpload() async {
+  // --- PROFILE PHOTO MANAGEMENT ---
+
+  void _viewFullProfileImage() {
+    final String imageUrl = businessProfile['image'];
+    final String displayName = businessProfile['name'];
+    final bool hasImage = imageUrl.isNotEmpty && imageUrl.startsWith("http");
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            title: const Text(
+              "Foto Profil",
+              style: TextStyle(color: Colors.white),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(LucideIcons.edit2),
+                tooltip: "Ubah Foto",
+                onPressed: () {
+                  _showImageSourcePicker();
+                },
+              ),
+              if (hasImage)
+                IconButton(
+                  icon: const Icon(LucideIcons.trash2, color: Colors.red),
+                  tooltip: "Hapus Foto",
+                  onPressed: () {
+                    _confirmDeletePhoto();
+                  },
+                ),
+            ],
+          ),
+          body: Center(
+            child: hasImage
+                ? InteractiveViewer(child: Image.network(imageUrl))
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        LucideIcons.user,
+                        size: 100,
+                        color: Colors.grey[700],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Tidak ada foto profil",
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showImageSourcePicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(LucideIcons.camera),
+              title: const Text('Ambil Foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndCropImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(LucideIcons.image),
+              title: const Text('Pilih dari Galeri'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndCropImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndCropImage(ImageSource source) async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    final XFile? image = await picker.pickImage(source: source);
     if (image == null) return;
 
+    // Crop Image
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      aspectRatio: const CropAspectRatio(
+        ratioX: 1,
+        ratioY: 1,
+      ), // Square for profile
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Potong Foto',
+          toolbarColor: const Color(0xFF1976D2),
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(title: 'Potong Foto'),
+      ],
+    );
+
+    if (croppedFile != null) {
+      _uploadProfileImage(File(croppedFile.path));
+    }
+  }
+
+  Future<void> _uploadProfileImage(File imageFile) async {
     setState(() => isUploading = true);
     _showToast("Mengunggah foto...", ToastificationType.info);
 
@@ -163,11 +278,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final storageRef = FirebaseStorage.instance.ref().child(
         'profile_photos/${user!.uid}',
       );
-      Uint8List imageData = await image.readAsBytes();
-      await storageRef.putData(
-        imageData,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
+      await storageRef.putFile(imageFile);
       final downloadURL = await storageRef.getDownloadURL();
 
       await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
@@ -175,11 +286,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }, SetOptions(merge: true));
       await user!.updatePhotoURL(downloadURL);
       _showToast("Foto berhasil diperbarui!", ToastificationType.success);
+
+      // Refresh UI if currently viewing full image (optional, but good UX)
+      if (mounted) {
+        // If we are in the full view screen, we might want to pop or refresh.
+        // For simplicity, we just let the stream builder update the main screen.
+        // If the user is in the full view, they might need to reopen it to see changes or we rely on state update.
+      }
     } catch (e) {
       _showToast("Gagal upload: $e", ToastificationType.error);
     } finally {
       setState(() => isUploading = false);
     }
+  }
+
+  Future<void> _confirmDeletePhoto() async {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Hapus Foto Profil?"),
+        content: const Text("Foto profil akan dihapus dan kembali ke default."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx); // Close dialog
+              Navigator.pop(context); // Close full view
+              try {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user!.uid)
+                    .update({'image': FieldValue.delete()});
+                await user!.updatePhotoURL(null);
+                _showToast("Foto profil dihapus", ToastificationType.success);
+              } catch (e) {
+                _showToast("Gagal hapus: $e", ToastificationType.error);
+              }
+            },
+            child: const Text("Hapus"),
+          ),
+        ],
+      ),
+    );
   }
 
   void _parseSchedule(String scheduleString) {
@@ -425,35 +577,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               // Avatar with Badge
               Stack(
+                alignment: Alignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: CircleAvatar(
-                      radius: 35,
-                      backgroundColor: Colors.white,
+                  GestureDetector(
+                    onTap: _viewFullProfileImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
                       child: CircleAvatar(
-                        radius: 32,
-                        backgroundColor: Colors.grey[200],
-                        backgroundImage:
-                            (image != "" && image.startsWith("http"))
-                            ? NetworkImage(image)
-                            : null,
-                        child: (image == "" || !image.startsWith("http"))
-                            ? Text(
-                                displayName.isNotEmpty
-                                    ? displayName[0].toUpperCase()
-                                    : "?",
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1976D2),
-                                ),
+                        radius: 35,
+                        backgroundColor: Colors.white,
+                        child: CircleAvatar(
+                          radius: 32,
+                          backgroundColor: Colors.grey[200],
+                          backgroundImage:
+                              (image != "" && image.startsWith("http"))
+                              ? NetworkImage(image)
+                              : null,
+                          child: (image == "" || !image.startsWith("http"))
+                            ? const Icon(
+                                LucideIcons.user,
+                                color: Colors.grey,
                               )
-                            : null,
+                              : null,
+                        ),
                       ),
                     ),
                   ),
@@ -461,7 +611,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     bottom: 0,
                     right: 0,
                     child: GestureDetector(
-                      onTap: _handleImageUpload,
+                      onTap: _viewFullProfileImage,
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
@@ -667,10 +817,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFEF4444),
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 2,
-                  ),
+                  border: Border.all(color: Colors.white, width: 2),
                 ),
               ),
             ),
@@ -946,7 +1093,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Expanded(
       child: Container(
         // Removed fixed height to prevent overflow
-        padding: const EdgeInsets.all(12), // Reduced padding for compact screens
+        padding: const EdgeInsets.all(
+          12,
+        ), // Reduced padding for compact screens
         decoration: BoxDecoration(
           color: color.withOpacity(0.05),
           borderRadius: BorderRadius.circular(16),

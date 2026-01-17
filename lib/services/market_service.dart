@@ -118,8 +118,12 @@ class MarketService {
     try {
       String orderId = "ORD-${DateTime.now().millisecondsSinceEpoch}";
 
-      // 1. Simpan Pesanan
-      await _firestore.collection('orders').doc(orderId).set({
+      // GUNAKAN BATCH AGAR BISA OFFLINE & ATOMIK
+      WriteBatch batch = _firestore.batch();
+      DocumentReference orderRef = _firestore.collection('orders').doc(orderId);
+
+      // 1. Simpan Pesanan ke Batch
+      batch.set(orderRef, {
         'orderId': orderId,
         'buyerId': user.uid,
         'buyerName': user.displayName ?? "Pembeli",
@@ -136,46 +140,33 @@ class MarketService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // 2. [NOTIFIKASI] Beritahu Penjual ada pesanan masuk
-      await _sendNotification(
-        recipientId: sellerId,
-        title: "Pesanan Baru Masuk! 📦",
-        body:
-            "${user.displayName ?? 'Seseorang'} memesan barang dari toko Anda.",
-        type: "order_incoming",
-        relatedId: orderId,
-      );
-
-      // 3. Kurangi Stok Produk & Cek Stok Habis
+      // 2. Kurangi Stok Produk (Masukkan ke Batch)
       for (var item in items) {
         if (item['productId'] != null) {
           final productRef = _firestore
               .collection('products')
               .doc(item['productId']);
 
-          // Update Stok
-          await productRef.update({
+          // Update Stok dalam Batch
+          batch.update(productRef, {
             'stock': FieldValue.increment(-item['qty']),
             'sold': FieldValue.increment(item['qty']),
           });
 
-          // Cek sisa stok untuk notifikasi
-          final productSnap = await productRef.get();
-          if (productSnap.exists) {
-            int currentStock = productSnap.data()?['stock'] ?? 0;
-            if (currentStock <= 0) {
-              // [NOTIFIKASI] Stok Habis ke Penjual
-              await _sendNotification(
-                recipientId: sellerId,
-                title: "Stok Habis! ⚠️",
-                body: "Produk '${item['name']}' telah habis terjual.",
-                type: "stock_empty",
-                relatedId: item['productId'],
-              );
-            }
-          }
         }
       }
+
+      // EKSEKUSI BATCH (Bisa Offline, akan disinkronkan saat online)
+      await batch.commit();
+
+      // 3. [NOTIFIKASI] (Fire and Forget - Tidak perlu await agar UI tidak macet jika offline)
+      _sendNotification(
+        recipientId: sellerId,
+        title: "Pesanan Baru Masuk! 📦",
+        body: "${user.displayName ?? 'Seseorang'} memesan barang dari toko Anda.",
+        type: "order_incoming",
+        relatedId: orderId,
+      );
 
       return "SUCCESS";
     } catch (e) {
@@ -199,36 +190,40 @@ class MarketService {
 
       // Jika status berubah jadi 'Selesai', cairkan dana ke penjual
       if (newStatus == 'Selesai') {
-        await _firestore.runTransaction((transaction) async {
-          String sellerId = data['sellerId'];
-          int total = data['totalPrice'];
+        // GANTI TRANSACTION DENGAN BATCH AGAR BISA OFFLINE
+        // Transaction wajib online, Batch bisa offline (queued)
+        WriteBatch batch = _firestore.batch();
+        
+        String sellerId = data['sellerId'];
+        int total = data['totalPrice'];
 
-          // 1. Update Status Order
-          transaction.update(orderRef, {
-            'status': 'Selesai',
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-
-          // 2. Tambah Saldo Dompet Penjual
-          DocumentReference sellerRef = _firestore
-              .collection('users')
-              .doc(sellerId);
-          transaction.update(sellerRef, {
-            'walletBalance': FieldValue.increment(total),
-          });
-
-          // 3. Catat Riwayat Transaksi (Mutasi)
-          DocumentReference transRef = _firestore
-              .collection('wallet_transactions')
-              .doc();
-          transaction.set(transRef, {
-            'userId': sellerId,
-            'type': 'income', // Pemasukan
-            'amount': total,
-            'description': 'Penjualan $productName',
-            'timestamp': FieldValue.serverTimestamp(),
-          });
+        // 1. Update Status Order
+        batch.update(orderRef, {
+          'status': 'Selesai',
+          'updatedAt': FieldValue.serverTimestamp(),
         });
+
+        // 2. Tambah Saldo Dompet Penjual
+        DocumentReference sellerRef = _firestore
+            .collection('users')
+            .doc(sellerId);
+        batch.update(sellerRef, {
+          'walletBalance': FieldValue.increment(total),
+        });
+
+        // 3. Catat Riwayat Transaksi (Mutasi)
+        DocumentReference transRef = _firestore
+            .collection('wallet_transactions')
+            .doc();
+        batch.set(transRef, {
+          'userId': sellerId,
+          'type': 'income', // Pemasukan
+          'amount': total,
+          'description': 'Penjualan $productName',
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        await batch.commit();
 
         // [NOTIFIKASI] Ke Penjual (Dana Masuk)
         await _sendNotification(
@@ -279,6 +274,7 @@ class MarketService {
         .collection('orders')
         .where('buyerId', isEqualTo: user.uid)
         .orderBy('createdAt', descending: true)
+        .limit(20) // BATASI LOAD: Hanya 20 pesanan terakhir
         .snapshots();
   }
 
@@ -289,6 +285,7 @@ class MarketService {
         .collection('orders')
         .where('sellerId', isEqualTo: user.uid)
         .orderBy('createdAt', descending: true)
+        .limit(20) // BATASI LOAD: Hanya 20 pesanan masuk terakhir
         .snapshots();
   }
 
@@ -596,15 +593,16 @@ class MarketService {
     if (user == null) return "LOGIN_REQUIRED";
 
     try {
-      await _firestore.runTransaction((transaction) async {
-        final productRef = _firestore.collection('products').doc(productId);
-        final orderRef = _firestore.collection('orders').doc(orderId); // Order Ref
+      // GANTI TRANSACTION DENGAN BATCH AGAR BISA OFFLINE
+      final productRef = _firestore.collection('products').doc(productId);
+      final orderRef = _firestore.collection('orders').doc(orderId);
 
-        final productSnap = await transaction.get(productRef);
-        final orderSnap = await transaction.get(orderRef); // Get Order
+      // Baca data (bisa dari cache jika offline)
+      final productSnap = await productRef.get();
+      final orderSnap = await orderRef.get();
 
-        if (!productSnap.exists) throw Exception("Produk tidak ditemukan");
-        if (!orderSnap.exists) throw Exception("Pesanan tidak ditemukan");
+      if (productSnap.exists && orderSnap.exists) {
+        WriteBatch batch = _firestore.batch();
 
         // Update Product Rating
         final data = productSnap.data() as Map<String, dynamic>;
@@ -612,14 +610,14 @@ class MarketService {
         int totalReviews = (data['totalReviews'] ?? 0).toInt();
         double newRating = ((currentRating * totalReviews) + rating) / (totalReviews + 1);
 
-        transaction.update(productRef, {
+        batch.update(productRef, {
           'rating': newRating,
           'totalReviews': FieldValue.increment(1),
         });
 
         // Add Review
         final reviewRef = _firestore.collection('reviews').doc();
-        transaction.set(reviewRef, {
+        batch.set(reviewRef, {
           'productId': productId,
           'shopId': shopId,
           'userId': user.uid,
@@ -644,9 +642,10 @@ class MarketService {
           return item;
         }).toList();
 
-        transaction.update(orderRef, {'items': newItems}); 
-      });
-
+        batch.update(orderRef, {'items': newItems});
+        
+        await batch.commit();
+      }
       return "SUCCESS";
     } catch (e) {
       return e.toString();

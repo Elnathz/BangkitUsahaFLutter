@@ -9,6 +9,7 @@ import 'package:chewie/chewie.dart'; // Wajib import ini
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../services/chat_service.dart';
+import '../../services/connectivity_service.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String targetUid;
@@ -63,10 +64,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   // --- PICK IMAGE ---
   Future<void> _pickImage(ImageSource source) async {
+    // CEK KONEKSI DULU
+    if (!ConnectivityService().hasConnection) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Perlu koneksi internet untuk kirim gambar ⚠️")));
+      return;
+    }
+
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
-        imageQuality: 50,
+        imageQuality: 40, // KOMPRESI GAMBAR: Lebih kecil agar kirim cepat
       );
 
       if (pickedFile != null) {
@@ -91,6 +98,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   // --- PICK VIDEO (FITUR BARU) ---
   Future<void> _pickVideo() async {
+    // CEK KONEKSI DULU
+    if (!ConnectivityService().hasConnection) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Perlu koneksi internet untuk kirim video ⚠️")));
+      return;
+    }
+
     try {
       final XFile? pickedFile = await _picker.pickVideo(
         source: ImageSource.gallery,
@@ -327,6 +340,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   .doc(_chatRoomId)
                   .collection('messages')
                   .orderBy('timestamp', descending: true)
+                  .limit(30) // BATASI LOAD: Hanya 30 pesan terakhir
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
@@ -351,10 +365,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    var data = messages[index].data() as Map<String, dynamic>;
-                    String docId = messages[index].id;
+                    var doc = messages[index];
+                    var data = doc.data() as Map<String, dynamic>;
+                    String docId = doc.id;
                     bool isMe = data['senderId'] == currentUser!.uid;
-                    return _buildMessageItem(docId, data, isMe);
+                    // Cek apakah pesan masih pending (offline/belum sync)
+                    bool isPending = doc.metadata.hasPendingWrites;
+                    return _buildMessageItem(docId, data, isMe, isPending);
                   },
                 );
               },
@@ -440,7 +457,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  Widget _buildMessageItem(String docId, Map<String, dynamic> data, bool isMe) {
+  Widget _buildMessageItem(String docId, Map<String, dynamic> data, bool isMe, bool isPending) {
     String type = data['type'] ?? 'text';
     String content = data['text'] ?? '';
     bool isEdited = data['isEdited'] ?? false;
@@ -454,6 +471,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       String hour = dt.hour.toString().padLeft(2, '0');
       String minute = dt.minute.toString().padLeft(2, '0');
       timeString = "$hour:$minute";
+    } else if (isPending) {
+      // Jika offline, timestamp server belum ada. Gunakan waktu lokal HP.
+      final now = DateTime.now();
+      timeString = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
     }
 
     return Align(
@@ -532,6 +553,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             borderRadius: BorderRadius.circular(12),
                             child: CachedNetworkImage(
                               imageUrl: content,
+                              // OPTIMASI RAM: Batasi lebar gambar chat
+                              memCacheWidth: 500,
                               width: 200,
                               fit: BoxFit.cover,
                               placeholder: (context, url) => Container(
@@ -579,6 +602,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                               padding: const EdgeInsets.only(right: 4),
                               child: Icon(
                                 LucideIcons.pencil,
+                                size: 10,
+                                color: isMe ? Colors.white70 : Colors.black45,
+                              ),
+                            ),
+                          // INDIKATOR OFFLINE / PENDING
+                          if (isPending)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(
+                                LucideIcons.clock, // Ikon Jam
                                 size: 10,
                                 color: isMe ? Colors.white70 : Colors.black45,
                               ),

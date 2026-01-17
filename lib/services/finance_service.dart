@@ -20,6 +20,7 @@ class FinanceService {
           isEqualTo: user.uid,
         ) // Filter mutlak berdasarkan User ID
         .orderBy('date', descending: true)
+        .limit(30) // BATASI LOAD: Hanya ambil 30 transaksi terbaru
         .snapshots()
         .map(
           (snapshot) => snapshot.docs

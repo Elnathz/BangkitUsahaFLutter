@@ -3,6 +3,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:geolocator/geolocator.dart'; // Import Geolocator
 import '../../services/market_service.dart';
 import '../../services/badge_service.dart';
 import '../cart/cart_screen.dart';
@@ -12,7 +14,7 @@ import 'search_page.dart';
 import 'product_detail_screen.dart';
 import '../../services/notification_service.dart';
 import '../account/order_history_screen.dart';
-import '../home/store_profile_screen.dart'; // Import halaman toko baru
+import 'store_profile_screen.dart'; // Import halaman toko baru
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -34,10 +36,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _displayedProductCount = 4; // Show 4 products initially
   bool _isLoadingMore = false;
   int _totalAvailableProducts = 0; // Track total available products
+  Position? _currentPosition; // Lokasi pengguna saat ini
 
   @override
   void initState() {
     super.initState();
+    _getCurrentLocation(); // Ambil lokasi saat init
     _scrollController.addListener(_onScroll);
   }
 
@@ -46,6 +50,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Fungsi ambil lokasi GPS
+  Future<void> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+      if (permission == LocationPermission.deniedForever) return;
+
+      final position = await Geolocator.getCurrentPosition();
+      if (mounted) {
+        setState(() => _currentPosition = position);
+      }
+    } catch (e) {
+      debugPrint("Error getting location: $e");
+    }
   }
 
   void _onScroll() {
@@ -99,7 +125,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
           ),
         ),
-        child: SingleChildScrollView(
+        // FITUR BARU: Pull to Refresh (Standar UX saat sinyal kembali)
+        child: RefreshIndicator(
+          onRefresh: () async {
+            setState(() {}); // Trigger rebuild
+            await Future.delayed(const Duration(seconds: 1));
+          },
+          child: SingleChildScrollView(
           controller: _scrollController,
           child: Column(
             children: [
@@ -338,6 +370,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     StreamBuilder<QuerySnapshot>(
                       stream: MarketService().getAvailableProducts(),
                       builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(child: Text("Error memuat produk: ${snapshot.error}"));
+                        }
                         if (!snapshot.hasData) {
                           return const Center(
                             child: CircularProgressIndicator(),
@@ -351,6 +386,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           final stock = data['stock'] ?? 0;
                           return stock > 0;
                         }).toList();
+
+                        // LOGIKA BARU: Urutkan berdasarkan jarak terdekat
+                        if (_currentPosition != null) {
+                          otherShopProducts.sort((a, b) {
+                            final dataA = a.data() as Map<String, dynamic>;
+                            final dataB = b.data() as Map<String, dynamic>;
+                            
+                            // Ambil lat/lng produk (atau toko)
+                            double latA = (dataA['lat'] ?? dataA['storeLat'] ?? 0).toDouble();
+                            double lngA = (dataA['lng'] ?? dataA['storeLng'] ?? 0).toDouble();
+                            double latB = (dataB['lat'] ?? dataB['storeLat'] ?? 0).toDouble();
+                            double lngB = (dataB['lng'] ?? dataB['storeLng'] ?? 0).toDouble();
+
+                            double distA = Geolocator.distanceBetween(_currentPosition!.latitude, _currentPosition!.longitude, latA, lngA);
+                            double distB = Geolocator.distanceBetween(_currentPosition!.latitude, _currentPosition!.longitude, latB, lngB);
+                            return distA.compareTo(distB);
+                          });
+                        }
 
                         // Update total available products for pagination
                         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -429,6 +482,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     cardColor,
                                     textColor,
                                     isDark,
+                                    _currentPosition, // Kirim posisi user ke kartu
                                   ),
                                 );
                               },
@@ -462,6 +516,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -646,6 +701,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Color cardColor,
     Color textColor,
     bool isDark,
+    Position? userPosition,
   ) {
     String getValidImage() {
       if (item['imageUrl'] != null && item['imageUrl'] != "") {
@@ -655,7 +711,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return "https://via.placeholder.com/150";
     }
 
-    String image = getValidImage();
+    String? image = (item['imageUrl'] != null && item['imageUrl'] != "") ? item['imageUrl'] : (item['image'] != null && item['image'] != "" ? item['image'] : null);
     String name = item['name'] ?? "Tanpa Nama";
     String category = item['category'] ?? "Umum";
     int price = (item['price'] ?? 0).toInt();
@@ -663,6 +719,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     double rating = (item['rating'] ?? 0).toDouble();
     int totalSold = item['sold'] ?? item['totalSold'] ?? 0;
     String sellerId = item['uid'] ?? item['sellerId'] ?? ''; // Prioritaskan uid
+
+    // Hitung Jarak
+    String distanceText = "";
+    if (userPosition != null) {
+      double lat = (item['lat'] ?? item['storeLat'] ?? 0).toDouble();
+      double lng = (item['lng'] ?? item['storeLng'] ?? 0).toDouble();
+      if (lat != 0 && lng != 0) {
+        double distMeters = Geolocator.distanceBetween(userPosition.latitude, userPosition.longitude, lat, lng);
+        distanceText = distMeters < 1000 ? "${distMeters.toInt()} m" : "${(distMeters / 1000).toStringAsFixed(1)} km";
+      }
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -688,23 +755,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Stack(
               children: [
                 // Product Image
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(10),
+                image != null 
+                  ? Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(10),
+                        ),
+                        image: DecorationImage(
+                          // OPTIMASI RAM (3T STANDARD):
+                          // Resize gambar di memori agar HP spek rendah tidak berat/crash
+                          image: ResizeImage(
+                            CachedNetworkImageProvider(image),
+                            width: 300, // Load resolusi kecil untuk thumbnail
+                            policy: ResizeImagePolicy.fit,
+                          ),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    )
+                  : Container(
+                      // TAMPILAN JIKA TIDAK ADA FOTO (Text Only)
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Colors.blue.shade300, Colors.blue.shade600],
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          name,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Colors.grey[200]!, Colors.grey[300]!],
-                    ),
-                    image: DecorationImage(
-                      image: NetworkImage(image),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
                 // Location Badge
                 Positioned(
                   top: 8,
@@ -727,7 +818,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     child: Text(
-                      "📍 $category",
+                      distanceText.isNotEmpty ? "📍 $distanceText" : "📍 $category",
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
