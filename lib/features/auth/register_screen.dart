@@ -5,9 +5,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
 import '../home/main_wrapper.dart';
 
-// Account type enum
-enum AccountType { umkm, buyer }
-
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -16,12 +13,8 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // Account type selection (null = selection screen, non-null = form screen)
-  AccountType? _accountType;
-
   // Controllers
-  final _businessNameCtrl = TextEditingController(); // Only for UMKM
-  final _ownerNameCtrl = TextEditingController();
+  final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
@@ -33,8 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    _businessNameCtrl.dispose();
-    _ownerNameCtrl.dispose();
+    _nameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _passCtrl.dispose();
@@ -43,27 +35,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
-    // Validation for buyer
-    if (_accountType == AccountType.buyer) {
-      if (_ownerNameCtrl.text.isEmpty ||
-          _emailCtrl.text.isEmpty ||
-          _phoneCtrl.text.isEmpty ||
-          _passCtrl.text.isEmpty ||
-          _confirmPassCtrl.text.isEmpty) {
-        _showToast("Semua field harus diisi", ToastificationType.warning);
-        return;
-      }
-    } else {
-      // Validation for UMKM
-      if (_businessNameCtrl.text.isEmpty ||
-          _ownerNameCtrl.text.isEmpty ||
-          _emailCtrl.text.isEmpty ||
-          _phoneCtrl.text.isEmpty ||
-          _passCtrl.text.isEmpty ||
-          _confirmPassCtrl.text.isEmpty) {
-        _showToast("Semua field harus diisi", ToastificationType.warning);
-        return;
-      }
+    // Validation
+    if (_nameCtrl.text.isEmpty ||
+        _emailCtrl.text.isEmpty ||
+        _phoneCtrl.text.isEmpty ||
+        _passCtrl.text.isEmpty ||
+        _confirmPassCtrl.text.isEmpty) {
+      _showToast("Semua field harus diisi", ToastificationType.warning);
+      return;
     }
 
     if (_passCtrl.text.length < 6) {
@@ -100,32 +79,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (user != null) {
         // Update Display Name in Auth
-        await user.updateDisplayName(_ownerNameCtrl.text.trim());
+        await user.updateDisplayName(_nameCtrl.text.trim());
 
-        // Prepare Firestore data
+        // Prepare Firestore data - Default role is seller (UMKM)
         Map<String, dynamic> userData = {
           'uid': user.uid,
           'email': user.email,
           'phoneNumber': _phoneCtrl.text.trim(),
-          'role': _accountType == AccountType.umkm ? 'seller' : 'buyer',
+          'role': 'seller', // Default role as UMKM
           'createdAt': FieldValue.serverTimestamp(),
           'image': '',
+          'storeName': _nameCtrl.text.trim(), // Use name as store name
+          'ownerName': _nameCtrl.text.trim(),
+          'address': '',
+          'openingHours': '',
+          'rating': 0.0,
+          'totalReviews': 0,
+          'totalSales': 0,
         };
-
-        if (_accountType == AccountType.umkm) {
-          // UMKM specific data
-          userData['storeName'] = _businessNameCtrl.text.trim();
-          userData['ownerName'] = _ownerNameCtrl.text.trim();
-          userData['address'] = ''; // To be filled later
-          userData['openingHours'] = ''; // To be filled later
-          userData['rating'] = 0.0;
-          userData['totalReviews'] = 0;
-          userData['totalSales'] = 0;
-        } else {
-          // Buyer specific data
-          userData['userName'] = _ownerNameCtrl.text.trim();
-          userData['ownerName'] = _ownerNameCtrl.text.trim();
-        }
 
         // Save to Firestore
         await FirebaseFirestore.instance
@@ -164,18 +135,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Show account type selection if not selected yet
-    if (_accountType == null) {
-      return _buildAccountTypeSelection();
-    }
-    // Show registration form
-    return _buildRegistrationForm();
-  }
-
-  // =============================================
-  // ACCOUNT TYPE SELECTION SCREEN
-  // =============================================
-  Widget _buildAccountTypeSelection() {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -196,6 +155,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  const SizedBox(height: 25),
                   // Logo/Brand Section
                   Container(
                     width: 80,
@@ -232,7 +192,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   // Subtitle
                   Text(
-                    "Pilih Jenis Akun Anda",
+                    "Daftar Akun Baru",
                     style: TextStyle(
                       fontSize: 18,
                       color: Colors.white.withOpacity(0.9),
@@ -240,75 +200,227 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // UMKM Card
-                  _buildAccountTypeCard(
-                    icon: LucideIcons.store,
-                    iconGradientColors: [
-                      const Color(0xFF2563EB),
-                      const Color(0xFF1D4ED8),
-                    ],
-                    title: "Daftar sebagai UMKM",
-                    description:
-                        "Untuk pemilik usaha yang ingin menjual produk, mengelola toko, dan berkembang bersama komunitas UMKM",
-                    tags: ["Jual Produk", "Kelola Toko", "Dashboard"],
-                    tagColor: const Color(0xFF2563EB),
-                    tagBgColor: const Color(0xFFDBEAFE),
-                    onTap: () => setState(() => _accountType = AccountType.umkm),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Buyer Card
-                  _buildAccountTypeCard(
-                    icon: LucideIcons.user,
-                    iconGradientColors: [
-                      const Color(0xFF10B981),
-                      const Color(0xFF0D9488),
-                    ],
-                    title: "Daftar sebagai Pembeli",
-                    description:
-                        "Untuk pelanggan yang ingin berbelanja produk UMKM lokal dan mendukung usaha kecil Indonesia",
-                    tags: ["Belanja", "Ulasan", "Chat"],
-                    tagColor: const Color(0xFF059669),
-                    tagBgColor: const Color(0xFFD1FAE5),
-                    onTap: () =>
-                        setState(() => _accountType = AccountType.buyer),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Back to Login Card
+                  // Registration Form Card
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
                         ),
                       ],
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Card Header
                         const Text(
-                          "Sudah punya akun? ",
+                          "Buat Akun",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1F2937),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          "Isi data untuk mendaftar",
                           style: TextStyle(
                             fontSize: 14,
                             color: Color(0xFF6B7280),
                           ),
                         ),
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: const Text(
-                            "Masuk",
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF2563EB),
+                        const SizedBox(height: 24),
+
+                        // Full Name
+                        _buildInputField(
+                          label: "Nama Lengkap",
+                          controller: _nameCtrl,
+                          placeholder: "John Doe",
+                          isRequired: true,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Email
+                        _buildInputField(
+                          label: "Email",
+                          controller: _emailCtrl,
+                          placeholder: "nama@email.com",
+                          isRequired: true,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Phone
+                        _buildInputField(
+                          label: "Nomor Telepon",
+                          controller: _phoneCtrl,
+                          placeholder: "08123456789",
+                          isRequired: true,
+                          keyboardType: TextInputType.phone,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Password
+                        _buildInputField(
+                          label: "Password",
+                          controller: _passCtrl,
+                          placeholder: "Minimal 6 karakter",
+                          isRequired: true,
+                          obscureText: !_showPassword,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _showPassword
+                                  ? LucideIcons.eyeOff
+                                  : LucideIcons.eye,
+                              color: const Color(0xFF6B7280),
+                              size: 20,
                             ),
+                            onPressed: _isLoading
+                                ? null
+                                : () => setState(
+                                      () => _showPassword = !_showPassword,
+                                    ),
                           ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Confirm Password
+                        _buildInputField(
+                          label: "Konfirmasi Password",
+                          controller: _confirmPassCtrl,
+                          placeholder: "Ulangi password",
+                          isRequired: true,
+                          obscureText: !_showConfirmPassword,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _showConfirmPassword
+                                  ? LucideIcons.eyeOff
+                                  : LucideIcons.eye,
+                              color: const Color(0xFF6B7280),
+                              size: 20,
+                            ),
+                            onPressed: _isLoading
+                                ? null
+                                : () => setState(
+                                      () => _showConfirmPassword =
+                                          !_showConfirmPassword,
+                                    ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Register Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _handleRegister,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2563EB),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 4,
+                              shadowColor: const Color(
+                                0xFF3B82F6,
+                              ).withOpacity(0.3),
+                            ),
+                            child: _isLoading
+                                ? const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "Memproses...",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(LucideIcons.userPlus, size: 20),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "Daftar",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Divider
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Divider(color: Color(0xFFE5E7EB)),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Text(
+                                "atau",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ),
+                            const Expanded(
+                              child: Divider(color: Color(0xFFE5E7EB)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Login Link
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              "Sudah punya akun? ",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: _isLoading
+                                  ? null
+                                  : () => Navigator.pop(context),
+                              child: const Text(
+                                "Masuk",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF2563EB),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -327,483 +439,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAccountTypeCard({
-    required IconData icon,
-    required List<Color> iconGradientColors,
-    required String title,
-    required String description,
-    required List<String> tags,
-    required Color tagColor,
-    required Color tagBgColor,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.95),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Icon with gradient background
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: iconGradientColors,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: iconGradientColors[0].withOpacity(0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(icon, size: 32, color: Colors.white),
-            ),
-            const SizedBox(width: 16),
-
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF6B7280),
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Tags
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: tags.map((tag) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: tagBgColor,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          tag,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: tagColor,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =============================================
-  // REGISTRATION FORM SCREEN
-  // =============================================
-  Widget _buildRegistrationForm() {
-    final isUmkm = _accountType == AccountType.umkm;
-
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF3B82F6), // blue-500
-              Color(0xFF2563EB), // blue-600
-              Color(0xFF1D4ED8), // blue-700
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Back Button
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Row(
-                  children: [
-                    TextButton.icon(
-                      onPressed: _isLoading
-                          ? null
-                          : () => setState(() => _accountType = null),
-                      icon: Icon(
-                        LucideIcons.arrowLeft,
-                        color: _isLoading
-                            ? Colors.white.withOpacity(0.5)
-                            : Colors.white,
-                        size: 20,
-                      ),
-                      label: Text(
-                        "Kembali",
-                        style: TextStyle(
-                          color: _isLoading
-                              ? Colors.white.withOpacity(0.5)
-                              : Colors.white,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    children: [
-                      // Logo/Brand Section
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          isUmkm ? LucideIcons.store : LucideIcons.user,
-                          size: 40,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Title
-                      Text(
-                        isUmkm ? "Daftar UMKM" : "Daftar Pembeli",
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Subtitle
-                      Text(
-                        isUmkm
-                            ? "Daftarkan usaha Anda"
-                            : "Buat akun pembeli Anda",
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Registration Form Card
-                      Container(
-                        padding: const EdgeInsets.all(32),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Card Header
-                            const Text(
-                              "Buat Akun",
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1F2937),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              isUmkm
-                                  ? "Isi data untuk mendaftar sebagai UMKM"
-                                  : "Isi data untuk mendaftar sebagai pembeli",
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF6B7280),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Business Name - Only for UMKM
-                            if (isUmkm) ...[
-                              _buildInputField(
-                                label: "Nama Usaha",
-                                controller: _businessNameCtrl,
-                                placeholder: "Toko Berkah",
-                                isRequired: true,
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-
-                            // Owner Name / Full Name
-                            _buildInputField(
-                              label: isUmkm ? "Nama Pemilik" : "Nama Lengkap",
-                              controller: _ownerNameCtrl,
-                              placeholder: "John Doe",
-                              isRequired: true,
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Email
-                            _buildInputField(
-                              label: "Email",
-                              controller: _emailCtrl,
-                              placeholder: "nama@email.com",
-                              isRequired: true,
-                              keyboardType: TextInputType.emailAddress,
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Phone
-                            _buildInputField(
-                              label: "Nomor Telepon",
-                              controller: _phoneCtrl,
-                              placeholder: "08123456789",
-                              isRequired: true,
-                              keyboardType: TextInputType.phone,
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Password
-                            _buildInputField(
-                              label: "Password",
-                              controller: _passCtrl,
-                              placeholder: "Minimal 6 karakter",
-                              isRequired: true,
-                              obscureText: !_showPassword,
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _showPassword
-                                      ? LucideIcons.eyeOff
-                                      : LucideIcons.eye,
-                                  color: const Color(0xFF6B7280),
-                                  size: 20,
-                                ),
-                                onPressed: _isLoading
-                                    ? null
-                                    : () => setState(
-                                          () =>
-                                              _showPassword = !_showPassword,
-                                        ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Confirm Password
-                            _buildInputField(
-                              label: "Konfirmasi Password",
-                              controller: _confirmPassCtrl,
-                              placeholder: "Ulangi password",
-                              isRequired: true,
-                              obscureText: !_showConfirmPassword,
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _showConfirmPassword
-                                      ? LucideIcons.eyeOff
-                                      : LucideIcons.eye,
-                                  color: const Color(0xFF6B7280),
-                                  size: 20,
-                                ),
-                                onPressed: _isLoading
-                                    ? null
-                                    : () => setState(
-                                          () => _showConfirmPassword =
-                                              !_showConfirmPassword,
-                                        ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Register Button
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _handleRegister,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2563EB),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 4,
-                                  shadowColor: const Color(
-                                    0xFF3B82F6,
-                                  ).withOpacity(0.3),
-                                ),
-                                child: _isLoading
-                                    ? const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white,
-                                              strokeWidth: 2,
-                                            ),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            "Memproses...",
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(LucideIcons.userPlus, size: 20),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            "Daftar",
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Divider
-                            Row(
-                              children: [
-                                const Expanded(
-                                  child: Divider(color: Color(0xFFE5E7EB)),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  child: Text(
-                                    "atau",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[500],
-                                    ),
-                                  ),
-                                ),
-                                const Expanded(
-                                  child: Divider(color: Color(0xFFE5E7EB)),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Login Link
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  "Sudah punya akun? ",
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF6B7280),
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap:
-                                      _isLoading
-                                          ? null
-                                          : () => Navigator.pop(context),
-                                  child: const Text(
-                                    "Masuk",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF2563EB),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Footer
-                      Text(
-                        "© 2026 Bangkit Usaha. Semua hak dilindungi.",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
-              ),
-            ],
           ),
         ),
       ),

@@ -102,4 +102,38 @@ class BadgeService {
       return false;
     }
   }
+
+  /// Stream untuk cart badge (ada item di keranjang?)
+  Stream<bool> getCartBadgeStream() {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) {
+      return Stream.value(false);
+    }
+
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('cart')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.isNotEmpty);
+  }
+
+  /// Get cart badge status (one-time check)
+  Future<bool> hasCartItems() async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return false;
+
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('cart')
+          .limit(1)
+          .get();
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      print("Error checking cart: $e");
+      return false;
+    }
+  }
 }

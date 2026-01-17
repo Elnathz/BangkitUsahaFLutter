@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:toastification/toastification.dart';
 import 'package:intl/intl.dart';
 import '../../services/market_service.dart';
+import '../../services/badge_service.dart';
 
 // IMPORT HALAMAN LAIN
 // removed unused import '../home/product_reviews_screen.dart'
@@ -946,16 +947,30 @@ class _ProductsScreenState extends State<ProductsScreen>
                         ),
                         Row(
                           children: [
-                            _buildHeaderIcon(
-                              context,
-                              LucideIcons.bell,
-                              const NotificationScreen(),
+                            StreamBuilder<bool>(
+                              stream: BadgeService().getNotificationBadgeStream(),
+                              builder: (context, snapshot) {
+                                final showBadge = snapshot.data ?? false;
+                                return _buildHeaderIconWithBadge(
+                                  context,
+                                  LucideIcons.bell,
+                                  const NotificationScreen(),
+                                  showBadge: showBadge,
+                                );
+                              },
                             ),
                             const SizedBox(width: 8),
-                            _buildHeaderIcon(
-                              context,
-                              LucideIcons.messageSquare,
-                              const ChatScreen(),
+                            StreamBuilder<bool>(
+                              stream: BadgeService().getChatBadgeStream(),
+                              builder: (context, snapshot) {
+                                final showBadge = snapshot.data ?? false;
+                                return _buildHeaderIconWithBadge(
+                                  context,
+                                  LucideIcons.messageSquare,
+                                  const ChatScreen(),
+                                  showBadge: showBadge,
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -1104,6 +1119,54 @@ class _ProductsScreenState extends State<ProductsScreen>
           border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
         child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildHeaderIconWithBadge(
+    BuildContext context,
+    IconData icon,
+    Widget destination, {
+    bool showBadge = false,
+  }) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          if (showBadge)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

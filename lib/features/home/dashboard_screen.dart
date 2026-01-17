@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../services/market_service.dart';
+import '../../services/badge_service.dart';
 import '../cart/cart_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
@@ -222,25 +223,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             return const SizedBox();
                           },
                         ),
-                        // Notifikasi
-                        _buildHeaderIconNew(
-                          context,
-                          LucideIcons.bell,
-                          const NotificationScreen(),
+                        // Notifikasi dengan badge
+                        StreamBuilder<bool>(
+                          stream: BadgeService().getNotificationBadgeStream(),
+                          builder: (context, snapshot) {
+                            final showBadge = snapshot.data ?? false;
+                            return _buildHeaderIconWithBadge(
+                              context,
+                              LucideIcons.bell,
+                              const NotificationScreen(),
+                              showBadge: showBadge,
+                            );
+                          },
                         ),
                         const SizedBox(width: 8),
-                        // Chat
-                        _buildHeaderIconNew(
-                          context,
-                          LucideIcons.messageSquare,
-                          const ChatScreen(),
+                        // Chat dengan badge
+                        StreamBuilder<bool>(
+                          stream: BadgeService().getChatBadgeStream(),
+                          builder: (context, snapshot) {
+                            final showBadge = snapshot.data ?? false;
+                            return _buildHeaderIconWithBadge(
+                              context,
+                              LucideIcons.messageSquare,
+                              const ChatScreen(),
+                              showBadge: showBadge,
+                            );
+                          },
                         ),
                         const SizedBox(width: 8),
-                        // Cart
-                        _buildHeaderIconNew(
-                          context,
-                          LucideIcons.shoppingCart,
-                          CartScreen(),
+                        // Cart dengan badge
+                        StreamBuilder<bool>(
+                          stream: BadgeService().getCartBadgeStream(),
+                          builder: (context, snapshot) {
+                            final showBadge = snapshot.data ?? false;
+                            return _buildHeaderIconWithBadge(
+                              context,
+                              LucideIcons.shoppingCart,
+                              CartScreen(),
+                              showBadge: showBadge,
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -512,6 +534,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildHeaderIconWithBadge(
+    BuildContext context,
+    IconData icon,
+    Widget? destination, {
+    bool showBadge = false,
+  }) {
+    return InkWell(
+      onTap: destination != null
+          ? () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => destination),
+            )
+          : () {},
+      borderRadius: BorderRadius.circular(10),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          if (showBadge)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444), // Red-500
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
