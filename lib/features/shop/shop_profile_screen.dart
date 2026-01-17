@@ -6,10 +6,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:toastification/toastification.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../account/settings_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../chat/chat_screen.dart';
+import '../../map_picker_screen.dart';
 
 const List<String> DAYS = [
   'Senin',
@@ -69,6 +71,9 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
   List<String> selectedDays = [];
   TimeOfDay openTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay closeTime = const TimeOfDay(hour: 17, minute: 0);
+
+  double? _storeLat;
+  double? _storeLng;
 
   @override
   void initState() {
@@ -250,6 +255,8 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
       _emailController.text = businessProfile['email'];
       _yearController.text = businessProfile['established'];
       _parseSchedule(businessProfile['openingHours']);
+      _storeLat = businessProfile['storeLat'];
+      _storeLng = businessProfile['storeLng'];
     }
     setState(() => isEditing = !isEditing);
   }
@@ -266,6 +273,8 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
         'email': _emailController.text,
         'established': _yearController.text,
         'openingHours': scheduleString,
+        'storeLat': _storeLat,
+        'storeLng': _storeLng,
       }, SetOptions(merge: true));
 
       setState(() {
@@ -304,6 +313,26 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
       title: Text(msg),
       type: type,
       autoCloseDuration: const Duration(seconds: 3),
+    );
+  }
+
+  Future<void> _pickLocation() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MapPickerScreen(
+          initialLocation: (_storeLat != null && _storeLng != null)
+              ? LatLng(_storeLat!, _storeLng!)
+              : const LatLng(-6.200000, 106.816666),
+          onLocationPicked: (LatLng loc, String address) {
+            setState(() {
+              _storeLat = loc.latitude;
+              _storeLng = loc.longitude;
+              _addressController.text = address;
+            });
+          },
+        ),
+      ),
     );
   }
 
@@ -725,6 +754,12 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                       icon: LucideIcons.mapPin,
                       textColor: textColor,
                       isDark: isDark,
+                      readOnly: true,
+                      onTap: _pickLocation,
+                      suffixIcon: IconButton(
+                        icon: const Icon(LucideIcons.map),
+                        onPressed: _pickLocation,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _buildEditInput(
@@ -1074,56 +1109,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
           ],
         ),
       ),
-      floatingActionButton: isMyProfile
-          ? Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [primaryColor, primaryColor.withOpacity(0.8)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryColor.withOpacity(0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    // TODO: Navigasi ke halaman tambah produk
-                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const AddProductScreen()));
-                    _showToast("Fitur Tambah Produk", ToastificationType.info);
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 14,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(LucideIcons.plus, color: Colors.white, size: 22),
-                        SizedBox(width: 10),
-                        Text(
-                          "Tambah Produk",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            )
-          : null,
+      floatingActionButton: null,
     );
   }
 
@@ -1374,10 +1360,15 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
     String? placeholder,
     required Color textColor,
     required bool isDark,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    Widget? suffixIcon,
   }) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
+      readOnly: readOnly,
+      onTap: onTap,
       style: TextStyle(fontSize: 13, color: textColor),
       decoration: InputDecoration(
         labelText: label,
@@ -1388,6 +1379,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
         prefixIcon: icon != null
             ? Icon(icon, size: 16, color: Colors.grey)
             : null,
+        suffixIcon: suffixIcon,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
