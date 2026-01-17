@@ -19,8 +19,8 @@
 
 ## 👥 Tim Pengembang (Kelompok 2)
 
-| Nama                      | NIM            |
-| :------------------------ | :------------- |
+| Nama                            | NIM            |
+| :------------------------------ | :------------- |
 | **Adam Haritsa Thahara**  | A11.2024.15556 |
 | **Angela Echa Naresti**   | A11.2024.15791 |
 | **Farros Rifantiarno R.** | A11.2024.15694 |
@@ -55,8 +55,8 @@
 
 ### **Backend & Cloud Services (Firebase)**
 
-| Package              | Versi    | Fungsi                   |
-| :------------------- | :------- | :----------------------- |
+| Package                | Versi    | Fungsi                   |
+| :--------------------- | :------- | :----------------------- |
 | `firebase_core`      | ^3.0.0   | Inisialisasi Firebase    |
 | `firebase_auth`      | ^5.7.0   | Autentikasi pengguna     |
 | `cloud_firestore`    | ^5.6.12  | Database NoSQL real-time |
@@ -66,15 +66,15 @@
 
 ### **State Management**
 
-| Package    | Versi   | Fungsi               |
-| :--------- | :------ | :------------------- |
+| Package      | Versi   | Fungsi               |
+| :----------- | :------ | :------------------- |
 | `provider` | ^6.1.2  | State management     |
 | `rxdart`   | ^0.28.0 | Reactive programming |
 
 ### **UI & Styling**
 
-| Package                | Versi    | Fungsi              |
-| :--------------------- | :------- | :------------------ |
+| Package                  | Versi    | Fungsi              |
+| :----------------------- | :------- | :------------------ |
 | `google_fonts`         | ^6.2.1   | Tipografi modern    |
 | `lucide_icons`         | ^0.257.0 | Icon set modern     |
 | `cupertino_icons`      | ^1.0.8   | iOS-style icons     |
@@ -83,16 +83,16 @@
 
 ### **Maps & Location**
 
-| Package               | Versi   | Fungsi                       |
-| :-------------------- | :------ | :--------------------------- |
+| Package                 | Versi   | Fungsi                       |
+| :---------------------- | :------ | :--------------------------- |
 | `google_maps_flutter` | ^2.5.0  | Tampilan peta interaktif     |
 | `geolocator`          | ^10.1.0 | Akses GPS device             |
 | `geocoding`           | ^2.1.1  | Konversi koordinat ke alamat |
 
 ### **Utilities**
 
-| Package              | Versi   | Fungsi                     |
-| :------------------- | :------ | :------------------------- |
+| Package                | Versi   | Fungsi                     |
+| :--------------------- | :------ | :------------------------- |
 | `intl`               | ^0.19.0 | Format tanggal & mata uang |
 | `image_picker`       | ^1.2.1  | Upload foto produk/profil  |
 | `url_launcher`       | ^6.2.5  | Buka link eksternal        |
@@ -101,8 +101,8 @@
 
 ### **Media**
 
-| Package        | Versi  | Fungsi          |
-| :------------- | :----- | :-------------- |
+| Package          | Versi  | Fungsi          |
+| :--------------- | :----- | :-------------- |
 | `video_player` | ^2.8.1 | Pemutar video   |
 | `chewie`       | ^1.7.1 | Video player UI |
 
@@ -128,13 +128,11 @@ Pastikan Anda telah menginstall:
    git clone https://github.com/Elnathz/BangkitUsahaFLutter.git
    cd BangkitUsahaFLutter
    ```
-
 2. **Install Dependencies**
 
    ```bash
    flutter pub get
    ```
-
 3. **Konfigurasi Firebase**
 
    Pastikan file `lib/firebase_options.dart` sudah terkonfigurasi dengan project Firebase Anda.
@@ -145,7 +143,6 @@ Pastikan Anda telah menginstall:
    dart pub global activate flutterfire_cli
    flutterfire configure
    ```
-
 4. **Konfigurasi Google Maps API Key**
 
    <details>
@@ -300,8 +297,8 @@ lib/
 
 Aplikasi ini menggunakan beberapa layanan API internal yang terhubung dengan Firebase:
 
-| Service                 | File                                     | Deskripsi                                  |
-| :---------------------- | :--------------------------------------- | :----------------------------------------- |
+| Service                       | File                                       | Deskripsi                                  |
+| :---------------------------- | :----------------------------------------- | :----------------------------------------- |
 | **MarketService**       | `lib/services/market_service.dart`       | CRUD produk, manajemen toko, dan transaksi |
 | **FinanceService**      | `lib/services/finance_service.dart`      | Pencatatan pemasukan & pengeluaran         |
 | **ChatService**         | `lib/services/chat_service.dart`         | Pengiriman & penerimaan pesan              |
@@ -316,14 +313,6 @@ Aplikasi ini menggunakan beberapa layanan API internal yang terhubung dengan Fir
 - **Firebase Storage** - Upload gambar produk & profil
 - **Google Maps API** - Tampilan peta & geocoding
 - **Firebase Cloud Messaging** - Push notifications
-
----
-
-## 📄 Lisensi
-
-Project ini dilisensikan di bawah [MIT License](LICENSE).
-
----
 
 <p align="center">
   <sub>Dibuat dengan ❤️ oleh Kelompok 2 menggunakan Flutter</sub>
