@@ -11,6 +11,7 @@ import 'search_page.dart';
 import 'product_detail_screen.dart';
 import '../../services/notification_service.dart';
 import '../account/order_history_screen.dart';
+import '../home/store_profile_screen.dart'; // Import halaman toko baru
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -591,6 +592,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     int stock = (item['stock'] ?? 0).toInt();
     double rating = (item['rating'] ?? 0).toDouble();
     int totalSold = item['sold'] ?? item['totalSold'] ?? 0;
+    String sellerId = item['uid'] ?? item['sellerId'] ?? ''; // Prioritaskan uid
 
     return Container(
       decoration: BoxDecoration(
@@ -674,23 +676,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Seller with verified icon
-                Row(
-                  children: [
-                    Icon(
-                      LucideIcons.checkCircle,
-                      size: 12,
-                      color: const Color(0xFF10B981), // Emerald-500
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        "UMKM Mitra",
-                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                GestureDetector(
+                  onTap: () {
+                    // Navigasi ke Profil Toko saat nama penjual diklik
+                    if (sellerId.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => StoreProfileScreen(
+                            sellerId: sellerId,
+                            sellerName:
+                                "UMKM Mitra", // Bisa diganti nama toko asli jika ada di data produk
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      Icon(
+                        LucideIcons
+                            .store, // Ganti icon jadi toko agar lebih jelas
+                        size: 12,
+                        color: const Color(0xFF1976D2), // Blue
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          "Kunjungi Toko", // Ubah teks agar user tahu bisa diklik
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: const Color(0xFF1976D2),
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration
+                                .underline, // Garis bawah agar terlihat seperti link
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 4),
                 // Product Name

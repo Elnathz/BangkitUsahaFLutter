@@ -10,7 +10,7 @@ import '../inventory/checkout_screen.dart'; // Pastikan path relatifnya benar se
 import '../../services/market_service.dart';
 import '../chat/chat_detail_screen.dart';
 import 'product_reviews_screen.dart';
-import '../shop/shop_profile_screen.dart';
+import 'store_profile_screen.dart';
 // --- IMPORT CHECKOUT SCREEN (duplicate removal) ---
 // duplicate import removed
 
@@ -494,8 +494,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) =>
-                                            ShopProfileScreen(shopId: ownerUid),
+                                        builder: (context) => StoreProfileScreen(
+                                          sellerId: ownerUid,
+                                          sellerName: shopName,
+                                        ),
                                       ),
                                     );
                                   } else {
@@ -508,13 +510,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 },
                                 borderRadius: BorderRadius.circular(12),
                                 child: Container(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(color: Colors.white.withOpacity(0.2)),
                                   ),
-                                  child: const Icon(LucideIcons.externalLink, color: Colors.white, size: 20),
+                                  child: const Text(
+                                    "Kunjungi",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
