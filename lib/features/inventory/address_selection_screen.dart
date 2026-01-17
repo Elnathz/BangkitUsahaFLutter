@@ -200,6 +200,10 @@ class _AddressSelectionScreenState extends State<AddressSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text("Pilih Alamat Pengiriman"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,

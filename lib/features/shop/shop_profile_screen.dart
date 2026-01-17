@@ -384,6 +384,24 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          // Back Button for Owner (styled like settings button)
+                          if (isMyProfile)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: InkWell(
+                                onTap: () => Navigator.pop(context),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                                  ),
+                                  child: const Icon(LucideIcons.arrowLeft, color: Colors.white, size: 20),
+                                ),
+                              ),
+                            ),
                           // Avatar with Badge
                           Stack(
                             children: [
@@ -503,15 +521,12 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                                         color: Colors.white,
                                       ),
                                       const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          businessProfile['owner'],
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
+                                      Text(
+                                        businessProfile['owner'],
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ],
@@ -549,140 +564,142 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
 
             const SizedBox(height: 24),
 
-            // 2. STATS GRID (DIPERBAIKI DENGAN FITTEDBOX & FLEXIBLE)
+            // 2. STATS GRID (2x2 Layout like profile_screen.dart)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
+              child: Column(
                 children: [
-                  _buildStatCard(
-                    "Penjualan",
-                    "${businessProfile['totalSales']}",
-                    LucideIcons.award,
-                    cardColor,
-                    textColor,
-                    primaryColor,
+                  Row(
+                    children: [
+                      _buildStatCardNew(
+                        "Penjualan",
+                        "${businessProfile['totalSales']}",
+                        LucideIcons.trendingUp,
+                        Colors.blue,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildStatCardNew(
+                        "Rating Toko",
+                        "${businessProfile['rating']}",
+                        LucideIcons.star,
+                        Colors.amber,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  _buildStatCard(
-                    "Rating",
-                    "${businessProfile['rating']}",
-                    LucideIcons.star,
-                    cardColor,
-                    textColor,
-                    primaryColor,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildStatCard(
-                    "Ulasan",
-                    "${businessProfile['totalReviews']}",
-                    LucideIcons.messageSquare,
-                    cardColor,
-                    textColor,
-                    primaryColor,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildStatCard(
-                    "Interaksi",
-                    "$totalAllInteractions",
-                    LucideIcons.users,
-                    cardColor,
-                    textColor,
-                    primaryColor,
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _buildStatCardNew(
+                        "Ulasan Toko",
+                        "${businessProfile['totalReviews']}",
+                        LucideIcons.messageCircle,
+                        Colors.purple,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildStatCardNew(
+                        "Total Ulasan",
+                        "$totalAllInteractions",
+                        LucideIcons.users,
+                        Colors.green,
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
 
-            // 3. INFORMASI BISNIS
+            // 3. INFORMASI BISNIS (matching profile_screen.dart style)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
-                    blurRadius: 2,
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Informasi Bisnis",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Informasi Bisnis",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF111827),
+                          ),
                         ),
-                      ),
-                      // Tombol Edit hanya jika profil sendiri
-                      if (isMyProfile)
-                        isEditing
-                            ? Row(
-                                children: [
-                                  InkWell(
-                                    onTap: _toggleEdit,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.withOpacity(0.1),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        LucideIcons.x,
-                                        size: 16,
-                                        color: Colors.red,
+                        // Tombol Edit hanya jika profil sendiri
+                        if (isMyProfile)
+                          isEditing
+                              ? Row(
+                                  children: [
+                                    InkWell(
+                                      onTap: _toggleEdit,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          LucideIcons.x,
+                                          size: 16,
+                                          color: Colors.red,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton.icon(
-                                    onPressed: isSaving ? null : _handleSave,
-                                    icon: isSaving
-                                        ? const SizedBox(
-                                            width: 12,
-                                            height: 12,
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white,
-                                              strokeWidth: 2,
+                                    const SizedBox(width: 8),
+                                    ElevatedButton.icon(
+                                      onPressed: isSaving ? null : _handleSave,
+                                      icon: isSaving
+                                          ? const SizedBox(
+                                              width: 12,
+                                              height: 12,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Icon(
+                                              LucideIcons.save,
+                                              size: 14,
                                             ),
-                                          )
-                                        : const Icon(
-                                            LucideIcons.save,
-                                            size: 14,
-                                          ),
-                                    label: const Text(
-                                      "Simpan",
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green[600],
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 8,
+                                      label: const Text(
+                                        "Simpan",
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF10B981),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
                                       ),
                                     ),
+                                  ],
+                                )
+                              : TextButton.icon(
+                                  onPressed: _toggleEdit,
+                                  icon: const Icon(LucideIcons.edit2, size: 14),
+                                  label: const Text("Edit"),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: const Color(0xFF2563EB),
                                   ),
-                                ],
-                              )
-                            : TextButton.icon(
-                                onPressed: _toggleEdit,
-                                icon: const Icon(LucideIcons.edit2, size: 14),
-                                label: const Text("Edit"),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: primaryColor,
                                 ),
-                              ),
-                    ],
-                  ),
+                      ],
+                    ),
                   const SizedBox(height: 16),
 
                   if (isEditing) ...[
@@ -892,6 +909,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                 ],
               ),
             ),
+          ),
 
             const SizedBox(height: 16),
 
@@ -1182,32 +1200,118 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
     );
   }
 
+  // --- NEW STAT CARD MATCHING PROFILE_SCREEN.DART ---
+  Widget _buildStatCardNew(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [color.withOpacity(0.8), color],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Icon(icon, color: Colors.white, size: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[900],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDescriptionView(bool isDark) {
-    bool isEmpty =
-        businessProfile['description'] == null ||
-        businessProfile['description'].isEmpty;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white10 : Colors.brown[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isDark ? Colors.transparent : Colors.brown[100]!,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 6, left: 4),
+          child: Text(
+            "Nama Toko dan Deskripsi",
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
-      ),
-      child: Text(
-        isEmpty
-            ? "Deskripsi toko belum diisi."
-            : businessProfile['description'],
-        style: TextStyle(
-          fontSize: 13,
-          color: isEmpty
-              ? Colors.grey[400]
-              : (isDark ? Colors.grey[300] : Colors.black87),
-          fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                businessProfile['name'] ?? "",
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                businessProfile['description'].isNotEmpty
+                    ? businessProfile['description']
+                    : "Deskripsi toko belum diisi",
+                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+              ),
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -1218,24 +1322,40 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
     Color text,
     Color labelColor,
   ) {
+    if (value.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: labelColor),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: Colors.grey[600]),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 11, color: labelColor)),
                 Text(
-                  value.isEmpty ? "-" : value,
+                  label,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
+                    color: Colors.grey[500],
                     fontWeight: FontWeight.w500,
-                    color: text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[900],
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
