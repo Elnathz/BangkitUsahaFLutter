@@ -123,8 +123,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     // Ambil koordinat toko dari item pertama (asumsi satu toko per checkout)
     // Pastikan data item memiliki 'storeLat' dan 'storeLng'
-    double storeLat = (widget.items.first['storeLat'] ?? -6.200000).toDouble();
-    double storeLng = (widget.items.first['storeLng'] ?? 106.816666).toDouble();
+    double storeLat = (widget.items.first['storeLat'] ?? widget.items.first['lat'] ?? -6.200000).toDouble();
+    double storeLng = (widget.items.first['storeLng'] ?? widget.items.first['lng'] ?? 106.816666).toDouble();
 
     double distance = ShippingCalculator.calculateDistance(
       _userLocation!.latitude,
@@ -145,8 +145,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     int total = 0;
     for (var entry in groupedItems.entries) {
       final sellerItems = entry.value;
-      double storeLat = (sellerItems.first['storeLat'] ?? -6.200000).toDouble();
-      double storeLng = (sellerItems.first['storeLng'] ?? 106.816666)
+      double storeLat = (sellerItems.first['storeLat'] ?? sellerItems.first['lat'] ?? -6.200000).toDouble();
+      double storeLng = (sellerItems.first['storeLng'] ?? sellerItems.first['lng'] ?? 106.816666)
           .toDouble();
       double distance = ShippingCalculator.calculateDistance(
         _userLocation!.latitude,
@@ -195,9 +195,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         // Calculate shipping for this seller (based on first store coordinates)
         int sellerShipping = 0;
         if (_userLocation != null) {
-          double storeLat = (sellerItems.first['storeLat'] ?? -6.200000)
+          double storeLat = (sellerItems.first['storeLat'] ?? sellerItems.first['lat'] ?? -6.200000)
               .toDouble();
-          double storeLng = (sellerItems.first['storeLng'] ?? 106.816666)
+          double storeLng = (sellerItems.first['storeLng'] ?? sellerItems.first['lng'] ?? 106.816666)
               .toDouble();
           double distance = ShippingCalculator.calculateDistance(
             _userLocation!.latitude,
@@ -449,6 +449,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Rincian Total Harga Barang
+                      Text(
+                        "Total Harga: ${currencyFormat.format(widget.totalPrice)}",
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      // Rincian Total Ongkir (BARU)
+                      if (_computeTotalShipping(groupedItems) > 0)
+                        Text(
+                          "Total Ongkir: ${currencyFormat.format(_computeTotalShipping(groupedItems))}",
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      const SizedBox(height: 4),
                       const Text(
                         "Total (+Ongkir)",
                         style: TextStyle(fontSize: 12, color: Colors.grey),
@@ -464,14 +476,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           color: Color(0xFF1565C0),
                         ),
                       ),
-                      if (_computeTotalShipping(groupedItems) > 0)
-                        Text(
-                          "(Ongkir: ${currencyFormat.format(_computeTotalShipping(groupedItems))})",
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey,
-                          ),
-                        ),
                     ],
                   ),
                 ),
