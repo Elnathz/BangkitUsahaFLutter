@@ -1366,8 +1366,8 @@ class _ProductsScreenState extends State<ProductsScreen>
 
             // KONTEN KANAN
             Expanded(
-              child: SizedBox(
-                height: 100, // Match image height
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 100),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1495,7 +1495,6 @@ class _ProductsScreenState extends State<ProductsScreen>
                       ),
 
                     // Footer: Price and Stock (Always at bottom)
-                    const Spacer(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
