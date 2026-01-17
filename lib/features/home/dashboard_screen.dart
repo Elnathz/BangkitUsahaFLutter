@@ -29,7 +29,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // Pagination state
   final ScrollController _scrollController = ScrollController();
-  int _displayedProductCount = 999; // Show all products initially
+  int _displayedProductCount = 4; // Show 4 products initially
   bool _isLoadingMore = false;
   int _totalAvailableProducts = 0; // Track total available products
 
@@ -48,7 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _onScroll() {
     // Check if we're near the bottom (within 300 pixels)
-    if (_scrollController.position.pixels >= 
+    if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 300) {
       // Only load more if there are more products to show
       if (_displayedProductCount < _totalAvailableProducts) {
@@ -66,7 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
           setState(() {
-            _displayedProductCount += 6; // Load 6 more products
+            _displayedProductCount += 4; // Load 4 more products per scroll
             _isLoadingMore = false;
           });
         }
@@ -103,15 +103,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               // HEADER dengan SEARCH BAR terintegrasi
               Container(
-                padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 16, 16, 20),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  MediaQuery.of(context).padding.top + 16,
+                  16,
+                  20,
+                ),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF1976D2),
-                      Color(0xFF0D47A1),
-                    ],
+                    colors: [Color(0xFF1976D2), Color(0xFF0D47A1)],
                   ),
                   borderRadius: BorderRadius.only(
                     bottomLeft: Radius.circular(24),
@@ -183,14 +185,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       as Map<String, dynamic>;
                               if (userData['role'] == 'seller') {
                                 return StreamBuilder<QuerySnapshot>(
-                                  stream: MarketService()
-                                      .getIncomingOrders(),
+                                  stream: MarketService().getIncomingOrders(),
                                   builder: (context, orderSnapshot) {
                                     int incomingCount = 0;
                                     if (orderSnapshot.hasData) {
-                                      incomingCount = orderSnapshot
-                                          .data!
-                                          .docs
+                                      incomingCount = orderSnapshot.data!.docs
                                           .where((doc) {
                                             final status =
                                                 (doc.data()
@@ -279,7 +278,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               child: const Icon(
                                 LucideIcons.shoppingBag,
                                 size: 24,
-                                color: Color(0xFF1976D2), // Blue (sama dengan header)
+                                color: Color(
+                                  0xFF1976D2,
+                                ), // Blue (sama dengan header)
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -315,7 +316,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       stream: MarketService().getAvailableProducts(),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
 
                         final allProducts = snapshot.data!.docs;
@@ -328,9 +331,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                         // Update total available products for pagination
                         WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (_totalAvailableProducts != otherShopProducts.length) {
+                          if (_totalAvailableProducts !=
+                              otherShopProducts.length) {
                             setState(() {
-                              _totalAvailableProducts = otherShopProducts.length;
+                              _totalAvailableProducts =
+                                  otherShopProducts.length;
                             });
                           }
                         });
@@ -358,8 +363,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         }
 
                         // Calculate displayed count
-                        final displayCount = _displayedProductCount < otherShopProducts.length 
-                            ? _displayedProductCount 
+                        final displayCount =
+                            _displayedProductCount < otherShopProducts.length
+                            ? _displayedProductCount
                             : otherShopProducts.length;
                         final hasMore = displayCount < otherShopProducts.length;
 
@@ -376,7 +382,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     crossAxisSpacing: 16,
                                     mainAxisSpacing: 16,
                                   ),
-                              itemCount: otherShopProducts.length,
+                              itemCount: displayCount,
                               itemBuilder: (context, index) {
                                 final doc = otherShopProducts[index];
                                 final data = doc.data() as Map<String, dynamic>;
@@ -387,10 +393,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => ProductDetailScreen(
-                                          productData: data,
-                                          productId: id,
-                                        ),
+                                        builder: (context) =>
+                                            ProductDetailScreen(
+                                              productData: data,
+                                              productId: id,
+                                            ),
                                       ),
                                     );
                                   },
@@ -406,7 +413,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             // Loading indicator
                             if (_isLoadingMore || hasMore)
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 child: _isLoadingMore
                                     ? const CircularProgressIndicator()
                                     : Text(
@@ -472,10 +481,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFEF4444), // Red-500
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 2,
-                  ),
+                  border: Border.all(color: Colors.white, width: 2),
                 ),
               ),
             ),
@@ -541,17 +547,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               right: -4,
               child: Container(
                 padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(
-                  minWidth: 18,
-                  minHeight: 18,
-                ),
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEF4444),
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 1.5,
-                  ),
+                  border: Border.all(color: Colors.white, width: 1.5),
                 ),
                 child: Center(
                   child: Text(
@@ -625,10 +625,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        Colors.grey[200]!,
-                        Colors.grey[300]!,
-                      ],
+                      colors: [Colors.grey[200]!, Colors.grey[300]!],
                     ),
                     image: DecorationImage(
                       image: NetworkImage(image),
@@ -648,10 +645,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.95),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: Colors.grey[200]!,
-                        width: 1,
-                      ),
+                      border: Border.all(color: Colors.grey[200]!, width: 1),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.1),
@@ -741,10 +735,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(width: 8),
                     Text(
                       "• Terjual $totalSold",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[500],
-                      ),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                     ),
                   ],
                 ),
