@@ -391,7 +391,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       : null,
                                 ),
                               ),
-                              title: Text(item['name'] ?? "Produk"),
+                              title: Text(
+                                item['name'] ?? "Produk",
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [

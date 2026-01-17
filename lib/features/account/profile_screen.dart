@@ -571,10 +571,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 40), // Kurangi padding horizontal
+          child: Column(
             children: [
+              // 1. Action Buttons Row (Top Right)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  StreamBuilder<bool>(
+                    stream: BadgeService().getNotificationBadgeStream(),
+                    builder: (context, snapshot) {
+                      final showBadge = snapshot.data ?? false;
+                      return _buildActionButtonWithBadge(
+                        context,
+                        LucideIcons.bell,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationScreen(),
+                          ),
+                        ),
+                        showBadge: showBadge,
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  StreamBuilder<bool>(
+                    stream: BadgeService().getChatBadgeStream(),
+                    builder: (context, snapshot) {
+                      final showBadge = snapshot.data ?? false;
+                      return _buildActionButtonWithBadge(
+                        context,
+                        LucideIcons.messageSquare,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ChatScreen()),
+                        ),
+                        showBadge: showBadge,
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  _buildActionButton(
+                    context,
+                    LucideIcons.settings,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // 2. Profile Info Row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
               // Avatar with Badge
               Stack(
                 alignment: Alignment.center,
@@ -644,7 +696,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12), // Kurangi jarak avatar ke teks
 
               // Name and Role
               Expanded(
@@ -711,52 +763,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
-
-              // Action Buttons
-              Row(
-                children: [
-                  StreamBuilder<bool>(
-                    stream: BadgeService().getNotificationBadgeStream(),
-                    builder: (context, snapshot) {
-                      final showBadge = snapshot.data ?? false;
-                      return _buildActionButtonWithBadge(
-                        context,
-                        LucideIcons.bell,
-                        () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const NotificationScreen(),
-                          ),
-                        ),
-                        showBadge: showBadge,
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  StreamBuilder<bool>(
-                    stream: BadgeService().getChatBadgeStream(),
-                    builder: (context, snapshot) {
-                      final showBadge = snapshot.data ?? false;
-                      return _buildActionButtonWithBadge(
-                        context,
-                        LucideIcons.messageSquare,
-                        () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const ChatScreen()),
-                        ),
-                        showBadge: showBadge,
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  _buildActionButton(
-                    context,
-                    LucideIcons.settings,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    ),
-                  ),
                 ],
               ),
             ],
@@ -775,7 +781,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(8), // Kurangi padding tombol (lebih compact)
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(12),
@@ -799,7 +805,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         clipBehavior: Clip.none,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8), // Kurangi padding tombol
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
@@ -863,7 +869,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16), // Kurangi padding container
             child: Column(
               children: [
                 Row(
@@ -1093,9 +1099,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Expanded(
       child: Container(
         // Removed fixed height to prevent overflow
-        padding: const EdgeInsets.all(
-          12,
-        ), // Reduced padding for compact screens
+        padding: const EdgeInsets.all(8), // Kurangi padding stat card
         decoration: BoxDecoration(
           color: color.withOpacity(0.05),
           borderRadius: BorderRadius.circular(16),
@@ -1169,7 +1173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16), // Kurangi padding container
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1445,7 +1449,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16), // Kurangi padding container
         child: Column(
           children: [
             Row(

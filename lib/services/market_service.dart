@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -116,7 +117,8 @@ class MarketService {
     if (user == null) return "LOGIN_REQUIRED";
 
     try {
-      String orderId = "ORD-${DateTime.now().millisecondsSinceEpoch}";
+      // Generate 5 digit random number for shorter Order ID
+      String orderId = "ORD-${Random().nextInt(90000) + 10000}";
 
       // GUNAKAN BATCH AGAR BISA OFFLINE & ATOMIK
       WriteBatch batch = _firestore.batch();

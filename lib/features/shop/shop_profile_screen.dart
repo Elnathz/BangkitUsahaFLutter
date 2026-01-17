@@ -123,6 +123,8 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                 'totalReviews': data['totalReviews'] ?? 0,
                 'totalSales': data['totalSales'] ?? 0,
                 'responseRate': data['responseRate'] ?? 0,
+                'storeLat': (data['storeLat'] as num?)?.toDouble(),
+                'storeLng': (data['storeLng'] as num?)?.toDouble(),
               };
               isLoading = false;
             });
@@ -132,11 +134,54 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
         });
   }
 
+  void _viewFullProfileImage() {
+    final String imageUrl = businessProfile['image'];
+    final bool hasImage = imageUrl.isNotEmpty && imageUrl.startsWith("http");
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            title: const Text(
+              "Foto Profil",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          body: Center(
+            child: hasImage
+                ? InteractiveViewer(child: Image.network(imageUrl))
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        LucideIcons.user,
+                        size: 100,
+                        color: Colors.grey[700],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Tidak ada foto profil",
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleImageUpload() async {
     if (!isMyProfile) return; // Hanya pemilik yang bisa upload
 
     if (!ConnectivityService().hasConnection) {
-      _showToast("Perlu koneksi internet untuk ganti foto", ToastificationType.warning);
+      _showToast(
+        "Perlu koneksi internet untuk ganti foto",
+        ToastificationType.warning,
+      );
       return;
     }
 
@@ -174,7 +219,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
     }
   }
 
-  // --- LOGIC JADWAL (Sama seperti sebelumnya) ---
+  // --- LOGIC JADWAL ---
   void _parseSchedule(String scheduleString) {
     if (scheduleString.isEmpty) return;
     try {
@@ -363,249 +408,15 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
     final labelColor = isDark ? Colors.white70 : Colors.grey[600]!;
     final primaryColor = theme.primaryColor;
 
-    String displayName = businessProfile['name'];
-    if (displayName.isEmpty) displayName = "Toko Tanpa Nama";
-    String image = businessProfile['image'];
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                     Color(0xFF1976D2),
-                     Color(0xFF0D47A1),
-                  ],
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-                  child: Column(
-                    children: [
-                       // Back Button for Visitor
-                       if (!isMyProfile)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: InkWell(
-                              onTap: () => Navigator.pop(context),
-                              borderRadius: BorderRadius.circular(50),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.arrow_back, color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Back Button for Owner (styled like settings button)
-                          if (isMyProfile)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 12),
-                              child: InkWell(
-                                onTap: () => Navigator.pop(context),
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.white.withOpacity(0.2)),
-                                  ),
-                                  child: const Icon(LucideIcons.arrowLeft, color: Colors.white, size: 20),
-                                ),
-                              ),
-                            ),
-                          // Avatar with Badge
-                          Stack(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: CircleAvatar(
-                                  radius: 35,
-                                  backgroundColor: Colors.white,
-                                  child: CircleAvatar(
-                                    radius: 32,
-                                    backgroundColor: Colors.grey[200],
-                                    backgroundImage: (image != "" && image.startsWith("http"))
-                                        ? NetworkImage(image)
-                                        : null,
-                                    child: (image == "" || !image.startsWith("http"))
-                                        ? Text(
-                                            displayName.isNotEmpty
-                                                ? displayName[0].toUpperCase()
-                                                : "?",
-                                            style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF1976D2),
-                                            ),
-                                          )
-                                        : null,
-                                  ),
-                                ),
-                              ),
-                              if (isMyProfile)
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: GestureDetector(
-                                    onTap: _handleImageUpload,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF10B981), // Emerald
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.white, width: 2),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.2),
-                                            blurRadius: 4,
-                                          ),
-                                        ],
-                                      ),
-                                      child: isUploading
-                                          ? const SizedBox(
-                                              width: 12,
-                                              height: 12,
-                                              child: CircularProgressIndicator(
-                                                color: Colors.white,
-                                                strokeWidth: 2,
-                                              ),
-                                            )
-                                          : const Icon(
-                                              LucideIcons.camera,
-                                              size: 14,
-                                              color: Colors.white,
-                                            ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(width: 16),
-                          
-                          // Name and Role
-                          Expanded(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  displayName,
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  businessProfile['description'].isNotEmpty 
-                                      ? businessProfile['description'] 
-                                      : "Deskripsi toko belum diisi",
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: Colors.white.withOpacity(0.3)),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        LucideIcons.store,
-                                        size: 12,
-                                        color: Colors.white,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        businessProfile['owner'],
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-            
-                          // Action Buttons (Settings Only)
-                          if (isMyProfile)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8),
-                              child: InkWell(
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.white.withOpacity(0.2)),
-                                  ),
-                                  child: const Icon(LucideIcons.settings, color: Colors.white, size: 20),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
+            _buildHeader(context),
             const SizedBox(height: 24),
 
-            // 2. STATS GRID (2x2 Layout like profile_screen.dart)
+            // 2. STATS GRID
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -650,7 +461,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 3. INFORMASI BISNIS (matching profile_screen.dart style)
+            // 3. INFORMASI BISNIS
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
@@ -665,7 +476,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                 ],
               ),
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -680,7 +491,6 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                             color: Color(0xFF111827),
                           ),
                         ),
-                        // Tombol Edit hanya jika profil sendiri
                         if (isMyProfile)
                           isEditing
                               ? Row(
@@ -721,7 +531,9 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                                         style: TextStyle(fontSize: 12),
                                       ),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF10B981),
+                                        backgroundColor: const Color(
+                                          0xFF10B981,
+                                        ),
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 12,
@@ -741,226 +553,223 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
                                 ),
                       ],
                     ),
-                  const SizedBox(height: 16),
-
-                  if (isEditing) ...[
-                    // FORM EDIT
-                    _buildEditInput(
-                      "Nama Toko",
-                      _nameController,
-                      textColor: textColor,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildEditInput(
-                      "Deskripsi",
-                      _descController,
-                      maxLines: 3,
-                      textColor: textColor,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildEditInput(
-                      "Alamat",
-                      _addressController,
-                      icon: LucideIcons.mapPin,
-                      textColor: textColor,
-                      isDark: isDark,
-                      readOnly: true,
-                      onTap: _pickLocation,
-                      suffixIcon: IconButton(
-                        icon: const Icon(LucideIcons.map),
-                        onPressed: _pickLocation,
+                    const SizedBox(height: 16),
+                    if (isEditing) ...[
+                      _buildEditInput(
+                        "Nama Toko",
+                        _nameController,
+                        textColor: textColor,
+                        isDark: isDark,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildEditInput(
-                      "Telepon",
-                      _phoneController,
-                      icon: LucideIcons.phone,
-                      textColor: textColor,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildEditInput(
-                      "Email",
-                      _emailController,
-                      icon: LucideIcons.mail,
-                      textColor: textColor,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildEditInput(
-                      "Berdiri Sejak",
-                      _yearController,
-                      icon: LucideIcons.store,
-                      textColor: textColor,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white10 : Colors.brown[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isDark
-                              ? Colors.transparent
-                              : Colors.brown[100]!,
+                      const SizedBox(height: 12),
+                      _buildEditInput(
+                        "Deskripsi",
+                        _descController,
+                        maxLines: 3,
+                        textColor: textColor,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildEditInput(
+                        "Alamat",
+                        _addressController,
+                        icon: LucideIcons.mapPin,
+                        textColor: textColor,
+                        isDark: isDark,
+                        readOnly: true,
+                        onTap: _pickLocation,
+                        suffixIcon: IconButton(
+                          icon: const Icon(LucideIcons.map),
+                          onPressed: _pickLocation,
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                LucideIcons.clock,
-                                size: 16,
-                                color: labelColor,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                "Atur Jam Operasional",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                      const SizedBox(height: 12),
+                      _buildEditInput(
+                        "Telepon",
+                        _phoneController,
+                        icon: LucideIcons.phone,
+                        textColor: textColor,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildEditInput(
+                        "Email",
+                        _emailController,
+                        icon: LucideIcons.mail,
+                        textColor: textColor,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildEditInput(
+                        "Berdiri Sejak",
+                        _yearController,
+                        icon: LucideIcons.store,
+                        textColor: textColor,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : Colors.brown[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.transparent
+                                : Colors.brown[100]!,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  LucideIcons.clock,
+                                  size: 16,
                                   color: labelColor,
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: DAYS.map((day) {
-                              final isSelected = selectedDays.contains(day);
-                              return InkWell(
-                                onTap: () => _handleDayToggle(day),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? primaryColor.withOpacity(0.1)
-                                        : (isDark
-                                              ? Colors.black26
-                                              : Colors.white),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? primaryColor
-                                          : (isDark
-                                                ? Colors.transparent
-                                                : Colors.grey[300]!),
-                                    ),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    day.substring(0, 3),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: isSelected
-                                          ? primaryColor
-                                          : labelColor,
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Atur Jam Operasional",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: labelColor,
                                   ),
                                 ),
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildTimePickerButton(
-                                  "Buka",
-                                  openTime,
-                                  true,
-                                  isDark,
-                                  primaryColor,
-                                ),
-                              ),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 8),
-                                child: Text("-"),
-                              ),
-                              Expanded(
-                                child: _buildTimePickerButton(
-                                  "Tutup",
-                                  closeTime,
-                                  false,
-                                  isDark,
-                                  primaryColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Preview: ${_generateScheduleString().isEmpty ? 'Belum diatur' : _generateScheduleString()}",
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: labelColor,
-                              fontStyle: FontStyle.italic,
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: DAYS.map((day) {
+                                final isSelected = selectedDays.contains(day);
+                                return InkWell(
+                                  onTap: () => _handleDayToggle(day),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? primaryColor.withOpacity(0.1)
+                                          : (isDark
+                                                ? Colors.black26
+                                                : Colors.white),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? primaryColor
+                                            : (isDark
+                                                  ? Colors.transparent
+                                                  : Colors.grey[300]!),
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      day.substring(0, 3),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isSelected
+                                            ? primaryColor
+                                            : labelColor,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildTimePickerButton(
+                                    "Buka",
+                                    openTime,
+                                    true,
+                                    isDark,
+                                    primaryColor,
+                                  ),
+                                ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 8),
+                                  child: Text("-"),
+                                ),
+                                Expanded(
+                                  child: _buildTimePickerButton(
+                                    "Tutup",
+                                    closeTime,
+                                    false,
+                                    isDark,
+                                    primaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Preview: ${_generateScheduleString().isEmpty ? 'Belum diatur' : _generateScheduleString()}",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: labelColor,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ] else ...[
-                    // VIEW MODE
-                    _buildDescriptionView(isDark),
-                    const SizedBox(height: 20),
-                    _buildInfoRow(
-                      LucideIcons.mapPin,
-                      "Alamat",
-                      businessProfile['address'],
-                      textColor,
-                      labelColor,
-                    ),
-                    _buildInfoRow(
-                      LucideIcons.phone,
-                      "Telepon",
-                      businessProfile['phone'],
-                      textColor,
-                      labelColor,
-                    ),
-                    _buildInfoRow(
-                      LucideIcons.mail,
-                      "Email",
-                      businessProfile['email'],
-                      textColor,
-                      labelColor,
-                    ),
-                    _buildInfoRow(
-                      LucideIcons.clock,
-                      "Jam Operasional",
-                      businessProfile['openingHours'],
-                      textColor,
-                      labelColor,
-                    ),
-                    _buildInfoRow(
-                      LucideIcons.store,
-                      "Berdiri Sejak",
-                      businessProfile['established'],
-                      textColor,
-                      labelColor,
-                    ),
+                    ] else ...[
+                      _buildDescriptionView(isDark),
+                      const SizedBox(height: 20),
+                      _buildInfoRow(
+                        LucideIcons.mapPin,
+                        "Alamat",
+                        businessProfile['address'],
+                        textColor,
+                        labelColor,
+                      ),
+                      _buildInfoRow(
+                        LucideIcons.phone,
+                        "Telepon",
+                        businessProfile['phone'],
+                        textColor,
+                        labelColor,
+                      ),
+                      _buildInfoRow(
+                        LucideIcons.mail,
+                        "Email",
+                        businessProfile['email'],
+                        textColor,
+                        labelColor,
+                      ),
+                      _buildInfoRow(
+                        LucideIcons.clock,
+                        "Jam Operasional",
+                        businessProfile['openingHours'],
+                        textColor,
+                        labelColor,
+                      ),
+                      _buildInfoRow(
+                        LucideIcons.store,
+                        "Berdiri Sejak",
+                        businessProfile['established'],
+                        textColor,
+                        labelColor,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
-          ),
 
             const SizedBox(height: 16),
 
-            // 4. LIST ULASAN (Realtime)
+            // 4. LIST ULASAN
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
@@ -1121,84 +930,247 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
           ],
         ),
       ),
-      floatingActionButton: null,
     );
   }
 
-  Widget _buildHeaderIcon(
-    BuildContext context,
-    IconData icon,
-    Widget destination,
-  ) {
-    return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => destination),
-      ),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
-        ),
-        child: Icon(icon, color: Colors.white, size: 20),
-      ),
-    );
-  }
+  Widget _buildHeader(BuildContext context) {
+    String displayName = businessProfile['name'];
+    if (displayName.isEmpty) displayName = "Toko Tanpa Nama";
+    String image = businessProfile['image'];
 
-  // --- WIDGET STAT CARD YANG SUDAH DIPERBAIKI ---
-  Widget _buildStatCard(
-    String label,
-    String value,
-    IconData icon,
-    Color bg,
-    Color text,
-    Color iconColor,
-  ) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4),
-          ],
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1976D2), Color(0xFF0D47A1)],
         ),
-        child: Column(
-          children: [
-            Icon(icon, size: 18, color: iconColor),
-            const SizedBox(height: 4),
-            // PERBAIKAN: Gunakan FittedBox agar teks panjang tidak error
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                label,
-                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
+          child: Column(
+            children: [
+              // 1. Top Navigation Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Back Button
+                  InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                        ),
+                      ),
+                      child: const Icon(
+                        LucideIcons.arrowLeft,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  // Settings Button
+                  if (isMyProfile)
+                    InkWell(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
+                          ),
+                        ),
+                        child: const Icon(
+                          LucideIcons.settings,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 40),
+                ],
               ),
-            ),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                value == "0" ? "-" : value,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: text,
-                ),
-                textAlign: TextAlign.center,
+              const SizedBox(height: 16),
+              // 2. Profile Info
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Avatar
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: _viewFullProfileImage,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: CircleAvatar(
+                            radius: 35,
+                            backgroundColor: Colors.white,
+                            child: CircleAvatar(
+                              radius: 32,
+                              backgroundColor: Colors.grey[200],
+                              backgroundImage:
+                                  (image != "" && image.startsWith("http"))
+                                  ? NetworkImage(image)
+                                  : null,
+                              child: (image == "" || !image.startsWith("http"))
+                                  ? const Icon(
+                                      LucideIcons.user,
+                                      color: Colors.grey,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (isMyProfile)
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: GestureDetector(
+                            onTap: _handleImageUpload,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: isUploading
+                                  ? const SizedBox(
+                                      width: 12,
+                                      height: 12,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      LucideIcons.camera,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  // Text Info
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayName,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          businessProfile['description'].isNotEmpty
+                              ? businessProfile['description']
+                              : "Deskripsi toko belum diisi",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                LucideIcons.store,
+                                size: 12,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                businessProfile['owner'],
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // --- NEW STAT CARD MATCHING PROFILE_SCREEN.DART ---
   Widget _buildStatCardNew(
     String label,
     String value,
@@ -1207,7 +1179,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
   ) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: color.withOpacity(0.05),
           borderRadius: BorderRadius.circular(16),

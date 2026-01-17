@@ -374,16 +374,23 @@ class _StoreProfileScreenState extends State<StoreProfileScreen> with SingleTick
                 child: const Icon(LucideIcons.user, size: 14, color: Colors.grey),
               ),
               const SizedBox(width: 8),
-              Text(user, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              const Spacer(),
+              Expanded(
+                child: Text(
+                  user,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               Text(date, style: TextStyle(color: Colors.grey[500], fontSize: 10)),
             ],
           ),
           const SizedBox(height: 8),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: List.generate(5, (index) => Icon(
               Icons.star, 
-              size: 14, 
+              size: 12, // Perkecil ukuran bintang
               color: index < stars ? Colors.amber : Colors.grey[300]
             )),
           ),
