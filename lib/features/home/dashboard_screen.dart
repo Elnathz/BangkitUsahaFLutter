@@ -730,7 +730,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(width: 2),
                     Text(
-                      "$rating",
+                      rating.toStringAsFixed(2),
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[700],
