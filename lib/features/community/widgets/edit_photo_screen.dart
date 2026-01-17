@@ -38,7 +38,7 @@ class _EditPhotoScreenState extends State<EditPhotoScreen> {
   bool _isAutoAdjusted = false;
   String _selectedFilter = 'No filter';
   double? _cropRatio; // null means 'Free' / Original if not zoomed
-  List<StickerItem> _stickers = [];
+  final List<StickerItem> _stickers = [];
   
   // Interactive / Crop State
   final TransformationController _transformController = TransformationController();

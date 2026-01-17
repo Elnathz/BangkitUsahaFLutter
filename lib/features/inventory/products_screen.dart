@@ -403,7 +403,7 @@ class _ProductsScreenState extends State<ProductsScreen>
                               children: [
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
-                                    value:
+                                    initialValue:
                                         [
                                           'Makanan',
                                           'Minuman',
@@ -637,13 +637,15 @@ class _ProductsScreenState extends State<ProductsScreen>
                                       ? null
                                       : () async {
                                           if (nameCtrl.text.isEmpty ||
-                                              priceCtrl.text.isEmpty)
+                                              priceCtrl.text.isEmpty) {
                                             return;
+                                          }
 
                                           String category = categoryCtrl.text
                                               .trim();
-                                          if (category.isEmpty)
+                                          if (category.isEmpty) {
                                             category = "Umum";
+                                          }
 
                                           // Ambil data toko untuk disimpan di produk
                                           String sellerName = "Toko";
@@ -981,8 +983,9 @@ class _ProductsScreenState extends State<ProductsScreen>
                             if (orderSnapshot.hasData) {
                               for (var doc in orderSnapshot.data!.docs) {
                                 final data = doc.data() as Map<String, dynamic>;
-                                if (data['status'] == 'Menunggu')
+                                if (data['status'] == 'Menunggu') {
                                   pendingCount++;
+                                }
                                 if (data['buyerName'] != null) {
                                   customers.add(data['buyerName']);
                                 }
@@ -1115,10 +1118,12 @@ class _ProductsScreenState extends State<ProductsScreen>
     return StreamBuilder<QuerySnapshot>(
       stream: MarketService().getUserProducts(),
       builder: (context, snapshot) {
-        if (snapshot.hasError)
+        if (snapshot.hasError) {
           return Center(child: Text("Error: ${snapshot.error}"));
-        if (!snapshot.hasData)
+        }
+        if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
 
         final allDocs = snapshot.data!.docs;
 
@@ -1551,10 +1556,11 @@ class _ProductsScreenState extends State<ProductsScreen>
     return StreamBuilder<QuerySnapshot>(
       stream: MarketService().getIncomingOrders(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData)
+        if (!snapshot.hasData) {
           return const Center(
             child: CircularProgressIndicator(color: Color(0xFF1976D2)),
           );
+        }
 
         final allDocs = snapshot.data!.docs;
 
@@ -1567,9 +1573,9 @@ class _ProductsScreenState extends State<ProductsScreen>
         for (var doc in allDocs) {
           final data = doc.data() as Map<String, dynamic>;
           final status = data['status'] ?? 'Menunggu';
-          if (status == 'Menunggu')
+          if (status == 'Menunggu') {
             pendingCount++;
-          else if (status == 'Diproses')
+          } else if (status == 'Diproses')
             processingCount++;
           else if (status == 'Selesai' || status == 'Diantar')
             completedCount++;
@@ -1582,10 +1588,12 @@ class _ProductsScreenState extends State<ProductsScreen>
                 final data = doc.data() as Map<String, dynamic>;
                 final status = data['status'] ?? 'Menunggu';
                 if (_selectedOrderStatus == "Baru") return status == "Menunggu";
-                if (_selectedOrderStatus == "Proses")
+                if (_selectedOrderStatus == "Proses") {
                   return status == "Diproses";
-                if (_selectedOrderStatus == "Selesai")
+                }
+                if (_selectedOrderStatus == "Selesai") {
                   return status == "Selesai" || status == "Diantar";
+                }
                 return true;
               }).toList();
 

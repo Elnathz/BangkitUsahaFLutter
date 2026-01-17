@@ -281,8 +281,9 @@ class ReviewCard extends StatelessWidget {
                   .orderBy('timestamp')
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const SizedBox();
+                }
                 return Container(
                   margin: const EdgeInsets.only(top: 8, left: 12),
                   padding: const EdgeInsets.only(left: 8),

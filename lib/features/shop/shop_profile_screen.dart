@@ -180,8 +180,9 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
             if (range.length == 2) {
               int start = DAYS.indexOf(range[0]);
               int end = DAYS.indexOf(range[1]);
-              if (start != -1 && end != -1)
+              if (start != -1 && end != -1) {
                 loadedDays = DAYS.sublist(start, end + 1);
+              }
             }
           }
         }
@@ -281,10 +282,11 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
 
   void _handleDayToggle(String day) {
     setState(() {
-      if (selectedDays.contains(day))
+      if (selectedDays.contains(day)) {
         selectedDays.remove(day);
-      else
+      } else {
         selectedDays.add(day);
+      }
       selectedDays.sort((a, b) => DAYS.indexOf(a).compareTo(DAYS.indexOf(b)));
     });
   }
@@ -294,8 +296,9 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
       context: context,
       initialTime: isOpenTime ? openTime : closeTime,
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() => isOpenTime ? openTime = picked : closeTime = picked);
+    }
   }
 
   void _showToast(String msg, ToastificationType type) {

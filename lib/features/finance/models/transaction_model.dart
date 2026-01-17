@@ -72,4 +72,18 @@ class TransactionModel {
       orderId: null,
     );
   }
+
+  // 4. Factory dari Firestore (Wajib ada karena dipanggil di FinanceService)
+  factory TransactionModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return TransactionModel(
+      id: doc.id,
+      title: data['title'] ?? 'Transaksi',
+      amount: (data['amount'] ?? 0).toDouble(),
+      type: data['type'] == 'income' ? TransactionType.income : TransactionType.expense,
+      date: (data['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      category: data['category'] ?? 'Umum',
+      orderId: data['orderId'],
+    );
+  }
 }

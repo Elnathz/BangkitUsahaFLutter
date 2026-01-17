@@ -98,8 +98,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               .count()
               .get()
               .then((countSnap) {
-                if (mounted)
+                if (mounted) {
                   setState(() => totalAllInteractions = countSnap.count ?? 0);
+                }
               });
 
           if (docSnap.exists) {
@@ -199,8 +200,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (range.length == 2) {
               int start = DAYS.indexOf(range[0]);
               int end = DAYS.indexOf(range[1]);
-              if (start != -1 && end != -1)
+              if (start != -1 && end != -1) {
                 loadedDays = DAYS.sublist(start, end + 1);
+              }
             }
           }
         }
@@ -305,10 +307,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _handleDayToggle(String day) {
     setState(() {
-      if (selectedDays.contains(day))
+      if (selectedDays.contains(day)) {
         selectedDays.remove(day);
-      else
+      } else {
         selectedDays.add(day);
+      }
       selectedDays.sort((a, b) => DAYS.indexOf(a).compareTo(DAYS.indexOf(b)));
     });
   }
@@ -318,8 +321,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       initialTime: isOpenTime ? openTime : closeTime,
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() => isOpenTime ? openTime = picked : closeTime = picked);
+    }
   }
 
   void _showToast(String msg, ToastificationType type) {
@@ -353,8 +357,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading)
+    if (isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     // Background gradient for the whole screen
     return Scaffold(
@@ -629,9 +634,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           for (var doc in snapshot.data!.docs) {
             final data = doc.data() as Map<String, dynamic>;
             final status = data['status'];
-            if (status == 'Menunggu')
+            if (status == 'Menunggu') {
               pending++;
-            else if (status == 'Diproses')
+            } else if (status == 'Diproses')
               packing++; // Assuming 'Diproses' maps to Packed
             else if (status == 'Diantar')
               shipping++;

@@ -60,6 +60,7 @@ dependencies:
     video_player: ^2.8.1
     chewie: ^1.7.1
     firebase_messaging: ^15.2.10
+    rxdart: ^0.28.0
 
 dev_dependencies:
     flutter_test:
@@ -69,6 +70,7 @@ dev_dependencies:
     # Icons (opsional, jika mau pakai Lucide)
     flutter_lucide: 1.7.0
     permission_handler: ^11.0.1
+    flutter_launcher_icons: ^0.13.1
 
     # The "flutter_lints" package below contains a set of recommended lints to
     # activated in the `analysis_options.yaml` file located at the root of your
@@ -116,3 +118,9 @@ flutter:
     #
     # For details regarding fonts from package dependencies,
     # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/icon/iconAPK.jpeg"
+  min_sdk_android: 21

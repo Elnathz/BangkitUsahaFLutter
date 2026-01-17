@@ -420,7 +420,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       radius: 26,
                                       backgroundColor: Colors.grey[200],
                                       backgroundImage: (shopImage != null && shopImage != "")
-                                          ? NetworkImage(shopImage!)
+                                          ? NetworkImage(shopImage)
                                           : null,
                                       child: (shopImage == null || shopImage == "")
                                           ? Text(

@@ -577,8 +577,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     bool isDark,
   ) {
     String getValidImage() {
-      if (item['imageUrl'] != null && item['imageUrl'] != "")
+      if (item['imageUrl'] != null && item['imageUrl'] != "") {
         return item['imageUrl'];
+      }
       if (item['image'] != null && item['image'] != "") return item['image'];
       return "https://via.placeholder.com/150";
     }

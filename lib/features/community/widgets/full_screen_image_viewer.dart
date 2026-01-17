@@ -139,7 +139,11 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
                       onTap: () {
                          setState(() {
                            _isLiked = !_isLiked;
-                           if (_isLiked) _likes++; else _likes--;
+                           if (_isLiked) {
+                             _likes++;
+                           } else {
+                             _likes--;
+                           }
                          });
                          // Notify parent about like change
                          widget.onLikeToggled?.call(_isLiked);

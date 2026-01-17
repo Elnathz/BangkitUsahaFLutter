@@ -73,8 +73,9 @@ class _SearchPageState extends State<SearchPage> {
                   .collection('products')
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData)
+                if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
+                }
 
                 // Filter Client-side (Firestore search terbatas)
                 final results = snapshot.data!.docs.where((doc) {

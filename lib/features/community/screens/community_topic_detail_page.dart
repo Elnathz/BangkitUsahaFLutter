@@ -11,8 +11,7 @@ import '../services/firebase_storage_service.dart';
 class CommunityTopicDetailPage extends StatefulWidget {
   final TrendingTopic topic;
 
-  const CommunityTopicDetailPage({Key? key, required this.topic})
-    : super(key: key);
+  const CommunityTopicDetailPage({super.key, required this.topic});
 
   @override
   State<CommunityTopicDetailPage> createState() =>
@@ -142,7 +141,7 @@ class _CommunityTopicDetailPageState extends State<CommunityTopicDetailPage> {
                             onBookmark: () => _handleBookmark(post.id),
                           ),
                         );
-                      }).toList(),
+                      }),
                   ],
                 );
               },

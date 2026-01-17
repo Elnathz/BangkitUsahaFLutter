@@ -1,0 +1,1 @@
+flutter run -d chrome --web-port=45335 --web-browser-flag="--disable-web-security"

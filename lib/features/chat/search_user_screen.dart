@@ -55,8 +55,9 @@ class _SearchUserScreenState extends State<SearchUserScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('users').snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           // 1. Filter User (Hapus diri sendiri & sesuaikan search)
           final users = snapshot.data!.docs.where((doc) {

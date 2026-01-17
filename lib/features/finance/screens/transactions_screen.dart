@@ -124,6 +124,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           currentBalance,
                           totalIncome,
                           totalExpense,
+                          transactions, // Kirim data transaksi ke header
                         ),
 
                         // Finance Activity Button
@@ -259,6 +260,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     double balance,
     double income,
     double expense,
+    List<TransactionModel> transactions, // Terima data transaksi
   ) {
     return Container(
       decoration: const BoxDecoration(
@@ -312,7 +314,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ValueListenableBuilder<String>(
               valueListenable: _selectedPeriodNotifier,
               builder: (context, selectedPeriod, _) {
-                return _buildRevenueSummaryCard(selectedPeriod);
+                return _buildRevenueSummaryCard(selectedPeriod, transactions);
               },
             ),
             const SizedBox(height: 12),
@@ -504,12 +506,30 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  Widget _buildRevenueSummaryCard(String selectedPeriod) {
-    // Mock data like TSX
-    final weeklyData = {'revenue': 4850000, 'change': 12.5, 'orders': 28};
-    final monthlyData = {'revenue': 18500000, 'change': 15.3, 'orders': 95};
-    final data = selectedPeriod == 'week' ? weeklyData : monthlyData;
+  Widget _buildRevenueSummaryCard(String selectedPeriod, List<TransactionModel> transactions) {
+    // LOGIKA BARU: Hitung data real-time dari transaksi (Mulai dari 0)
+    final now = DateTime.now();
+    final isWeekly = selectedPeriod == 'week';
+    
+    double periodRevenue = 0;
+    int periodOrders = 0;
 
+    for (var t in transactions) {
+      bool include = false;
+      if (isWeekly) {
+        if (t.date.isAfter(now.subtract(const Duration(days: 7)))) include = true;
+      } else {
+        if (t.date.year == now.year && t.date.month == now.month) include = true;
+      }
+
+      if (include) {
+        periodOrders++;
+        if (t.type == TransactionType.income) {
+          periodRevenue += t.amount;
+        }
+      }
+    }
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -545,7 +565,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      _currencyFormat.format(data['revenue']),
+                      _currencyFormat.format(periodRevenue),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 26,
@@ -574,7 +594,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${data['change']}%',
+                      '0%', // Default 0% karena belum ada logika perbandingan periode lalu
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -594,7 +614,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${selectedPeriod == 'week' ? '7 hari terakhir' : '30 hari terakhir'} • ${data['orders']} pesanan',
+              '${selectedPeriod == 'week' ? '7 hari terakhir' : '30 hari terakhir'} • $periodOrders pesanan',
               style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
                 fontSize: 12,
@@ -776,7 +796,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ...transactions
                 .take(3)
                 .map((t) => _buildTransactionItem(t))
-                .toList(),
+                ,
         ],
       ),
     );
@@ -1148,7 +1168,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: selectedCategory,
+                      initialValue: selectedCategory,
                       items: (isIncome ? incomeCategories : expenseCategories)
                           .map(
                             (e) => DropdownMenuItem(value: e, child: Text(e)),

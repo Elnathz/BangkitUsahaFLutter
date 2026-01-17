@@ -91,7 +91,9 @@ class NotificationService {
         final currentUser = FirebaseAuth.instance.currentUser;
         final recipientId = message.data['recipientId'];
 
-        if (currentUser != null && recipientId != null && recipientId != currentUser.uid) {
+        if (currentUser != null &&
+            recipientId != null &&
+            recipientId != currentUser.uid) {
           return; // Abaikan notifikasi jika bukan untuk user ini
         }
 
@@ -155,6 +157,7 @@ class NotificationService {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'fcmTokens': FieldValue.arrayUnion([token]),
         'fcmToken': token, // Fallback untuk backward compatibility
+        'walletBalance': 0, // Inisialisasi saldo awal akun baru
       }, SetOptions(merge: true));
     }
   }

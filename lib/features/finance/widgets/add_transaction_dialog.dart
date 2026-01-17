@@ -183,10 +183,12 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
                   ),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty)
+                  if (value == null || value.isEmpty) {
                     return 'Nominal harus diisi';
-                  if (double.tryParse(value) == null)
+                  }
+                  if (double.tryParse(value) == null) {
                     return 'Masukkan angka yang valid';
+                  }
                   return null;
                 },
               ),
@@ -194,7 +196,7 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
 
               // Category Dropdown
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: InputDecoration(
                   labelText: 'Kategori',
                   prefixIcon: const Icon(LucideIcons.tag, size: 20),

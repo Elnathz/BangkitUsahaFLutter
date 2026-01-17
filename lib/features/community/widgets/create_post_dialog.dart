@@ -119,7 +119,7 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
           Placemark place = placemarks[0];
           String loc = "${place.subLocality ?? ''} ${place.locality ?? ''}";
           if (loc.trim().isEmpty) {
-             loc = "${place.administrativeArea ?? 'Unknown Location'}";
+             loc = place.administrativeArea ?? 'Unknown Location';
           }
           if (mounted) {
             setState(() => _selectedLocation = loc.trim());

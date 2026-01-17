@@ -11,12 +11,12 @@ class CommentsDialog extends StatefulWidget {
   final Post post;
 
   const CommentsDialog({
-    Key? key,
+    super.key,
     required this.post,
     // Parameter lain tidak diperlukan lagi karena kita fetch sendiri di sini
     // required this.comments,
     // required this.onAddComment,
-  }) : super(key: key);
+  });
 
   @override
   State<CommentsDialog> createState() => _CommentsDialogState();

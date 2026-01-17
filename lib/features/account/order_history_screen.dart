@@ -1148,7 +1148,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
             ),
           
           // Summary text
-          if (items.length > 0)
+          if (items.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 12, bottom: 8),
               child: Text(
@@ -1301,8 +1301,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                             child: ElevatedButton.icon(
                               onPressed: () {
                                 if (isSeller) {
-                                  if (data['cancelRequested'] == true) _handleCancelRequest(orderId, true);
-                                  else if (status == 'Menunggu') _updateOrderStatus(orderId, 'Diproses');
+                                  if (data['cancelRequested'] == true) {
+                                    _handleCancelRequest(orderId, true);
+                                  } else if (status == 'Menunggu') _updateOrderStatus(orderId, 'Diproses');
                                   else if (status == 'Diproses') _updateOrderStatus(orderId, 'Diantar');
                                   else if (status == 'Diantar') toastification.show(context: context, title: const Text("Menunggu konfirmasi Buyer"));
                                 } else {

@@ -370,9 +370,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                     ].where((e) => e != null && e.isNotEmpty).join(', ');
                   }
                 } catch (e) {
-                  if (fullAddress.isEmpty)
+                  if (fullAddress.isEmpty) {
                     fullAddress =
                         "Lokasi (${_pickedLocation.latitude}, ${_pickedLocation.longitude})";
+                  }
                 }
 
                 widget.onLocationPicked(_pickedLocation, fullAddress);
