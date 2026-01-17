@@ -17,6 +17,7 @@ import 'widgets/reviews_modal.dart';
 import '../../services/market_service.dart';
 import '../../map_picker_screen.dart';
 import '../../services/notification_service.dart';
+import '../../services/badge_service.dart';
 
 const List<String> DAYS = [
   'Senin',
@@ -559,24 +560,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Action Buttons
               Row(
                 children: [
-                  _buildActionButton(
-                    context,
-                    LucideIcons.bell,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const NotificationScreen(),
-                      ),
-                    ),
+                  StreamBuilder<bool>(
+                    stream: BadgeService().getNotificationBadgeStream(),
+                    builder: (context, snapshot) {
+                      final showBadge = snapshot.data ?? false;
+                      return _buildActionButtonWithBadge(
+                        context,
+                        LucideIcons.bell,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationScreen(),
+                          ),
+                        ),
+                        showBadge: showBadge,
+                      );
+                    },
                   ),
                   const SizedBox(width: 8),
-                  _buildActionButton(
-                    context,
-                    LucideIcons.messageSquare,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ChatScreen()),
-                    ),
+                  StreamBuilder<bool>(
+                    stream: BadgeService().getChatBadgeStream(),
+                    builder: (context, snapshot) {
+                      final showBadge = snapshot.data ?? false;
+                      return _buildActionButtonWithBadge(
+                        context,
+                        LucideIcons.messageSquare,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ChatScreen()),
+                        ),
+                        showBadge: showBadge,
+                      );
+                    },
                   ),
                   const SizedBox(width: 8),
                   _buildActionButton(
@@ -612,6 +627,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
           border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
         child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildActionButtonWithBadge(
+    BuildContext context,
+    IconData icon,
+    VoidCallback onTap, {
+    bool showBadge = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          if (showBadge)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

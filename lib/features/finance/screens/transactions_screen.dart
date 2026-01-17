@@ -14,6 +14,7 @@ import 'finance_log_page.dart'; // Pastikan ini mengarah ke file di folder yang 
 import '../../chat/chat_screen.dart';
 import '../../notifications/notification_screen.dart';
 import '../../../services/notification_service.dart';
+import '../../../services/badge_service.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -234,16 +235,30 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
               Row(
                 children: [
-                  _buildHeaderIcon(
-                    context,
-                    LucideIcons.bell,
-                    const NotificationScreen(),
+                  StreamBuilder<bool>(
+                    stream: BadgeService().getNotificationBadgeStream(),
+                    builder: (context, snapshot) {
+                      final showBadge = snapshot.data ?? false;
+                      return _buildHeaderIconWithBadge(
+                        context,
+                        LucideIcons.bell,
+                        const NotificationScreen(),
+                        showBadge: showBadge,
+                      );
+                    },
                   ),
                   const SizedBox(width: 8),
-                  _buildHeaderIcon(
-                    context,
-                    LucideIcons.messageSquare,
-                    const ChatScreen(),
+                  StreamBuilder<bool>(
+                    stream: BadgeService().getChatBadgeStream(),
+                    builder: (context, snapshot) {
+                      final showBadge = snapshot.data ?? false;
+                      return _buildHeaderIconWithBadge(
+                        context,
+                        LucideIcons.messageSquare,
+                        const ChatScreen(),
+                        showBadge: showBadge,
+                      );
+                    },
                   ),
                 ],
               ),
@@ -632,6 +647,59 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ],
         ),
         child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildHeaderIconWithBadge(
+    BuildContext context,
+    IconData icon,
+    Widget destination, {
+    bool showBadge = false,
+  }) {
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => destination),
+      ),
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          if (showBadge)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

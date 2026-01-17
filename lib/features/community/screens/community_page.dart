@@ -17,6 +17,7 @@ import '../widgets/create_group_modal.dart';
 import '../../chat/chat_screen.dart';
 import '../../notifications/notification_screen.dart';
 import '../widgets/create_post_dialog.dart';
+import '../../../services/badge_service.dart';
 
 class CommunityPage extends StatefulWidget {
   final VoidCallback onClose;
@@ -224,32 +225,45 @@ class _CommunityPageState extends State<CommunityPage>
                             icon: LucideIcons.search,
                             onTap: () =>
                                 setState(() => _showSearch = !_showSearch),
-                            color: Colors.white, // Explicit white color
+                            color: Colors.white,
                           ),
                           const SizedBox(width: 8),
                           // Notifications Button with Badge
-                          _buildActionIcon(
-                            icon: LucideIcons.bell,
-                            showBadge: true,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const NotificationScreen(),
-                              ),
-                            ),
-                            color: Colors.white, // Explicit white color
+                          StreamBuilder<bool>(
+                            stream: BadgeService().getNotificationBadgeStream(),
+                            builder: (context, snapshot) {
+                              final showBadge = snapshot.data ?? false;
+                              return _buildActionIcon(
+                                icon: LucideIcons.bell,
+                                showBadge: showBadge,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const NotificationScreen(),
+                                  ),
+                                ),
+                                color: Colors.white,
+                              );
+                            },
                           ),
                           const SizedBox(width: 8),
                           // Messages Button
-                          _buildActionIcon(
-                            icon: LucideIcons.messageSquare,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const ChatScreen(),
-                              ),
-                            ),
-                            color: Colors.white, // Explicit white color
+                          StreamBuilder<bool>(
+                            stream: BadgeService().getChatBadgeStream(),
+                            builder: (context, snapshot) {
+                              final showBadge = snapshot.data ?? false;
+                              return _buildActionIcon(
+                                icon: LucideIcons.messageSquare,
+                                showBadge: showBadge,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ChatScreen(),
+                                  ),
+                                ),
+                                color: Colors.white,
+                              );
+                            },
                           ),
                         ],
                       ),

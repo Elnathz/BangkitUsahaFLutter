@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../auth/login_screen.dart';
 
 
 class SettingsScreen extends StatelessWidget {
@@ -19,9 +20,19 @@ class SettingsScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
+              // Close dialog first
               Navigator.pop(ctx);
-              Navigator.pop(context);
+              
+              // Sign out from Firebase
               await FirebaseAuth.instance.signOut();
+              
+              // Navigate to LoginScreen and remove all previous routes
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (Route<dynamic> route) => false,
+                );
+              }
             },
             child: const Text("Keluar", style: TextStyle(color: Colors.red)),
           ),
