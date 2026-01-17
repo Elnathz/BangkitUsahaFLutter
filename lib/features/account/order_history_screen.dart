@@ -1541,13 +1541,17 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                   // Stars
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: List.generate(5, (index) {
-                      return IconButton(
-                        onPressed: () => setStateSB(() => rating = index + 1.0),
-                        icon: Icon(
-                          index < rating ? LucideIcons.star : LucideIcons.star,
-                          color: index < rating ? Colors.orange : Colors.grey[300],
-                          size: 32,
+                      return GestureDetector(
+                        onTap: () => setStateSB(() => rating = index + 1.0),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(
+                            index < rating ? LucideIcons.star : LucideIcons.star,
+                            color: index < rating ? Colors.orange : Colors.grey[300],
+                            size: 28,
+                          ),
                         ),
                       );
                     }),

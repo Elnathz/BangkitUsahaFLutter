@@ -1808,70 +1808,79 @@ class _ProductsScreenState extends State<ProductsScreen>
                               children: [
                                 // HEADER
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                const Color(
-                                                  0xFF1976D2,
-                                                ).withOpacity(0.1),
-                                                const Color(
-                                                  0xFF1976D2,
-                                                ).withOpacity(0.18),
-                                              ],
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            LucideIcons.shoppingBag,
-                                            color: Color(0xFF1976D2),
-                                            size: 20,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              data['orderId'] ?? "ORD-???",
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  const Color(
+                                                    0xFF1976D2,
+                                                  ).withOpacity(0.1),
+                                                  const Color(
+                                                    0xFF1976D2,
+                                                  ).withOpacity(0.18),
+                                                ],
+                                              ),
+                                              borderRadius: BorderRadius.circular(
+                                                12,
                                               ),
                                             ),
-                                            const SizedBox(height: 4),
-                                            Row(
+                                            child: const Icon(
+                                              LucideIcons.shoppingBag,
+                                              color: Color(0xFF1976D2),
+                                              size: 20,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
-                                                Icon(
-                                                  LucideIcons.user,
-                                                  size: 12,
-                                                  color: Colors.grey[600],
-                                                ),
-                                                const SizedBox(width: 4),
                                                 Text(
-                                                  data['buyerName'] ??
-                                                      'Pembeli',
-                                                  style: TextStyle(
-                                                    color: Colors.grey[600],
-                                                    fontSize: 12,
+                                                  data['orderId'] ?? "ORD-???",
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
                                                   ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Row(
+                                                  children: [
+                                                    Icon(
+                                                      LucideIcons.user,
+                                                      size: 12,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Flexible(
+                                                      child: Text(
+                                                        data['buyerName'] ??
+                                                            'Pembeli',
+                                                        style: TextStyle(
+                                                          color: Colors.grey[600],
+                                                          fontSize: 12,
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ],
                                             ),
-                                          ],
-                                        ),
-                                      ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 10,
